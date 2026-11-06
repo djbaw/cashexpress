@@ -2086,29 +2086,36 @@ function initAppAfterSync() {
 // ÉCOUTE FIREBASE
 STATE_REF.on('value', (snapshot) => {
     const remote = snapshot.val();
+
     if (!firebaseReady) {
         if (remote) {
             state = remote;
-            ensureStateIntegrity(); // ← PROTECTION AJOUTÉE
+            if (typeof ensureStateIntegrity === 'function') ensureStateIntegrity();
             firebaseReady = true;
             setSyncStatus('online');
             initAppAfterSync();
         } else {
-            ensureStateIntegrity();
+            if (typeof ensureStateIntegrity === 'function') ensureStateIntegrity();
             firebaseReady = true;
-            setSyncStatus('syncing');
-            STATE_REF.set(state).then(() => { setSyncStatus('online'); initAppAfterSync(); })
-                .catch(err => { console.error(err); setSyncStatus('offline'); initAppAfterSync(); });
+            STATE_REF.set(state).then(() => {
+                setSyncStatus('online');
+                initAppAfterSync();
+            }).catch(err => {
+                console.error(err);
+                setSyncStatus('offline');
+                initAppAfterSync();
+            });
         }
         return;
     }
+
     if (!remote) return;
-    if (JSON.stringify(remote) !== JSON.stringify(state)) {
-        state = remote;
-        ensureStateIntegrity(); // ← PROTECTION AJOUTÉE
-        setSyncStatus('online');
-        renderApp();
-    }
+
+    // Toujours appliquer la mise à jour (le serveur est la source de vérité)
+    state = remote;
+    if (typeof ensureStateIntegrity === 'function') ensureStateIntegrity();
+    setSyncStatus('online');
+    renderApp();
 });
     
 // Gestion erreurs Firebase
