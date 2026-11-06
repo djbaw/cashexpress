@@ -963,7 +963,26 @@ state.adminStartBalances[getTodayStr()] = 5000;
 let isAdminAuthenticated = false;
 
 // ==================== SAUVEGARDE FIREBASE ====================
-function saveState() {
+// Fonction de sécurité : garantit que state.livreurs et ses sous-objets existent
+function ensureStateIntegrity() {
+    if (!state || typeof state !== 'object') state = {};
+    if (!state.livreurs || typeof state.livreurs !== 'object') state.livreurs = {};
+    ['livreur1', 'livreur2', 'livreur3'].forEach(id => {
+        if (!state.livreurs[id]) {
+            state.livreurs[id] = { id, name: `Livreur ${id.replace('livreur','')}`, startBalances: {} };
+        }
+        if (!state.livreurs[id].startBalances || typeof state.livreurs[id].startBalances !== 'object') {
+            state.livreurs[id].startBalances = {};
+        }
+    });
+    if (!state.adminStartBalances || typeof state.adminStartBalances !== 'object') state.adminStartBalances = {};
+    if (!Array.isArray(state.deliveries)) state.deliveries = [];
+    if (!Array.isArray(state.blacklist)) state.blacklist = [];
+    if (!state.selectedDate) state.selectedDate = getTodayStr();
+    if (!state.lastRolloverDate) state.lastRolloverDate = getTodayStr();
+    if (!state.adminPin) state.adminPin = "1234";
+}
+    function saveState() {
     renderApp();
     clearTimeout(saveDebounceTimer);
     saveDebounceTimer = setTimeout(() => {
@@ -1864,25 +1883,33 @@ function handleSaveAddCash(e) {
 }
 function handleSaveStartBalance(e) {
     e.preventDefault();
+    ensureStateIntegrity(); // ← PROTECTION AJOUTÉE
+
     const livreurId = document.getElementById('start-balance-livreur-id').value;
     const amount = parseFloat(document.getElementById('input-start-balance-amount').value);
     const date = state.selectedDate || getTodayStr();
     if (isNaN(amount) || amount < 0) { alert("Montant invalide."); return; }
-    const adminStart = getAdminStartBalance(date);
-    const otherSum = ['livreur1', 'livreur2', 'livreur3'].filter(id => id !== livreurId).reduce((s, id) => s + getStartBalance(id, date), 0);
-    if (otherSum + amount > adminStart) { alert(`Plafond dépassé ! Max : ${adminStart - otherSum} TND`); return; }
 
-    if (!state.livreurs[livreurId]) return;
+    const adminStart = getAdminStartBalance(date);
+    const otherSum = ['livreur1', 'livreur2', 'livreur3']
+        .filter(id => id !== livreurId)
+        .reduce((s, id) => s + getStartBalance(id, date), 0);
+
+    if (otherSum + amount > adminStart) {
+        alert(`Plafond dépassé ! Max : ${adminStart - otherSum} TND`);
+        return;
+    }
+
     if (!state.livreurs[livreurId].startBalances) state.livreurs[livreurId].startBalances = {};
     state.livreurs[livreurId].startBalances[date] = amount;
 
     toggleStartBalanceModal(false);
+    renderApp(); // mise à jour locale immédiate
 
     setSyncStatus('syncing');
     STATE_REF.set(state)
         .then(() => {
             setSyncStatus('online');
-            renderApp();
             showToast("Solde Livreur mis à jour", `${amount} TND attribués à ${state.livreurs[livreurId]?.name}.`);
         })
         .catch(err => {
@@ -1891,7 +1918,7 @@ function handleSaveStartBalance(e) {
             alert("Erreur de sauvegarde Firebase : " + err.message);
         });
 }
-// ==================== MODALES ====================
+    // ==================== MODALES ====================
 function toggleAddModal(show) {
     const modal = document.getElementById('modal-delivery');
     if (show) {
@@ -1924,20 +1951,26 @@ function openAdminStartBalanceModal() {
 function toggleAdminStartBalanceModal(show) { const m = document.getElementById('modal-admin-start-balance'); if (show) m.classList.remove('hidden'); else m.classList.add('hidden'); }
 function handleSaveAdminStartBalance(e) {
     e.preventDefault();
+    ensureStateIntegrity(); // ← PROTECTION AJOUTÉE
+
     const date = state.selectedDate || getTodayStr();
     const amount = parseFloat(document.getElementById('input-admin-start-balance-amount').value);
     if (isNaN(amount) || amount < 0) { alert("Montant invalide."); return; }
+
     const currentLivreursTotal = getTotalLivreursStartBalance(date);
-    if (amount < currentLivreursTotal) { alert(`Impossible : déjà attribué ${currentLivreursTotal} TND aux livreurs.`); return; }
-    if (!state.adminStartBalances) state.adminStartBalances = {};
+    if (amount < currentLivreursTotal) {
+        alert(`Impossible : déjà attribué ${currentLivreursTotal} TND aux livreurs.`);
+        return;
+    }
+
     state.adminStartBalances[date] = amount;
     toggleAdminStartBalanceModal(false);
+    renderApp();
 
     setSyncStatus('syncing');
     STATE_REF.set(state)
         .then(() => {
             setSyncStatus('online');
-            renderApp();
             showToast("Solde Admin Enregistré", `${amount} TND pour le ${date}.`);
         })
         .catch(err => {
@@ -2054,10 +2087,12 @@ STATE_REF.on('value', (snapshot) => {
     if (!firebaseReady) {
         if (remote) {
             state = remote;
+            ensureStateIntegrity(); // ← PROTECTION AJOUTÉE
             firebaseReady = true;
             setSyncStatus('online');
             initAppAfterSync();
         } else {
+            ensureStateIntegrity();
             firebaseReady = true;
             setSyncStatus('syncing');
             STATE_REF.set(state).then(() => { setSyncStatus('online'); initAppAfterSync(); })
@@ -2068,11 +2103,12 @@ STATE_REF.on('value', (snapshot) => {
     if (!remote) return;
     if (JSON.stringify(remote) !== JSON.stringify(state)) {
         state = remote;
+        ensureStateIntegrity(); // ← PROTECTION AJOUTÉE
         setSyncStatus('online');
         renderApp();
     }
 });
-
+    
 // Gestion erreurs Firebase
 STATE_REF.on('value', () => {}, (error) => { console.error("Erreur Firebase:", error); setSyncStatus('offline'); });
 </script>
