@@ -960,8 +960,29 @@ let state = {
 };
 state.adminStartBalances[getTodayStr()] = 5000;
 
-let isAdminAuthenticated = false;
+// Récupération du flag d'authentification avec expiration (24h)
+const ADMIN_AUTH_KEY = 'cashexpress_admin_auth_expiry';
 
+    let isAdminAuthenticated = false;
+(function initAdminAuth() {
+    try {
+        const expiry = parseInt(localStorage.getItem(ADMIN_AUTH_KEY) || '0', 10);
+        if (expiry && Date.now() < expiry) {
+            isAdminAuthenticated = true;
+        }
+    } catch (e) {}
+})();
+function persistAdminAuth() {
+    try {
+        // Session valide 24h
+        localStorage.setItem(ADMIN_AUTH_KEY, String(Date.now() + 1 * 60 * 60 * 1000));
+    } catch (e) {}
+}
+function clearAdminAuth() {
+    try { localStorage.removeItem(ADMIN_AUTH_KEY); } catch (e) {}
+    isAdminAuthenticated = false;
+}
+    
 // ==================== SAUVEGARDE FIREBASE ====================
 // Fonction de sécurité : garantit que state.livreurs et ses sous-objets existent
 function ensureStateIntegrity() {
@@ -989,8 +1010,14 @@ function ensureStateIntegrity() {
         if (!firebaseReady) return;
         setSyncStatus('syncing');
         STATE_REF.set(state)
-            .then(() => setSyncStatus('online'))
-            .catch(err => { console.error(err); setSyncStatus('offline'); });
+            .then(() => {
+                setSyncStatus('online');
+                lastRemoteJson = JSON.stringify(state);
+            })
+            .catch(err => {
+                console.error(err);
+                setSyncStatus('offline');
+            });
     }, 250);
 }
 
@@ -1125,8 +1152,8 @@ function lockRoleSelector(lockedRole) {
     if (activeBtn) { activeBtn.classList.remove('hidden'); activeBtn.classList.add('bg-brand-600', 'text-white'); }
 }
 function switchRole(roleId, isURLCheck = false) {
-    if (roleId === 'admin' && !isAdminAuthenticated && !isURLCheck) {
-        document.getElementById('admin-pin-error').classList.add('hidden');
+if (roleId === 'admin' && !isAdminAuthenticated && !isURLCheck) {
+    document.getElementById('admin-pin-error').classList.add('hidden');
         document.getElementById('input-admin-pin').value = '';
         toggleAdminAuthModal(true);
         return;
@@ -1151,7 +1178,21 @@ function toggleAdminAuthModal(show) {
     const modal = document.getElementById('modal-admin-auth');
     if (show) modal.classList.remove('hidden'); else modal.classList.add('hidden');
 }
-function verifyAdminPIN(e) {
+
+    function verifyAdminPIN(e) {
+    e.preventDefault();
+    const inputPIN = document.getElementById('input-admin-pin').value;
+    const currentPin = state.adminPin || "1234";
+    if (inputPIN === currentPin) {
+        isAdminAuthenticated = true;
+        persistAdminAuth(); // ← on enregistre la session pour 24h
+        toggleAdminAuthModal(false);
+        switchRole('admin', true);
+        showToast("Accès Admin Autorisé", "Vous êtes connecté en tant qu'Administrateur pour 24h.");
+    } else {
+        document.getElementById('admin-pin-error').classList.remove('hidden');
+    }
+}
     e.preventDefault();
     const inputPIN = document.getElementById('input-admin-pin').value;
     const currentPin = state.adminPin || "1234";
@@ -1185,6 +1226,7 @@ function handleSaveNewAdminPIN(e) {
     if (newInput.length < 4) { errorElement.textContent = "❌ Le nouveau PIN doit contenir au moins 4 caractères !"; errorElement.classList.remove('hidden'); return; }
     if (newInput !== confirmInput) { errorElement.textContent = "❌ Les PIN ne correspondent pas !"; errorElement.classList.remove('hidden'); return; }
     state.adminPin = newInput;
+    persistAdminAuth(); // prolonge la session 1h après changement de PIN
     saveState();
     toggleChangeAdminPinModal(false);
     showToast("🔒 PIN Admin Modifié", "Le PIN a été mis à jour.");
@@ -2084,29 +2126,46 @@ function initAppAfterSync() {
 // ÉCOUTE FIREBASE
 STATE_REF.on('value', (snapshot) => {
     const remote = snapshot.val();
+    let lastRemoteJson = '';
+STATE_REF.on('value', (snapshot) => {
+    const remote = snapshot.val();
+
     if (!firebaseReady) {
         if (remote) {
             state = remote;
-            ensureStateIntegrity(); // ← PROTECTION AJOUTÉE
+            ensureStateIntegrity();
             firebaseReady = true;
+            lastRemoteJson = JSON.stringify(state);
             setSyncStatus('online');
             initAppAfterSync();
         } else {
             ensureStateIntegrity();
             firebaseReady = true;
-            setSyncStatus('syncing');
-            STATE_REF.set(state).then(() => { setSyncStatus('online'); initAppAfterSync(); })
-                .catch(err => { console.error(err); setSyncStatus('offline'); initAppAfterSync(); });
+            STATE_REF.set(state).then(() => {
+                setSyncStatus('online');
+                lastRemoteJson = JSON.stringify(state);
+                initAppAfterSync();
+            }).catch(err => {
+                console.error(err);
+                setSyncStatus('offline');
+                initAppAfterSync();
+            });
         }
         return;
     }
+
     if (!remote) return;
-    if (JSON.stringify(remote) !== JSON.stringify(state)) {
-        state = remote;
-        ensureStateIntegrity(); // ← PROTECTION AJOUTÉE
-        setSyncStatus('online');
-        renderApp();
-    }
+
+    const newJson = JSON.stringify(remote);
+    // Si le serveur renvoie exactement la même chose que la dernière fois, on ignore
+    if (newJson === lastRemoteJson) return;
+
+    // Sinon, on applique la mise à jour en provenance du serveur
+    state = remote;
+    ensureStateIntegrity();
+    lastRemoteJson = newJson;
+    setSyncStatus('online');
+    renderApp();
 });
     
 // Gestion erreurs Firebase
