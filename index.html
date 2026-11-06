@@ -1173,17 +1173,24 @@ function handleSaveNewAdminPIN(e) {
 
 // ==================== LIENS ====================
 function openDirectLinksModal() {
-    const baseUrl = window.location.href.split('?')[0];
+    let changed = false;
     ['livreur1', 'livreur2', 'livreur3'].forEach(id => {
-        if (!state.livreurs[id].token) state.livreurs[id].token = generateRandomToken(id);
+        if (!state.livreurs[id].token) {
+            state.livreurs[id].token = generateRandomToken(id);
+            changed = true;
+        }
     });
+    if (changed) {
+        STATE_REF.set(state).catch(err => console.error(err));
+    }
+    const baseUrl = window.location.href.split('?')[0];
     document.getElementById('link-url-admin').value = `${baseUrl}?role=admin`;
     document.getElementById('link-url-livreur1').value = `${baseUrl}?role=livreur1&token=${state.livreurs.livreur1.token}`;
     document.getElementById('link-url-livreur2').value = `${baseUrl}?role=livreur2&token=${state.livreurs.livreur2.token}`;
     document.getElementById('link-url-livreur3').value = `${baseUrl}?role=livreur3&token=${state.livreurs.livreur3.token}`;
     toggleDirectLinksModal(true);
 }
-function toggleDirectLinksModal(show) {
+    function toggleDirectLinksModal(show) {
     const modal = document.getElementById('modal-direct-links');
     if (show) modal.classList.remove('hidden'); else modal.classList.add('hidden');
 }
@@ -1195,14 +1202,23 @@ function copyToClipboard(elementId) {
 }
 function revokeAndRegenerateLink(livreurId) {
     const livreurName = state.livreurs[livreurId]?.name || livreurId;
-    if (confirm(`Révoquer le lien de ${livreurName} ? Son ancien lien sera IMMÉDIATEMENT bloqué.`)) {
-        state.livreurs[livreurId].token = generateRandomToken(livreurId);
-        saveState();
-        openDirectLinksModal();
-        showToast("🔴 Lien Révoqué !", `L'ancien lien de ${livreurName} a été désactivé.`);
-    }
+    if (!confirm(`Révoquer le lien de ${livreurName} ?\n\nSon ancien lien sera IMMÉDIATEMENT bloqué.`)) return;
+    state.livreurs[livreurId].token = generateRandomToken(livreurId);
+    setSyncStatus('syncing');
+    STATE_REF.set(state)
+        .then(() => {
+            setSyncStatus('online');
+            renderApp();
+            openDirectLinksModal();
+            showToast("🔴 Lien Révoqué !", `L'ancien lien de ${livreurName} a été désactivé. Nouveau lien généré.`);
+        })
+        .catch(err => {
+            console.error(err);
+            setSyncStatus('offline');
+            alert("Erreur Firebase : " + err.message);
+        });
 }
-
+    
 // ==================== CALCULS ====================
 function getAdminStartBalance(date) {
     return (state.adminStartBalances && state.adminStartBalances[date] !== undefined) ? state.adminStartBalances[date] : 0;
@@ -1855,15 +1871,26 @@ function handleSaveStartBalance(e) {
     const adminStart = getAdminStartBalance(date);
     const otherSum = ['livreur1', 'livreur2', 'livreur3'].filter(id => id !== livreurId).reduce((s, id) => s + getStartBalance(id, date), 0);
     if (otherSum + amount > adminStart) { alert(`Plafond dépassé ! Max : ${adminStart - otherSum} TND`); return; }
-    if (state.livreurs[livreurId]) {
-        if (!state.livreurs[livreurId].startBalances) state.livreurs[livreurId].startBalances = {};
-        state.livreurs[livreurId].startBalances[date] = amount;
-    }
-    toggleStartBalanceModal(false);
-    saveState();
-    showToast("Solde Livreur mis à jour", `Nouveau départ : ${amount} TND pour ${state.livreurs[livreurId]?.name}.`);
-}
 
+    if (!state.livreurs[livreurId]) return;
+    if (!state.livreurs[livreurId].startBalances) state.livreurs[livreurId].startBalances = {};
+    state.livreurs[livreurId].startBalances[date] = amount;
+
+    toggleStartBalanceModal(false);
+
+    setSyncStatus('syncing');
+    STATE_REF.set(state)
+        .then(() => {
+            setSyncStatus('online');
+            renderApp();
+            showToast("Solde Livreur mis à jour", `${amount} TND attribués à ${state.livreurs[livreurId]?.name}.`);
+        })
+        .catch(err => {
+            console.error(err);
+            setSyncStatus('offline');
+            alert("Erreur de sauvegarde Firebase : " + err.message);
+        });
+}
 // ==================== MODALES ====================
 function toggleAddModal(show) {
     const modal = document.getElementById('modal-delivery');
@@ -1905,10 +1932,21 @@ function handleSaveAdminStartBalance(e) {
     if (!state.adminStartBalances) state.adminStartBalances = {};
     state.adminStartBalances[date] = amount;
     toggleAdminStartBalanceModal(false);
-    saveState();
-    showToast("Solde Admin Enregistré", `${amount} TND pour le ${date}.`);
+
+    setSyncStatus('syncing');
+    STATE_REF.set(state)
+        .then(() => {
+            setSyncStatus('online');
+            renderApp();
+            showToast("Solde Admin Enregistré", `${amount} TND pour le ${date}.`);
+        })
+        .catch(err => {
+            console.error(err);
+            setSyncStatus('offline');
+            alert("Erreur de sauvegarde Firebase : " + err.message);
+        });
 }
-function openEditLivreurNameModal(id) {
+    function openEditLivreurNameModal(id) {
     document.getElementById('edit-livreur-id').value = id;
     document.getElementById('input-livreur-name').value = state.livreurs[id]?.name || '';
     toggleEditLivreurNameModal(true);
@@ -1965,29 +2003,51 @@ function initAppAfterSync() {
     checkAndExecuteDailyRollover();
     document.getElementById('global-date-picker').value = state.selectedDate || getTodayStr();
     if (!state.adminPin) state.adminPin = "1234";
-    ['livreur1', 'livreur2', 'livreur3'].forEach(id => {
-        if (!state.livreurs[id].token) state.livreurs[id].token = generateRandomToken(id);
-    });
-    const { role: urlRole, token: urlToken } = getRoleFromURL();
-    if (urlRole) {
-        if (urlRole === 'admin') { switchRole('admin', true); }
-        else {
-            const currentActiveToken = state.livreurs[urlRole]?.token;
-            if (urlToken && urlToken === currentActiveToken) {
-                state.currentRole = urlRole;
-                lockRoleSelector(urlRole);
-                switchRole(urlRole, false);
-            } else {
-                document.getElementById('modal-access-blocked').classList.remove('hidden');
-                document.body.innerHTML = document.getElementById('modal-access-blocked').outerHTML;
-                return;
-            }
-        }
-    } else {
-        switchRole('admin', false);
-    }
-}
 
+    let tokensChanged = false;
+    ['livreur1', 'livreur2', 'livreur3'].forEach(id => {
+        if (!state.livreurs[id].token) {
+            state.livreurs[id].token = generateRandomToken(id);
+            tokensChanged = true;
+        }
+    });
+    if (tokensChanged) {
+        STATE_REF.set(state).catch(err => console.error(err));
+    }
+
+    const { role: urlRole, token: urlToken } = getRoleFromURL();
+
+    if (urlRole) {
+        if (urlRole === 'admin') {
+            switchRole('admin', true);
+            return;
+        }
+        const currentActiveToken = state.livreurs[urlRole]?.token;
+        if (urlToken && currentActiveToken && urlToken === currentActiveToken) {
+            state.currentRole = urlRole;
+            lockRoleSelector(urlRole);
+            switchRole(urlRole, false);
+        } else {
+            const modal = document.getElementById('modal-access-blocked');
+            modal.classList.remove('hidden');
+            const info = modal.querySelector('p.text-xs.text-slate-600');
+            if (info) {
+                info.innerHTML = `
+                    Ce lien d'accès n'est plus valide ou a été <strong>révoqué par l'administrateur</strong>.<br><br>
+                    <span style="color:#dc2626;font-weight:bold;">Diagnostic technique :</span><br>
+                    Rôle demandé : <code>${urlRole}</code><br>
+                    Token dans l'URL : <code>${urlToken || '(absent)'}</code><br>
+                    Token attendu : <code>${currentActiveToken || '(non défini)'}</code><br><br>
+                    Veuillez demander un nouveau lien à votre responsable.
+                `;
+            }
+            document.body.innerHTML = modal.outerHTML;
+        }
+        return;
+    }
+    switchRole('admin', false);
+}
+    
 // ÉCOUTE FIREBASE
 STATE_REF.on('value', (snapshot) => {
     const remote = snapshot.val();
