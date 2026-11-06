@@ -960,8 +960,23 @@ let state = {
 };
 state.adminStartBalances[getTodayStr()] = 5000;
 
-let isAdminAuthenticated = false;
+const ADMIN_AUTH_KEY = 'cashexpress_admin_auth_expiry';
 
+    let isAdminAuthenticated = false;
+(function initAdminAuth() {
+    try {
+        const expiry = parseInt(localStorage.getItem(ADMIN_AUTH_KEY) || '0', 10);
+        if (expiry && Date.now() < expiry) isAdminAuthenticated = true;
+    } catch (e) {}
+})();
+function persistAdminAuth() {
+    try { localStorage.setItem(ADMIN_AUTH_KEY, String(Date.now() + 60 * 60 * 1000)); } catch (e) {}
+}
+function clearAdminAuth() {
+    try { localStorage.removeItem(ADMIN_AUTH_KEY); } catch (e) {}
+    isAdminAuthenticated = false;
+}
+    
 // ==================== SAUVEGARDE FIREBASE ====================
 // Fonction de sécurité : garantit que state.livreurs et ses sous-objets existent
 function ensureStateIntegrity() {
@@ -1151,7 +1166,22 @@ function toggleAdminAuthModal(show) {
     const modal = document.getElementById('modal-admin-auth');
     if (show) modal.classList.remove('hidden'); else modal.classList.add('hidden');
 }
-function verifyAdminPIN(e) {
+
+    function verifyAdminPIN(e) {
+    e.preventDefault();
+    const inputPIN = document.getElementById('input-admin-pin').value;
+    const currentPin = state.adminPin || "1234";
+    if (inputPIN === currentPin) {
+        isAdminAuthenticated = true;
+        persistAdminAuth();
+        toggleAdminAuthModal(false);
+        switchRole('admin', true);
+        showToast("Accès Admin Autorisé", "Session active pour 1 heure.");
+    } else {
+        document.getElementById('admin-pin-error').classList.remove('hidden');
+    }
+}
+    
     e.preventDefault();
     const inputPIN = document.getElementById('input-admin-pin').value;
     const currentPin = state.adminPin || "1234";
