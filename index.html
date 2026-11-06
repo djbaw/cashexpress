@@ -1,0 +1,2020 @@
+<!DOCTYPE html>
+<html lang="fr" class="h-full bg-slate-50">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Gestion de Livraison d'Argent - CashExpress</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    colors: {
+                        brand: {
+                            50: '#eff6ff', 100: '#dbeafe', 500: '#3b82f6',
+                            600: '#2563eb', 700: '#1d4ed8',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        .strikethrough-text { text-decoration: line-through; opacity: 0.75; }
+
+        :root { --ui-zoom: 1; }
+        html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; overflow-x: hidden; }
+        body { overflow-x: hidden; overscroll-behavior-x: none; }
+        button, a, select, label, summary { touch-action: manipulation; }
+        main { zoom: var(--ui-zoom); }
+        [id^="modal-"] > div { zoom: var(--ui-zoom); }
+        [id^="modal-"] > div.max-h-\[90vh\] { max-height: calc(90dvh / var(--ui-zoom)) !important; }
+
+        @media (max-width: 1023px) {
+            input, select, textarea { font-size: 16px !important; }
+        }
+
+        #sync-indicator.online  { background-color: #10b981; }
+        #sync-indicator.offline { background-color: #ef4444; }
+        #sync-indicator.syncing { background-color: #f59e0b; }
+    </style>
+</head>
+<body class="h-full font-sans text-slate-800 flex flex-col bg-slate-100">
+
+<!-- MODAL: BLACKLIST MANAGEMENT -->
+<div id="modal-blacklist" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-3xl overflow-hidden transform transition-all max-h-[90vh] flex flex-col">
+        <div class="bg-red-600 px-6 py-4 text-white flex justify-between items-center shrink-0">
+            <h3 class="font-bold text-lg flex items-center gap-2">
+                <i class="fa-solid fa-user-slash"></i>
+                <span>Gestion de la Liste Noire (Clients Bloqués)</span>
+            </h3>
+            <button onclick="toggleBlacklistModal(false)" class="text-white/80 hover:text-white transition">
+                <i class="fa-solid fa-xmark text-xl"></i>
+            </button>
+        </div>
+        <div class="p-6 space-y-6 overflow-y-auto">
+            <form id="form-add-blacklist" onsubmit="handleAddBlacklist(event)" class="bg-red-50/50 p-4 rounded-xl border border-red-100 space-y-3">
+                <h4 class="font-bold text-xs uppercase text-red-900 flex items-center gap-1.5">
+                    <i class="fa-solid fa-user-plus text-red-600"></i>
+                    <span>Ajouter / Modifier un Client Bloqué</span>
+                </h4>
+                <input type="hidden" id="blacklist-edit-id" value="">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Téléphone *</label>
+                        <input type="tel" id="blacklist-input-phone" required placeholder="ex: 99 999 999" class="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-red-500 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Nom & Prénom *</label>
+                        <input type="text" id="blacklist-input-name" required placeholder="ex: Nom Client" class="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-red-500 focus:outline-none">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Motif du blocage *</label>
+                    <input type="text" id="blacklist-input-reason" required placeholder="ex: Litige, impayé, comportement inapproprié..." class="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs focus:ring-2 focus:ring-red-500 focus:outline-none">
+                </div>
+                <div class="flex justify-end gap-2 pt-1">
+                    <button type="button" id="blacklist-cancel-btn" onclick="resetBlacklistForm()" class="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold text-xs rounded-lg transition hidden">Annuler</button>
+                    <button type="submit" id="blacklist-submit-btn" class="px-4 py-1.5 bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded-lg shadow transition">Ajouter à la Liste Noire</button>
+                </div>
+            </form>
+            <div class="space-y-2">
+                <h4 class="font-bold text-xs uppercase text-slate-700">Liste des numéros enregistrés</h4>
+                <div class="border border-slate-200 rounded-xl overflow-hidden">
+                    <table class="w-full text-left text-xs border-collapse">
+                        <thead>
+                            <tr class="bg-slate-100 text-slate-600 font-bold uppercase border-b border-slate-200">
+                                <th class="p-2.5">Téléphone</th>
+                                <th class="p-2.5">Nom</th>
+                                <th class="p-2.5">Motif</th>
+                                <th class="p-2.5 text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="blacklist-table-body" class="divide-y divide-slate-100"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="p-4 bg-slate-50 border-t border-slate-100 flex justify-end shrink-0">
+            <button type="button" onclick="toggleBlacklistModal(false)" class="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-800 font-semibold text-xs rounded-xl transition">Fermer</button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL: CHANGE ADMIN PIN -->
+<div id="modal-change-admin-pin" class="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden transform transition-all border border-slate-200">
+        <div class="bg-brand-600 px-6 py-4 text-white flex justify-between items-center">
+            <h3 class="font-bold text-base flex items-center gap-2"><i class="fa-solid fa-key text-amber-300"></i> Modifier Code PIN Admin</h3>
+            <button onclick="toggleChangeAdminPinModal(false)" class="text-white/80 hover:text-white transition"><i class="fa-solid fa-xmark text-lg"></i></button>
+        </div>
+        <form id="form-change-admin-pin" onsubmit="handleSaveNewAdminPIN(event)" class="p-6 space-y-4">
+            <div>
+                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Code PIN Actuel *</label>
+                <input type="password" id="input-current-pin" required placeholder="••••" maxlength="8" class="w-full text-center tracking-widest text-lg px-4 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-500 focus:outline-none font-bold">
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Nouveau Code PIN *</label>
+                <input type="password" id="input-new-pin" required placeholder="••••" maxlength="8" class="w-full text-center tracking-widest text-lg px-4 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-500 focus:outline-none font-bold">
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Confirmer Nouveau Code PIN *</label>
+                <input type="password" id="input-confirm-new-pin" required placeholder="••••" maxlength="8" class="w-full text-center tracking-widest text-lg px-4 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-500 focus:outline-none font-bold">
+            </div>
+            <p id="change-pin-error" class="text-xs text-red-600 font-bold text-center hidden">❌ Erreur lors du changement de code PIN !</p>
+            <div class="pt-2 flex justify-end space-x-2">
+                <button type="button" onclick="toggleChangeAdminPinModal(false)" class="w-full py-2.5 text-slate-600 hover:bg-slate-100 font-semibold text-xs rounded-xl transition">Annuler</button>
+                <button type="submit" class="w-full py-2.5 bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs rounded-xl shadow-md transition">Changer le PIN</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL: ACCESS BLOCKED -->
+<div id="modal-access-blocked" class="fixed inset-0 bg-slate-900/95 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden text-center p-6 space-y-4">
+        <div class="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto text-2xl animate-bounce"><i class="fa-solid fa-lock"></i></div>
+        <h3 class="text-xl font-black text-slate-900">Accès Refusé / Lien Invalide</h3>
+        <p class="text-xs text-slate-600 leading-relaxed">Ce lien d'accès n'est plus valide ou a été <strong>révoqué par l'administrateur</strong>. Veuillez contacter votre responsable pour obtenir un nouveau lien.</p>
+        <div class="pt-2"><span class="inline-block px-4 py-2 bg-slate-100 text-slate-500 text-xs font-mono font-semibold rounded-lg">Code d'accès non autorisé</span></div>
+    </div>
+</div>
+
+<!-- MODAL: ADMIN AUTH -->
+<div id="modal-admin-auth" class="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden transform transition-all border border-slate-200">
+        <div class="bg-slate-900 px-6 py-4 text-white flex justify-between items-center">
+            <h3 class="font-bold text-base flex items-center gap-2"><i class="fa-solid fa-lock text-amber-400"></i> Accès Réservé Admin</h3>
+            <button onclick="toggleAdminAuthModal(false)" class="text-slate-400 hover:text-white transition"><i class="fa-solid fa-xmark text-lg"></i></button>
+        </div>
+        <form id="form-admin-auth" onsubmit="verifyAdminPIN(event)" class="p-6 space-y-4">
+            <p class="text-xs text-slate-600 text-center">Veuillez saisir le code PIN confidentiel pour déverrouiller le tableau de bord Admin.</p>
+            <div>
+                <label class="block text-xs font-bold text-slate-700 uppercase mb-1 text-center">Code PIN Secret *</label>
+                <input type="password" id="input-admin-pin" required placeholder="••••" maxlength="8" class="w-full text-center tracking-widest text-xl px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-500 focus:outline-none font-bold">
+                <p id="admin-pin-error" class="text-xs text-red-600 font-bold text-center mt-2 hidden">❌ Code PIN incorrect ! Réessayez.</p>
+            </div>
+            <div class="pt-2 flex justify-end space-x-2">
+                <button type="button" onclick="toggleAdminAuthModal(false)" class="w-full py-2.5 text-slate-600 hover:bg-slate-100 font-semibold text-xs rounded-xl transition">Annuler</button>
+                <button type="submit" class="w-full py-2.5 bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs rounded-xl shadow-md transition">Déverrouiller</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL: DIRECT LINKS -->
+<div id="modal-direct-links" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden transform transition-all">
+        <div class="bg-slate-900 px-6 py-4 text-white flex justify-between items-center">
+            <h3 class="font-bold text-lg flex items-center gap-2"><i class="fa-solid fa-link text-emerald-400"></i> Liens Accès Directs</h3>
+            <button onclick="toggleDirectLinksModal(false)" class="text-slate-400 hover:text-white transition"><i class="fa-solid fa-xmark text-xl"></i></button>
+        </div>
+        <div class="p-6 space-y-4">
+            <p class="text-xs text-slate-600 leading-relaxed">Copiez et envoyez ces liens uniques à chaque utilisateur. En ouvrant leur lien respectif, ils accèderont <strong>directement à leur propre espace sans pouvoir changer de rôle</strong>.</p>
+            <div class="space-y-3">
+                <div class="p-3 bg-slate-50 rounded-xl border border-slate-200">
+                    <label class="block text-xs font-bold text-slate-900 mb-1">👑 Lien Unique Administrateur :</label>
+                    <div class="flex items-center space-x-2">
+                        <input type="text" readonly id="link-url-admin" class="w-full text-xs p-2 bg-white border border-slate-300 rounded-lg font-mono text-slate-700">
+                        <button onclick="copyToClipboard('link-url-admin')" class="px-3 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-lg transition shrink-0"><i class="fa-solid fa-copy me-1"></i> Copier</button>
+                    </div>
+                </div>
+                <div class="p-3 bg-blue-50/60 rounded-xl border border-blue-100">
+                    <div class="flex justify-between items-center mb-1">
+                        <label class="block text-xs font-bold text-blue-900">🛵 Lien Livreur 1 (<span class="livreur-name-1">Livreur 1</span>) :</label>
+                        <button onclick="revokeAndRegenerateLink('livreur1')" class="text-[11px] font-bold text-red-600 hover:text-red-800 bg-red-50 hover:bg-red-100 px-2 py-0.5 rounded transition border border-red-200"><i class="fa-solid fa-arrows-rotate me-1"></i> Révoquer & Changer Lien</button>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <input type="text" readonly id="link-url-livreur1" class="w-full text-xs p-2 bg-white border border-slate-300 rounded-lg font-mono text-slate-700">
+                        <button onclick="copyToClipboard('link-url-livreur1')" class="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition shrink-0"><i class="fa-solid fa-copy me-1"></i> Copier</button>
+                    </div>
+                </div>
+                <div class="p-3 bg-purple-50/60 rounded-xl border border-purple-100">
+                    <div class="flex justify-between items-center mb-1">
+                        <label class="block text-xs font-bold text-purple-900">🛵 Lien Livreur 2 (<span class="livreur-name-2">Livreur 2</span>) :</label>
+                        <button onclick="revokeAndRegenerateLink('livreur2')" class="text-[11px] font-bold text-red-600 hover:text-red-800 bg-red-50 hover:bg-red-100 px-2 py-0.5 rounded transition border border-red-200"><i class="fa-solid fa-arrows-rotate me-1"></i> Révoquer & Changer Lien</button>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <input type="text" readonly id="link-url-livreur2" class="w-full text-xs p-2 bg-white border border-slate-300 rounded-lg font-mono text-slate-700">
+                        <button onclick="copyToClipboard('link-url-livreur2')" class="px-3 py-2 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-lg transition shrink-0"><i class="fa-solid fa-copy me-1"></i> Copier</button>
+                    </div>
+                </div>
+                <div class="p-3 bg-amber-50/60 rounded-xl border border-amber-100">
+                    <div class="flex justify-between items-center mb-1">
+                        <label class="block text-xs font-bold text-amber-900">🛵 Lien Livreur 3 (<span class="livreur-name-3">Livreur 3</span>) :</label>
+                        <button onclick="revokeAndRegenerateLink('livreur3')" class="text-[11px] font-bold text-red-600 hover:text-red-800 bg-red-50 hover:bg-red-100 px-2 py-0.5 rounded transition border border-red-200"><i class="fa-solid fa-arrows-rotate me-1"></i> Révoquer & Changer Lien</button>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <input type="text" readonly id="link-url-livreur3" class="w-full text-xs p-2 bg-white border border-slate-300 rounded-lg font-mono text-slate-700">
+                        <button onclick="copyToClipboard('link-url-livreur3')" class="px-3 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-lg transition shrink-0"><i class="fa-solid fa-copy me-1"></i> Copier</button>
+                    </div>
+                </div>
+            </div>
+            <div class="pt-3 flex justify-end">
+                <button type="button" onclick="toggleDirectLinksModal(false)" class="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-800 font-semibold text-xs rounded-xl transition">Fermer</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- HEADER -->
+<header class="bg-slate-900 text-white shadow-md sm:sticky sm:top-0 z-30">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 min-h-16 py-2 flex flex-wrap items-center justify-between gap-2">
+        <div class="flex items-center space-x-3">
+            <div class="bg-emerald-500 p-2 rounded-lg text-slate-900 font-bold"><i class="fa-solid me-1 fa-money-bill-transfer text-xl"></i></div>
+            <div>
+                <h1 class="font-bold text-lg leading-tight tracking-tight flex items-center gap-2">
+                    CashExpress
+                    <span id="sync-indicator" class="syncing inline-block w-2.5 h-2.5 rounded-full" title="État de la connexion"></span>
+                </h1>
+                <p class="text-xs text-slate-400 hidden sm:block">Gestion de livraison d'argent en temps réel</p>
+            </div>
+        </div>
+        <div class="flex items-center gap-1 bg-slate-800 p-1 rounded-xl border border-slate-700 order-2 sm:order-3" title="Taille du texte">
+            <button type="button" onclick="changeUiZoom(-0.1)" class="w-9 h-9 text-sm font-bold text-slate-200 hover:text-white hover:bg-slate-700 rounded-lg">A−</button>
+            <button type="button" onclick="resetUiZoom()" id="ui-zoom-label" class="min-w-[3rem] h-9 text-xs font-semibold text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg">100%</button>
+            <button type="button" onclick="changeUiZoom(0.1)" class="w-9 h-9 text-base font-bold text-slate-200 hover:text-white hover:bg-slate-700 rounded-lg">A+</button>
+        </div>
+        <div class="flex items-center space-x-1 sm:space-x-2 bg-slate-800 p-1.5 rounded-xl border border-slate-700 order-3 sm:order-2 max-w-full overflow-x-auto">
+            <span class="text-xs text-slate-400 font-medium px-2 hidden md:inline">Mode Vue :</span>
+            <div class="flex items-center space-x-1">
+                <button onclick="switchRole('admin')" id="role-btn-admin" class="role-btn px-3 py-1.5 text-xs font-semibold rounded-lg transition-all duration-200 flex items-center space-x-1.5 bg-brand-600 text-white shadow-sm">
+                    <i class="fa-solid fa-user-shield text-xs"></i><span>Admin</span>
+                </button>
+                <button id="admin-pin-settings-btn" onclick="openChangeAdminPinModal()" title="Changer le PIN Admin" class="p-1.5 text-slate-300 hover:text-amber-400 hover:bg-slate-800 rounded-lg transition text-xs"><i class="fa-solid fa-key"></i></button>
+            </div>
+            <div class="h-4 w-[1px] bg-slate-700 my-auto"></div>
+            <button onclick="switchRole('livreur1')" id="role-btn-livreur1" class="role-btn px-3 py-1.5 text-xs font-medium text-slate-300 hover:text-white rounded-lg transition-all duration-200 flex items-center space-x-1"><i class="fa-solid fa-motorcycle text-xs"></i><span class="livreur-name-1">Livreur 1</span></button>
+            <button onclick="switchRole('livreur2')" id="role-btn-livreur2" class="role-btn px-3 py-1.5 text-xs font-medium text-slate-300 hover:text-white rounded-lg transition-all duration-200 flex items-center space-x-1"><i class="fa-solid fa-motorcycle text-xs"></i><span class="livreur-name-2">Livreur 2</span></button>
+            <button onclick="switchRole('livreur3')" id="role-btn-livreur3" class="role-btn px-3 py-1.5 text-xs font-medium text-slate-300 hover:text-white rounded-lg transition-all duration-200 flex items-center space-x-1"><i class="fa-solid fa-motorcycle text-xs"></i><span class="livreur-name-3">Livreur 3</span></button>
+        </div>
+    </div>
+</header>
+
+<!-- TOAST -->
+<div id="notification-toast" class="fixed top-20 right-4 z-50 bg-slate-900 text-white p-4 rounded-2xl shadow-2xl border border-slate-700 max-w-sm hidden transition-all duration-300 transform translate-y-2">
+    <div class="flex items-start space-x-3">
+        <div class="p-2 bg-emerald-500/20 text-emerald-400 rounded-xl"><i class="fa-solid fa-bell text-lg animate-bounce"></i></div>
+        <div class="flex-1">
+            <h4 class="font-bold text-sm text-white" id="toast-title">Nouvelle Notification</h4>
+            <p class="text-xs text-slate-300 mt-0.5" id="toast-body">Message de notification</p>
+        </div>
+        <button onclick="hideToast()" class="text-slate-400 hover:text-white text-sm"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+</div>
+
+<!-- MAIN -->
+<main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 space-y-6">
+    <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-col sm:flex-row justify-between items-center gap-4">
+        <div class="flex items-center space-x-3 w-full sm:w-auto">
+            <i class="fa-solid fa-calendar-days text-brand-600 text-lg"></i>
+            <span class="text-sm font-bold text-slate-700">Journée :</span>
+            <input type="date" id="global-date-picker" onchange="handleDateChange()" class="px-3 py-1.5 border border-slate-300 rounded-xl text-sm font-semibold text-slate-800 focus:ring-2 focus:ring-brand-500 focus:outline-none">
+        </div>
+        <div class="relative w-full sm:w-72">
+            <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-slate-400 text-xs"></i>
+            <input type="text" id="global-search-input" oninput="renderApp()" placeholder="Rechercher nom, tél, adresse..." class="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-xl text-xs font-medium focus:ring-2 focus:ring-brand-500 focus:outline-none">
+        </div>
+    </div>
+
+    <!-- ADMIN VIEW -->
+    <div id="view-admin" class="space-y-6">
+        <div class="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white p-6 rounded-2xl shadow-md space-y-4">
+            <div class="flex justify-between items-center border-b border-slate-700/80 pb-3">
+                <div class="flex items-center space-x-3">
+                    <div class="p-2 bg-emerald-500/20 text-emerald-400 rounded-xl"><i class="fa-solid fa-vault text-xl"></i></div>
+                    <div>
+                        <h2 class="text-lg font-bold">Solde Global Entreprise</h2>
+                        <p class="text-xs text-slate-400">Suivi du coffre central et répartition entre livreurs</p>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <span class="text-xs text-slate-300 bg-slate-800 px-3 py-1.5 rounded-xl border border-slate-700 font-medium" id="admin-global-date-label">Aujourd'hui</span>
+                    <button onclick="openAdminStartBalanceModal()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow transition flex items-center space-x-1.5"><i class="fa-solid fa-pen text-[11px]"></i><span>Départ Admin</span></button>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div class="bg-slate-800/80 p-4 rounded-xl border border-slate-700/60">
+                    <div class="flex justify-between items-center"><span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Départ Admin Global (Hier)</span><i class="fa-solid fa-building-columns text-slate-500 text-xs"></i></div>
+                    <p class="text-2xl font-black text-amber-400 mt-1" id="admin-global-start-balance">0 TND</p>
+                    <div class="text-[11px] text-slate-400 mt-1 flex justify-between">
+                        <span>Distribué: <strong id="admin-distributed-starts" class="text-slate-200">0 TND</strong></span>
+                        <span>Disponible: <strong id="admin-remaining-starts" class="text-emerald-400">0 TND</strong></span>
+                    </div>
+                </div>
+                <div class="bg-slate-800/80 p-4 rounded-xl border border-slate-700/60">
+                    <div class="flex justify-between items-center"><span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Solde Total Réel (En Poche)</span><i class="fa-solid fa-wallet text-emerald-500 text-xs"></i></div>
+                    <p class="text-2xl font-black text-emerald-400 mt-1" id="admin-total-real-balance">0 TND</p>
+                    <p class="text-[11px] text-slate-400 mt-1">Départ Admin + Alimentations validées - Livraisons effectuées.</p>
+                </div>
+                <div class="bg-slate-800/80 p-4 rounded-xl border border-slate-700/60">
+                    <div class="flex justify-between items-center"><span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Solde Total Théorique (À Venir)</span><i class="fa-solid fa-chart-line text-blue-400 text-xs"></i></div>
+                    <p class="text-2xl font-black text-blue-400 mt-1" id="admin-total-theo-balance">0 TND</p>
+                    <p class="text-[11px] text-slate-400 mt-1">Solde projeté si toutes les opérations en cours sont validées.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div id="admin-card-livreur1" class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-col justify-between relative overflow-hidden">
+                <div class="flex justify-between items-start mb-2">
+                    <div>
+                        <div class="flex items-center space-x-1.5">
+                            <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Solde Livreur</span>
+                            <button onclick="openEditLivreurNameModal('livreur1')" class="text-slate-400 hover:text-brand-600 text-xs"><i class="fa-solid fa-user-pen"></i></button>
+                        </div>
+                        <h3 class="text-lg font-bold text-slate-800 livreur-name-1">Livreur 1</h3>
+                    </div>
+                    <button onclick="openStartBalanceModal('livreur1')" class="text-xs font-bold text-brand-600 hover:text-brand-800 bg-brand-50 hover:bg-brand-100 px-2.5 py-1 rounded-lg transition"><i class="fa-solid fa-pen text-[10px] mr-1"></i>Départ</button>
+                </div>
+                <div class="grid grid-cols-2 gap-2 my-2 py-2 border-y border-slate-100 text-sm">
+                    <div><p class="text-xs text-slate-400">Solde Théorique</p><p class="font-bold text-slate-700" id="admin-theo-livreur1">0 TND</p></div>
+                    <div><p class="text-xs text-slate-400">Solde Réel</p><p class="font-bold text-slate-700" id="admin-real-livreur1">0 TND</p></div>
+                </div>
+                <div class="flex justify-between items-center text-xs text-slate-500">
+                    <span>Solde Départ: <strong id="admin-start-livreur1">0 TND</strong></span>
+                    <span>Alimentations Validées: <strong id="admin-added-livreur1" class="text-purple-600">+0 TND</strong></span>
+                </div>
+            </div>
+            <div id="admin-card-livreur2" class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-col justify-between relative overflow-hidden">
+                <div class="flex justify-between items-start mb-2">
+                    <div>
+                        <div class="flex items-center space-x-1.5">
+                            <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Solde Livreur</span>
+                            <button onclick="openEditLivreurNameModal('livreur2')" class="text-slate-400 hover:text-brand-600 text-xs"><i class="fa-solid fa-user-pen"></i></button>
+                        </div>
+                        <h3 class="text-lg font-bold text-slate-800 livreur-name-2">Livreur 2</h3>
+                    </div>
+                    <button onclick="openStartBalanceModal('livreur2')" class="text-xs font-bold text-brand-600 hover:text-brand-800 bg-brand-50 hover:bg-brand-100 px-2.5 py-1 rounded-lg transition"><i class="fa-solid fa-pen text-[10px] mr-1"></i>Départ</button>
+                </div>
+                <div class="grid grid-cols-2 gap-2 my-2 py-2 border-y border-slate-100 text-sm">
+                    <div><p class="text-xs text-slate-400">Solde Théorique</p><p class="font-bold text-slate-700" id="admin-theo-livreur2">0 TND</p></div>
+                    <div><p class="text-xs text-slate-400">Solde Réel</p><p class="font-bold text-slate-700" id="admin-real-livreur2">0 TND</p></div>
+                </div>
+                <div class="flex justify-between items-center text-xs text-slate-500">
+                    <span>Solde Départ: <strong id="admin-start-livreur2">0 TND</strong></span>
+                    <span>Alimentations Validées: <strong id="admin-added-livreur2" class="text-purple-600">+0 TND</strong></span>
+                </div>
+            </div>
+            <div id="admin-card-livreur3" class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-col justify-between relative overflow-hidden">
+                <div class="flex justify-between items-start mb-2">
+                    <div>
+                        <div class="flex items-center space-x-1.5">
+                            <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Solde Livreur</span>
+                            <button onclick="openEditLivreurNameModal('livreur3')" class="text-slate-400 hover:text-brand-600 text-xs"><i class="fa-solid fa-user-pen"></i></button>
+                        </div>
+                        <h3 class="text-lg font-bold text-slate-800 livreur-name-3">Livreur 3</h3>
+                    </div>
+                    <button onclick="openStartBalanceModal('livreur3')" class="text-xs font-bold text-brand-600 hover:text-brand-800 bg-brand-50 hover:bg-brand-100 px-2.5 py-1 rounded-lg transition"><i class="fa-solid fa-pen text-[10px] mr-1"></i>Départ</button>
+                </div>
+                <div class="grid grid-cols-2 gap-2 my-2 py-2 border-y border-slate-100 text-sm">
+                    <div><p class="text-xs text-slate-400">Solde Théorique</p><p class="font-bold text-slate-700" id="admin-theo-livreur3">0 TND</p></div>
+                    <div><p class="text-xs text-slate-400">Solde Réel</p><p class="font-bold text-slate-700" id="admin-real-livreur3">0 TND</p></div>
+                </div>
+                <div class="flex justify-between items-center text-xs text-slate-500">
+                    <span>Solde Départ: <strong id="admin-start-livreur3">0 TND</strong></span>
+                    <span>Alimentations Validées: <strong id="admin-added-livreur3" class="text-purple-600">+0 TND</strong></span>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
+            <div class="bg-amber-50 p-3 rounded-xl border border-amber-200 flex items-center justify-between">
+                <div><p class="text-xs font-bold text-amber-800 uppercase">En cours</p><p class="text-xl font-black text-amber-900 mt-0.5" id="admin-count-pending">0</p></div>
+                <div class="p-2 bg-amber-200/60 text-amber-800 rounded-lg"><i class="fa-solid fa-clock"></i></div>
+            </div>
+            <div class="bg-emerald-50 p-3 rounded-xl border border-emerald-200 flex items-center justify-between">
+                <div><p class="text-xs font-bold text-emerald-800 uppercase">Envoyés / Validés</p><p class="text-xl font-black text-emerald-900 mt-0.5" id="admin-count-delivered">0</p></div>
+                <div class="p-2 bg-emerald-200/60 text-emerald-800 rounded-lg"><i class="fa-solid fa-circle-check"></i></div>
+            </div>
+            <div class="bg-red-50 p-3 rounded-xl border border-red-200 flex items-center justify-between">
+                <div><p class="text-xs font-bold text-red-800 uppercase">Annulés</p><p class="text-xl font-black text-red-900 mt-0.5" id="admin-count-cancelled">0</p></div>
+                <div class="p-2 bg-red-200/60 text-red-800 rounded-lg"><i class="fa-solid fa-ban"></i></div>
+            </div>
+            <div class="bg-purple-50 p-3 rounded-xl border border-purple-200 flex items-center justify-between">
+                <div><p class="text-xs font-bold text-purple-800 uppercase">Alimentations</p><p class="text-xl font-black text-purple-900 mt-0.5" id="admin-count-cash">0</p></div>
+                <div class="p-2 bg-purple-200/60 text-purple-800 rounded-lg"><i class="fa-solid fa-hand-holding-dollar"></i></div>
+            </div>
+        </div>
+
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
+            <div>
+                <h2 class="text-xl font-bold text-slate-900">Nouvelle Livraison / Alimentation</h2>
+                <p class="text-sm text-slate-500">Gérez les livraisons et alimentations de caisse de la journée.</p>
+            </div>
+            <div class="flex flex-col sm:flex-row items-center gap-2.5 w-full sm:w-auto">
+                <button onclick="openBlacklistModal()" class="w-full sm:w-auto px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white font-semibold text-sm rounded-xl transition shadow-md flex items-center justify-center space-x-2"><i class="fa-solid fa-user-slash"></i><span>Liste Noire (<span id="blacklist-badge-count">0</span>)</span></button>
+                <button onclick="openDirectLinksModal()" class="w-full sm:w-auto px-4 py-2.5 bg-slate-800 hover:bg-slate-900 text-white font-semibold text-sm rounded-xl transition shadow-md flex items-center justify-center space-x-2"><i class="fa-solid fa-link text-emerald-400"></i><span>Liens d'Accès Uniques</span></button>
+                <button onclick="document.getElementById('excel-file-input').click()" class="w-full sm:w-auto px-4 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white font-semibold text-sm rounded-xl transition shadow-md flex items-center justify-center space-x-2"><i class="fa-solid fa-file-import"></i><span>Importer Excel</span></button>
+                <input type="file" id="excel-file-input" accept=".xlsx, .xls" class="hidden" onchange="handleExcelImport(event)">
+                <button onclick="openExportExcelModal()" class="w-full sm:w-auto px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm rounded-xl transition shadow-md flex items-center justify-center space-x-2"><i class="fa-solid fa-file-excel"></i><span>Extraction Excel</span></button>
+                <button onclick="toggleAddModal(true)" class="w-full sm:w-auto px-5 py-2.5 bg-brand-600 hover:bg-brand-700 text-white font-semibold text-sm rounded-xl transition shadow-md flex items-center justify-center space-x-2"><i class="fa-solid fa-plus"></i><span>Ajouter une Opération</span></button>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+            <div class="p-4 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 bg-slate-50">
+                <h3 class="font-bold text-slate-800 flex items-center gap-2"><i class="fa-solid fa-list-check text-brand-600"></i><span>Toutes les Livraisons & Alimentations (Tri : En cours en haut)</span></h3>
+                <div class="flex items-center space-x-2">
+                    <span class="text-xs font-medium text-slate-500">Filtrer par type / statut:</span>
+                    <select id="admin-filter-status" onchange="renderAdminTable()" class="text-xs bg-white border border-slate-300 rounded-lg p-1.5 font-medium focus:ring-2 focus:ring-brand-500">
+                        <option value="all">Toutes les opérations</option>
+                        <option value="pending">En cours uniquement</option>
+                        <option value="delivered">Envoyés / Validés uniquement</option>
+                        <option value="cancelled">Annulés uniquement</option>
+                        <option value="livrais_only">Livraisons uniquement</option>
+                        <option value="solde_recu">Alimentations uniquement</option>
+                    </select>
+                </div>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-slate-100/70 text-slate-600 text-xs font-bold uppercase tracking-wider border-b border-slate-200">
+                            <th class="p-3.5">Type & Client / Remettant</th>
+                            <th class="p-3.5">Adresse / Localisation</th>
+                            <th class="p-3.5">Montant</th>
+                            <th class="p-3.5">Livreur Assigné</th>
+                            <th class="p-3.5">Horodatage</th>
+                            <th class="p-3.5">Statut & Remarques</th>
+                            <th class="p-3.5 text-right">Actions Admin</th>
+                        </tr>
+                    </thead>
+                    <tbody id="admin-delivery-list" class="divide-y divide-slate-100 text-sm"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- LIVREUR VIEW -->
+    <div id="view-livreur" class="space-y-6 hidden">
+        <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 space-y-4">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-slate-100 pb-4 gap-2">
+                <div>
+                    <div class="inline-flex items-center space-x-2">
+                        <span class="w-3 h-3 rounded-full bg-emerald-500 animate-pulse"></span>
+                        <h2 class="text-2xl font-bold text-slate-900" id="livreur-view-title">Espace Livreur</h2>
+                    </div>
+                    <p class="text-xs text-slate-500">Gérez vos livraisons et enregistrez vos alimentations de caisse.</p>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <button onclick="openAddCashModal()" class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white font-semibold text-xs rounded-xl shadow-sm transition flex items-center space-x-1.5"><i class="fa-solid fa-hand-holding-dollar"></i><span>+ Ajouter Alimentation</span></button>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200/80"><span class="text-xs font-semibold text-slate-400 uppercase">Solde d'hier (Départ)</span><p class="text-lg font-bold text-slate-700 mt-1" id="livreur-start-balance">0 TND</p></div>
+                <div class="bg-emerald-50/50 p-3.5 rounded-xl border border-emerald-100"><span class="text-xs font-semibold text-emerald-600 uppercase">Solde Réel (En Poche)</span><p class="text-xl font-black text-emerald-700 mt-1" id="livreur-real-balance">0 TND</p><p class="text-[10px] text-emerald-600 mt-0.5">Calculé (Alim. Validées - Livraisons Effectuées)</p></div>
+                <div class="bg-blue-50/50 p-3.5 rounded-xl border border-blue-100"><span class="text-xs font-semibold text-blue-600 uppercase">Solde Théorique (À venir)</span><p class="text-xl font-black text-blue-700 mt-1" id="livreur-theo-balance">0 TND</p><p class="text-[10px] text-blue-500 mt-0.5">Si toutes les opérations en cours sont validées</p></div>
+            </div>
+            <div class="grid grid-cols-4 gap-1.5 pt-2 border-t border-slate-100 text-center text-[11px]">
+                <div class="bg-amber-50 px-2 py-1 rounded-lg border border-amber-200 flex items-center justify-between"><span class="font-bold text-amber-800 truncate">⏳ En cours</span><span class="font-black text-amber-900 text-xs ms-1 bg-amber-200/80 px-1.5 py-0.2 rounded" id="livreur-count-pending">0</span></div>
+                <div class="bg-emerald-50 px-2 py-1 rounded-lg border border-emerald-200 flex items-center justify-between"><span class="font-bold text-emerald-800 truncate">🟢 Envoyés</span><span class="font-black text-emerald-900 text-xs ms-1 bg-emerald-200/80 px-1.5 py-0.2 rounded" id="livreur-count-delivered">0</span></div>
+                <div class="bg-red-50 px-2 py-1 rounded-lg border border-red-200 flex items-center justify-between"><span class="font-bold text-red-800 truncate">🔴 Annulés</span><span class="font-black text-red-900 text-xs ms-1 bg-red-200/80 px-1.5 py-0.2 rounded" id="livreur-count-cancelled">0</span></div>
+                <div class="bg-purple-50 px-2 py-1 rounded-lg border border-purple-200 flex items-center justify-between"><span class="font-bold text-purple-800 truncate">➕ Alim.</span><span class="font-black text-purple-900 text-xs ms-1 bg-purple-200/80 px-1.5 py-0.2 rounded" id="livreur-count-cash">0</span></div>
+            </div>
+        </div>
+        <div class="space-y-3">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center px-1 gap-2">
+                <h3 class="font-bold text-slate-800 text-lg flex items-center gap-2"><i class="fa-solid fa-truck-ramp-box text-brand-600"></i><span>Mes Opérations (Livraisons & Alimentations)</span></h3>
+                <div class="flex items-center space-x-2">
+                    <span class="text-xs font-medium text-slate-500">Filtrer :</span>
+                    <select id="livreur-filter-status" onchange="renderApp()" class="text-xs bg-white border border-slate-300 rounded-lg p-1.5 font-semibold focus:ring-2 focus:ring-brand-500">
+                        <option value="all">Toutes les opérations</option>
+                        <option value="pending">En cours uniquement</option>
+                        <option value="delivered">Envoyés / Validés uniquement</option>
+                        <option value="cancelled">Annulés uniquement</option>
+                        <option value="livrais_only">Livraisons uniquement</option>
+                        <option value="solde_recu">Alimentations uniquement</option>
+                    </select>
+                </div>
+            </div>
+            <div id="livreur-delivery-cards" class="space-y-3"></div>
+        </div>
+    </div>
+</main>
+
+<!-- MODAL: CONFIRM VALIDATION -->
+<div id="modal-confirm-validation" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden transform transition-all">
+        <div class="bg-emerald-600 px-6 py-4 text-white flex justify-between items-center">
+            <h3 class="font-bold text-lg"><i class="fa-solid fa-circle-check me-2"></i>Confirmation de Validation</h3>
+            <button onclick="toggleConfirmValidationModal(false)" class="text-white/80 hover:text-white transition"><i class="fa-solid fa-xmark text-xl"></i></button>
+        </div>
+        <form id="form-confirm-validation" onsubmit="executeConfirmValidation(event)" class="p-6 space-y-4">
+            <input type="hidden" id="validation-delivery-id" value="">
+            <p class="text-sm text-slate-700 font-medium" id="validation-prompt-text">Voulez-vous vraiment valider cette opération ?</p>
+            <div>
+                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Remarque (Optionnelle)</label>
+                <textarea id="input-validation-remark" rows="2" placeholder="Saisir une remarque si nécessaire..." class="w-full p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none text-sm"></textarea>
+                <p class="text-[11px] text-slate-500 mt-1">💡 Cette remarque s'enregistre directement dans la fiche de l'opération.</p>
+            </div>
+            <div class="pt-3 flex justify-end space-x-3">
+                <button type="button" onclick="toggleConfirmValidationModal(false)" class="px-4 py-2.5 text-slate-600 hover:bg-slate-100 font-semibold text-sm rounded-xl transition">Annuler</button>
+                <button type="submit" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm rounded-xl shadow-md transition">Oui, Valider l'opération</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL: CANCEL -->
+<div id="modal-cancel" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden transform transition-all">
+        <div class="bg-red-600 px-6 py-4 text-white flex justify-between items-center">
+            <h3 class="font-bold text-lg"><i class="fa-solid fa-ban me-2"></i>Annulation de l'Opération</h3>
+            <button onclick="toggleCancelModal(false)" class="text-white/80 hover:text-white transition"><i class="fa-solid fa-xmark text-xl"></i></button>
+        </div>
+        <form id="form-cancel" onsubmit="handleConfirmCancel(event)" class="p-6 space-y-4">
+            <input type="hidden" id="cancel-delivery-id" value="">
+            <p class="text-sm text-slate-600">Voulez-vous vraiment annuler cette opération ?</p>
+            <div>
+                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Motif / Remarque (Facultatif)</label>
+                <textarea id="input-cancel-remark" rows="3" placeholder="ex: Erreur de saisie, versement annulé..." class="w-full p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-red-500 focus:outline-none text-sm"></textarea>
+            </div>
+            <div class="pt-3 flex justify-end space-x-3">
+                <button type="button" onclick="toggleCancelModal(false)" class="px-4 py-2.5 text-slate-600 hover:bg-slate-100 font-semibold text-sm rounded-xl transition">Retour</button>
+                <button type="submit" class="px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white font-semibold text-sm rounded-xl shadow-md transition">Confirmer l'annulation</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL: ADMIN START BALANCE -->
+<div id="modal-admin-start-balance" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden transform transition-all">
+        <div class="bg-slate-900 px-6 py-4 text-white flex justify-between items-center">
+            <h3 class="font-bold text-lg"><i class="fa-solid fa-vault me-2 text-emerald-400"></i>Solde de Départ Admin (Hier)</h3>
+            <button onclick="toggleAdminStartBalanceModal(false)" class="text-white/80 hover:text-white transition"><i class="fa-solid fa-xmark text-xl"></i></button>
+        </div>
+        <form id="form-admin-start-balance" onsubmit="handleSaveAdminStartBalance(event)" class="p-6 space-y-4">
+            <p class="text-xs text-slate-600 leading-relaxed">Fixez le <strong>Solde de Départ Réel d'Hier</strong> global de l'entreprise. Le total des soldes de départ attribués aux livreurs ne pourra pas dépasser ce montant.</p>
+            <div>
+                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Montant Solde Départ Global (TND) *</label>
+                <input type="number" id="input-admin-start-balance-amount" step="0.01" required placeholder="ex: 5000" class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none text-base font-bold text-slate-800">
+            </div>
+            <div class="pt-3 flex justify-end space-x-3">
+                <button type="button" onclick="toggleAdminStartBalanceModal(false)" class="px-4 py-2.5 text-slate-600 hover:bg-slate-100 font-semibold text-sm rounded-xl transition">Annuler</button>
+                <button type="submit" class="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-semibold text-sm rounded-xl shadow-md transition">Enregistrer Solde Admin</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL: EXPORT EXCEL -->
+<div id="modal-export-excel" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden transform transition-all">
+        <div class="bg-emerald-600 px-6 py-4 text-white flex justify-between items-center">
+            <h3 class="font-bold text-lg"><i class="fa-solid fa-file-excel me-2"></i>Extraction du Rapport Excel</h3>
+            <button onclick="toggleExportExcelModal(false)" class="text-white/80 hover:text-white transition"><i class="fa-solid fa-xmark text-xl"></i></button>
+        </div>
+        <div class="p-6 space-y-4">
+            <p class="text-sm text-slate-600">Choisissez la période d'extraction des opérations :</p>
+            <div class="space-y-3">
+                <label class="flex items-center space-x-3 p-3 border border-slate-200 rounded-xl cursor-pointer hover:bg-slate-50">
+                    <input type="radio" name="export-mode" value="single" checked onchange="toggleExportModeUI()" class="text-emerald-600 focus:ring-emerald-500">
+                    <span class="text-sm font-semibold text-slate-800">Extraire la journée en cours uniquement</span>
+                </label>
+                <label class="flex items-center space-x-3 p-3 border border-slate-200 rounded-xl cursor-pointer hover:bg-slate-50">
+                    <input type="radio" name="export-mode" value="range" onchange="toggleExportModeUI()" class="text-emerald-600 focus:ring-emerald-500">
+                    <span class="text-sm font-semibold text-slate-800">Extraire une période personnalisée (Du / Au)</span>
+                </label>
+            </div>
+            <div id="export-range-inputs" class="grid grid-cols-2 gap-3 hidden pt-2">
+                <div><label class="block text-xs font-bold text-slate-700 uppercase mb-1">Du *</label><input type="date" id="export-start-date" class="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-emerald-500"></div>
+                <div><label class="block text-xs font-bold text-slate-700 uppercase mb-1">Au *</label><input type="date" id="export-end-date" class="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-emerald-500"></div>
+            </div>
+            <div class="pt-3 flex justify-end space-x-3">
+                <button type="button" onclick="toggleExportExcelModal(false)" class="px-4 py-2.5 text-slate-600 hover:bg-slate-100 font-semibold text-sm rounded-xl transition">Annuler</button>
+                <button type="button" onclick="executeExcelExport()" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm rounded-xl shadow-md transition flex items-center space-x-2"><i class="fa-solid fa-download"></i><span>Télécharger Excel (.xlsx)</span></button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL: EDIT LIVREUR NAME -->
+<div id="modal-edit-livreur-name" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden transform transition-all">
+        <div class="bg-brand-600 px-6 py-4 text-white flex justify-between items-center">
+            <h3 class="font-bold text-lg"><i class="fa-solid fa-user-pen me-2"></i>Modifier le nom du Livreur</h3>
+            <button onclick="toggleEditLivreurNameModal(false)" class="text-white/80 hover:text-white transition"><i class="fa-solid fa-xmark text-xl"></i></button>
+        </div>
+        <form id="form-edit-livreur-name" onsubmit="handleSaveLivreurName(event)" class="p-6 space-y-4">
+            <input type="hidden" id="edit-livreur-id" value="">
+            <div>
+                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Nouveau nom affiché *</label>
+                <input type="text" id="input-livreur-name" required placeholder="ex: Sami (Livreur 1)" class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-500 focus:outline-none text-sm font-semibold">
+            </div>
+            <div class="pt-3 flex justify-end space-x-3">
+                <button type="button" onclick="toggleEditLivreurNameModal(false)" class="px-4 py-2.5 text-slate-600 hover:bg-slate-100 font-semibold text-sm rounded-xl transition">Annuler</button>
+                <button type="submit" class="px-5 py-2.5 bg-brand-600 hover:bg-brand-700 text-white font-semibold text-sm rounded-xl shadow-md transition">Enregistrer</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL: REASSIGN -->
+<div id="modal-reassign" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden transform transition-all">
+        <div class="bg-slate-900 px-6 py-4 text-white flex justify-between items-center">
+            <h3 class="font-bold text-lg"><i class="fa-solid fa-arrow-right-arrow-left me-2"></i>Réaffecter à un autre livreur</h3>
+            <button onclick="toggleReassignModal(false)" class="text-white/80 hover:text-white transition"><i class="fa-solid fa-xmark text-xl"></i></button>
+        </div>
+        <form id="form-reassign" onsubmit="handleSaveReassign(event)" class="p-6 space-y-4">
+            <input type="hidden" id="reassign-delivery-id" value="">
+            <p class="text-sm text-slate-600" id="reassign-client-info">Sélectionnez le nouveau livreur pour cette opération :</p>
+            <div>
+                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Nouveau Livreur *</label>
+                <select id="select-reassign-livreur" required class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-500 focus:outline-none text-sm font-semibold">
+                    <option value="livreur1" class="livreur-name-1">Livreur 1</option>
+                    <option value="livreur2" class="livreur-name-2">Livreur 2</option>
+                    <option value="livreur3" class="livreur-name-3">Livreur 3</option>
+                </select>
+            </div>
+            <div class="pt-3 flex justify-end space-x-3">
+                <button type="button" onclick="toggleReassignModal(false)" class="px-4 py-2.5 text-slate-600 hover:bg-slate-100 font-semibold text-sm rounded-xl transition">Annuler</button>
+                <button type="submit" class="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-semibold text-sm rounded-xl shadow-md transition">Réaffecter</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL: DELETE -->
+<div id="modal-confirm-delete" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden transform transition-all">
+        <div class="bg-red-600 px-6 py-4 text-white flex justify-between items-center">
+            <h3 class="font-bold text-lg"><i class="fa-solid fa-trash-can me-2"></i>Confirmation de Suppression</h3>
+            <button onclick="toggleConfirmDeleteModal(false)" class="text-white/80 hover:text-white transition"><i class="fa-solid fa-xmark text-xl"></i></button>
+        </div>
+        <div class="p-6 space-y-4">
+            <p class="text-sm text-slate-700 leading-relaxed">Êtes-vous sûr de vouloir <strong>SUPPRIMER DÉFINITIVEMENT</strong> cette ligne d'opération ?</p>
+            <p class="text-xs text-red-600 bg-red-50 p-3 rounded-xl border border-red-200"><i class="fa-solid fa-triangle-exclamation me-1"></i> Cette action est irréversible et retirera immédiatement cette ligne du solde.</p>
+            <input type="hidden" id="delete-delivery-id" value="">
+            <div class="pt-3 flex justify-end space-x-3">
+                <button type="button" onclick="toggleConfirmDeleteModal(false)" class="px-4 py-2.5 text-slate-600 hover:bg-slate-100 font-semibold text-sm rounded-xl transition">Annuler</button>
+                <button type="button" onclick="executeDeleteDelivery()" class="px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white font-semibold text-sm rounded-xl shadow-md transition">Oui, Supprimer définitivement</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL: RESET -->
+<div id="modal-confirm-reset" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden transform transition-all">
+        <div class="bg-amber-500 px-6 py-4 text-white flex justify-between items-center">
+            <h3 class="font-bold text-lg"><i class="fa-solid fa-triangle-exclamation me-2"></i>Confirmation de Remise en Cours</h3>
+            <button onclick="toggleConfirmResetModal(false)" class="text-white/80 hover:text-white transition"><i class="fa-solid fa-xmark text-xl"></i></button>
+        </div>
+        <div class="p-6 space-y-4">
+            <p class="text-sm text-slate-700 leading-relaxed">Êtes-vous sûr de vouloir remettre cette opération en statut <strong>"EN COURS"</strong> ?</p>
+            <p class="text-xs text-slate-500 bg-amber-50 p-3 rounded-xl border border-amber-200"><i class="fa-solid fa-circle-info text-amber-600 me-1"></i> L'opération repassera en cours de traitement.</p>
+            <input type="hidden" id="reset-delivery-id" value="">
+            <div class="pt-3 flex justify-end space-x-3">
+                <button type="button" onclick="toggleConfirmResetModal(false)" class="px-4 py-2.5 text-slate-600 hover:bg-slate-100 font-semibold text-sm rounded-xl transition">Annuler</button>
+                <button type="button" onclick="executeResetToPending()" class="px-5 py-2.5 bg-amber-600 hover:bg-amber-700 text-white font-semibold text-sm rounded-xl shadow-md transition">Oui, Remettre en cours</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL: ADD/EDIT DELIVERY -->
+<div id="modal-delivery" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden transform transition-all max-h-[90vh] flex flex-col">
+        <div class="bg-slate-900 px-6 py-4 text-white flex justify-between items-center shrink-0">
+            <h3 class="font-bold text-lg" id="modal-delivery-title">Nouvelle Opération</h3>
+            <button onclick="toggleAddModal(false)" class="text-slate-400 hover:text-white transition"><i class="fa-solid fa-xmark text-xl"></i></button>
+        </div>
+        <form id="form-delivery" onsubmit="handleSaveDelivery(event)" class="p-6 space-y-4 overflow-y-auto">
+            <input type="hidden" id="delivery-id" value="">
+            <div class="bg-slate-100 p-2 rounded-xl flex space-x-2">
+                <label class="flex-1 text-center py-2 text-xs font-bold rounded-lg cursor-pointer transition bg-white text-slate-900 shadow-sm" id="label-type-livraison">
+                    <input type="radio" name="input-type-op" value="LIVRAISON" checked onchange="toggleOpTypeForm()" class="hidden">
+                    <span>📦 LIVRAISON D'ARGENT</span>
+                </label>
+                <label class="flex-1 text-center py-2 text-xs font-bold rounded-lg cursor-pointer transition text-slate-500 hover:text-slate-900" id="label-type-solde">
+                    <input type="radio" name="input-type-op" value="SOLDE_RECU" onchange="toggleOpTypeForm()" class="hidden">
+                    <span>➕ ALIMENTATION</span>
+                </label>
+            </div>
+            <div class="bg-brand-50/70 p-3 rounded-xl border border-brand-200">
+                <label class="block text-xs font-bold text-brand-900 uppercase mb-1">1. Assigner au Livreur *</label>
+                <select id="select-livreur" required class="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-500 focus:outline-none text-sm font-bold text-brand-700">
+                    <option value="livreur1" class="livreur-name-1">Livreur 1</option>
+                    <option value="livreur2" class="livreur-name-2">Livreur 2</option>
+                    <option value="livreur3" class="livreur-name-3">Livreur 3</option>
+                </select>
+            </div>
+            <div id="blacklist-warning-banner" class="hidden p-3.5 bg-red-100 border-2 border-red-500 text-red-900 rounded-xl text-xs font-bold flex items-start gap-2.5 animate-pulse shadow-sm">
+                <i class="fa-solid fa-triangle-exclamation text-red-600 text-base mt-0.5"></i>
+                <div>
+                    <p class="font-black text-sm uppercase">⚠️ ATTENTION : Client Blacklisté !</p>
+                    <p id="blacklist-warning-text" class="text-xs font-semibold mt-0.5 text-red-800"></p>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1" id="lbl-phone">2. Téléphone Principal *</label>
+                    <input type="tel" id="input-phone" required placeholder="ex: 21 345 678" oninput="handlePhoneLookupAndBlacklist(this.value)" class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-500 focus:outline-none text-sm font-semibold">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Téléphone 2 (Optionnel)</label>
+                    <input type="tel" id="input-phone2" placeholder="ex: 98 765 432" class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-500 focus:outline-none text-sm font-semibold">
+                </div>
+            </div>
+            <div id="history-alert" class="hidden p-2 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-lg text-xs font-medium flex items-center gap-1.5">
+                <i class="fa-solid fa-bolt text-emerald-600"></i><span>Informations pré-remplies depuis l'historique client !</span>
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-slate-700 uppercase mb-1" id="lbl-client-name">3. Nom et Prénom du Client / Remettant *</label>
+                <input type="text" id="input-client-name" required placeholder="ex: Mohamed Trabelsi" class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-500 focus:outline-none text-sm">
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">4. Montant (TND) *</label>
+                <input type="number" id="input-amount" step="0.01" min="1" required placeholder="ex: 500" class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-500 focus:outline-none text-sm font-bold text-slate-800">
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">5. Adresse physique</label>
+                    <input type="text" id="input-address" placeholder="ex: Rue Habib Bourguiba, N° 12" class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-500 focus:outline-none text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">6. Localisation GPS / Maps</label>
+                    <input type="text" id="input-location" placeholder="ex: Lac 2, Tunis ou Lien Google Maps" class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-500 focus:outline-none text-sm">
+                </div>
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">7. Remarque de l'Admin (Facultatif)</label>
+                <input type="text" id="input-remark-admin" placeholder="ex: Alimentation caisse centrale..." class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-500 focus:outline-none text-sm">
+            </div>
+            <div class="pt-4 border-t border-slate-100 flex justify-end space-x-3 shrink-0">
+                <button type="button" onclick="toggleAddModal(false)" class="px-4 py-2.5 text-slate-600 hover:bg-slate-100 font-semibold text-sm rounded-xl transition">Annuler</button>
+                <button type="submit" class="px-5 py-2.5 bg-brand-600 hover:bg-brand-700 text-white font-semibold text-sm rounded-xl shadow-md transition">Enregistrer (Ajouter En cours)</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL: REMARK -->
+<div id="modal-remark" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden transform transition-all">
+        <div class="bg-brand-600 px-6 py-4 text-white flex justify-between items-center">
+            <h3 class="font-bold text-lg" id="modal-remark-title">Remarque de Suivi</h3>
+            <button onclick="toggleRemarkModal(false)" class="text-white/80 hover:text-white transition"><i class="fa-solid fa-xmark text-xl"></i></button>
+        </div>
+        <form id="form-remark" onsubmit="handleSaveRemark(event)" class="p-6 space-y-4">
+            <input type="hidden" id="remark-delivery-id" value="">
+            <div>
+                <label class="block text-xs font-bold text-slate-700 uppercase mb-1" id="remark-role-label">Saisir votre Remarque *</label>
+                <textarea id="input-delivery-remark" required rows="3" placeholder="Saisissez la remarque..." class="w-full p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-500 focus:outline-none text-sm"></textarea>
+            </div>
+            <div class="pt-3 flex justify-end space-x-3">
+                <button type="button" onclick="toggleRemarkModal(false)" class="px-4 py-2.5 text-slate-600 hover:bg-slate-100 font-semibold text-sm rounded-xl transition">Annuler</button>
+                <button type="submit" class="px-5 py-2.5 bg-brand-600 hover:bg-brand-700 text-white font-semibold text-sm rounded-xl shadow-md transition">Enregistrer Remarque</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL: ADD CASH -->
+<div id="modal-add-cash" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden transform transition-all max-h-[90vh] flex flex-col">
+        <div class="bg-purple-600 px-6 py-4 text-white flex justify-between items-center shrink-0">
+            <h3 class="font-bold text-lg"><i class="fa-solid fa-hand-holding-dollar me-2"></i>Nouvelle Alimentation</h3>
+            <button onclick="toggleAddCashModal(false)" class="text-white/80 hover:text-white transition"><i class="fa-solid fa-xmark text-xl"></i></button>
+        </div>
+        <form id="form-add-cash" onsubmit="handleSaveAddCash(event)" class="p-6 space-y-4 overflow-y-auto">
+            <p class="text-xs text-purple-700 bg-purple-50 p-2.5 rounded-xl border border-purple-200"><i class="fa-solid fa-circle-info me-1"></i> L'alimentation sera créée en statut <strong>"EN COURS"</strong> comme une livraison.</p>
+            <div>
+                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">1. Montant (TND) *</label>
+                <input type="number" id="input-add-cash-amount" step="0.01" min="1" required placeholder="ex: 1000" class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:outline-none text-base font-bold text-slate-800">
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">2. Nom / Origine des fonds *</label>
+                <input type="text" id="input-add-cash-name" required placeholder="ex: Caisse Principale, Banque..." class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:outline-none text-sm">
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">3. Téléphone Contact (Facultatif)</label>
+                <input type="tel" id="input-add-cash-phone" placeholder="ex: 21 345 678" class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:outline-none text-sm">
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">4. Adresse (Facultatif)</label>
+                <input type="text" id="input-add-cash-address" placeholder="ex: Rue de la Banque N°5" class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:outline-none text-sm">
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">5. Lieu / Localisation GPS (Facultatif)</label>
+                <input type="text" id="input-add-cash-location" placeholder="ex: Bureau central" class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:outline-none text-sm">
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">6. Remarque / Note</label>
+                <input type="text" id="input-add-cash-remark" placeholder="ex: Avance carburant, versement..." class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:outline-none text-sm">
+            </div>
+            <div class="pt-3 flex justify-end space-x-3 shrink-0">
+                <button type="button" onclick="toggleAddCashModal(false)" class="px-4 py-2.5 text-slate-600 hover:bg-slate-100 font-semibold text-sm rounded-xl transition">Annuler</button>
+                <button type="submit" class="px-5 py-2.5 bg-purple-600 hover:bg-purple-700 text-white font-semibold text-sm rounded-xl shadow-md transition">Enregistrer (En cours)</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL: LIVREUR START BALANCE -->
+<div id="modal-start-balance" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden transform transition-all">
+        <div class="bg-slate-900 px-6 py-4 text-white flex justify-between items-center">
+            <h3 class="font-bold text-lg" id="modal-start-balance-title">Solde de Départ Livreur (Hier)</h3>
+            <button onclick="toggleStartBalanceModal(false)" class="text-white/80 hover:text-white transition"><i class="fa-solid fa-xmark text-xl"></i></button>
+        </div>
+        <form id="form-start-balance" onsubmit="handleSaveStartBalance(event)" class="p-6 space-y-4">
+            <input type="hidden" id="start-balance-livreur-id" value="">
+            <div>
+                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Solde de Départ Attribué (TND) *</label>
+                <input type="number" id="input-start-balance-amount" step="0.01" required placeholder="ex: 1500" class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-500 focus:outline-none text-base font-bold text-slate-800">
+                <p class="text-xs text-slate-500 mt-2" id="start-balance-constraint-hint">Le total des soldes de départ des livreurs ne peut pas dépasser le solde de départ global fixé par l'Admin.</p>
+            </div>
+            <div class="pt-3 flex justify-end space-x-3">
+                <button type="button" onclick="toggleStartBalanceModal(false)" class="px-4 py-2.5 text-slate-600 hover:bg-slate-100 font-semibold text-sm rounded-xl transition">Annuler</button>
+                <button type="submit" class="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-semibold text-sm rounded-xl shadow-md transition">Enregistrer</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+// ==================== FIREBASE ====================
+const firebaseConfig = {
+    apiKey: "AIzaSyA1wG2gRSoUuhgm3MGrkiO8hlFonHb8w1s",
+    authDomain: "cashexpress-warda.firebaseapp.com",
+    databaseURL: "https://cashexpress-warda-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId: "cashexpress-warda",
+    storageBucket: "cashexpress-warda.firebasestorage.app",
+    messagingSenderId: "74753659212",
+    appId: "1:74753659212:web:ea52885831b95a21727fe9"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+const STATE_REF = db.ref('cashexpress/state');
+
+let firebaseReady = false;
+let saveDebounceTimer = null;
+
+function setSyncStatus(status) {
+    const el = document.getElementById('sync-indicator');
+    if (!el) return;
+    el.classList.remove('online', 'offline', 'syncing');
+    el.classList.add(status);
+    el.title = status === 'online' ? 'Synchronisé avec Firebase'
+             : status === 'offline' ? 'Hors ligne — les changements seront synchronisés au retour'
+             : 'Synchronisation en cours...';
+}
+window.addEventListener('offline', () => setSyncStatus('offline'));
+window.addEventListener('online',  () => setSyncStatus('syncing'));
+
+// ==================== UTILITAIRES ====================
+function playNotificationSound() {
+    try {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContext) return;
+        if (!window._cashAudioCtx || window._cashAudioCtx.state === 'closed') {
+            window._cashAudioCtx = new AudioContext();
+        }
+        const audioCtx = window._cashAudioCtx;
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        const osc1 = audioCtx.createOscillator();
+        const gain1 = audioCtx.createGain();
+        osc1.type = 'sine';
+        osc1.frequency.setValueAtTime(587.33, audioCtx.currentTime);
+        gain1.gain.setValueAtTime(0.15, audioCtx.currentTime);
+        gain1.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.35);
+        osc1.connect(gain1); gain1.connect(audioCtx.destination);
+        osc1.start(); osc1.stop(audioCtx.currentTime + 0.35);
+        setTimeout(() => {
+            if (audioCtx.state === 'closed') return;
+            const osc2 = audioCtx.createOscillator();
+            const gain2 = audioCtx.createGain();
+            osc2.type = 'sine';
+            osc2.frequency.setValueAtTime(880, audioCtx.currentTime);
+            gain2.gain.setValueAtTime(0.2, audioCtx.currentTime);
+            gain2.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.5);
+            osc2.connect(gain2); gain2.connect(audioCtx.destination);
+            osc2.start(); osc2.stop(audioCtx.currentTime + 0.5);
+        }, 100);
+    } catch (err) {}
+}
+
+const UI_ZOOM_KEY = 'cashexpress_ui_zoom';
+function applyUiZoom(z) {
+    z = Math.min(2.0, Math.max(0.5, Math.round(z * 100) / 100));
+    document.documentElement.style.setProperty('--ui-zoom', z);
+    const lbl = document.getElementById('ui-zoom-label');
+    if (lbl) lbl.textContent = Math.round(z * 100) + '%';
+    try { localStorage.setItem(UI_ZOOM_KEY, String(z)); } catch (e) {}
+    return z;
+}
+function changeUiZoom(delta) {
+    const cur = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--ui-zoom')) || 1;
+    applyUiZoom(cur + delta);
+}
+function resetUiZoom() { applyUiZoom(1); }
+(function initUiZoom() {
+    let saved = 1;
+    try { saved = parseFloat(localStorage.getItem(UI_ZOOM_KEY)) || 1; } catch (e) {}
+    applyUiZoom(saved);
+})();
+
+const toLocalDateStr = (d) => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+};
+const getTodayStr = () => toLocalDateStr(new Date());
+const getTimeStr = (timestamp) => {
+    const d = timestamp ? new Date(timestamp) : new Date();
+    return d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+};
+
+// ==================== ÉTAT PAR DÉFAUT (démo si base vide) ====================
+let state = {
+    currentRole: 'admin',
+    selectedDate: getTodayStr(),
+    lastRolloverDate: getTodayStr(),
+    adminStartBalances: {},
+    livreurs: {
+        livreur1: { id: 'livreur1', name: 'Sami (Livreur 1)', startBalances: {} },
+        livreur2: { id: 'livreur2', name: 'Karim (Livreur 2)', startBalances: {} },
+        livreur3: { id: 'livreur3', name: 'Youssef (Livreur 3)', startBalances: {} }
+    },
+    blacklist: [],
+    deliveries: []
+};
+state.adminStartBalances[getTodayStr()] = 5000;
+
+let isAdminAuthenticated = false;
+
+// ==================== SAUVEGARDE FIREBASE ====================
+function saveState() {
+    renderApp();
+    clearTimeout(saveDebounceTimer);
+    saveDebounceTimer = setTimeout(() => {
+        if (!firebaseReady) return;
+        setSyncStatus('syncing');
+        STATE_REF.set(state)
+            .then(() => setSyncStatus('online'))
+            .catch(err => { console.error(err); setSyncStatus('offline'); });
+    }, 250);
+}
+
+// ==================== IMPORT EXCEL ====================
+function handleExcelImport(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const data = new Uint8Array(e.target.result);
+            const workbook = XLSX.read(data, { type: 'array' });
+            const firstSheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[firstSheetName];
+            const jsonRows = XLSX.utils.sheet_to_json(worksheet);
+            if (!jsonRows || jsonRows.length === 0) { alert("❌ Le fichier Excel est vide ou invalide !"); return; }
+            if (!confirm(`L'importation va fusionner les données (${jsonRows.length} lignes). Continuer ?`)) return;
+            const clean = (v) => { const s = String(v ?? '').trim(); return s === 'N/A' ? '' : s; };
+            const importedDeliveries = jsonRows.map((row, idx) => {
+                const typeVal = (row["Type Opération"] && row["Type Opération"].includes("Alimentation")) ? "SOLDE_RECU" : "LIVRAISON";
+                let statusVal = 'pending';
+                const statusStr = String(row["Statut"] || "").toLowerCase();
+                if (statusStr.includes("validé") || statusStr.includes("envoyé")) statusVal = 'delivered';
+                else if (statusStr.includes("annulé")) statusVal = 'cancelled';
+                const livreurName = row["Livreur Assigné"] || "Livreur 1";
+                let livreurId = 'livreur1';
+                if (livreurName.includes("Karim") || livreurName.includes("2")) livreurId = 'livreur2';
+                else if (livreurName.includes("Youssef") || livreurName.includes("3")) livreurId = 'livreur3';
+                return {
+                    id: 'imp-' + Date.now() + '-' + idx,
+                    date: row["Date"] || getTodayStr(),
+                    type: typeVal,
+                    clientName: clean(row["Client / Remettant"]) || "Client",
+                    phone: clean(row["Téléphone Principal"]),
+                    phone2: clean(row["Téléphone Secondaire"]),
+                    address: clean(row["Adresse physique"]),
+                    location: clean(row["Localisation / GPS"]),
+                    amount: parseFloat(row["Montant (TND)"]) || 0,
+                    livreurId: livreurId,
+                    status: statusVal,
+                    remarkAdmin: row["Remarque Admin"] || '',
+                    remarkLivreur: row["Remarque / Motif Livreur"] || '',
+                    creationTime: row["Heure Insertion"] || getTimeStr(),
+                    actionTime: row["Heure Action"] || null,
+                    timestamp: Date.now() + idx
+                };
+            });
+            const sig = d => [d.date, d.type, d.clientName, d.phone, d.amount, d.livreurId, d.creationTime].join('|');
+            const known = new Set(state.deliveries.map(sig));
+            const newOnes = importedDeliveries.filter(d => { const s = sig(d); if (known.has(s)) return false; known.add(s); return true; });
+            state.deliveries = [...newOnes, ...state.deliveries];
+            let blCount = 0;
+            if (workbook.SheetNames.includes("Liste Noire")) {
+                const blJson = XLSX.utils.sheet_to_json(workbook.Sheets["Liste Noire"]);
+                if (blJson && blJson.length > 0) {
+                    if (!state.blacklist) state.blacklist = [];
+                    blJson.forEach(row => {
+                        const phone = String(row["Téléphone"] || "").trim();
+                        const name = String(row["Nom Client"] || "").trim();
+                        const reason = String(row["Motif Blocage"] || "").trim();
+                        if (phone && name) {
+                            const cleaned = phone.replace(/\s+/g, '');
+                            if (!state.blacklist.some(b => b.phone.replace(/\s+/g, '') === cleaned)) {
+                                state.blacklist.push({ id: 'bl-imp-' + Date.now() + Math.random().toString(36).substr(2,4), phone, clientName: name, reason: reason || 'Importé', date: row["Date Ajout"] || getTodayStr() });
+                                blCount++;
+                            }
+                        }
+                    });
+                }
+            }
+            saveState();
+            showToast("📥 Importation Réussie", `${newOnes.length} opérations et ${blCount} client(s) bloqué(s) importés.`);
+        } catch (err) {
+            console.error(err);
+            alert("❌ Erreur : " + err.message);
+        } finally { e.target.value = ''; }
+    };
+    reader.readAsArrayBuffer(file);
+}
+
+// ==================== ROLLOVER ====================
+function checkAndExecuteDailyRollover() {
+    const today = getTodayStr();
+    if (!state.lastRolloverDate) state.lastRolloverDate = today;
+    if (state.lastRolloverDate !== today) {
+        const pendingToRollover = state.deliveries.filter(d => d.status === 'pending' && d.date < today);
+        pendingToRollover.forEach(d => {
+            const originalDate = d.date;
+            d.date = today;
+            const ra = d.remarkAdmin || '';
+            if (!ra.includes('[Reporté')) d.remarkAdmin = `[Reporté du ${originalDate}] ${ra}`.trim();
+        });
+        state.lastRolloverDate = today;
+        saveState();
+    }
+}
+
+// ==================== TOAST ====================
+function showToast(title, message) {
+    playNotificationSound();
+    const toast = document.getElementById('notification-toast');
+    document.getElementById('toast-title').textContent = title;
+    document.getElementById('toast-body').textContent = message;
+    clearTimeout(window._toastTimer);
+    clearTimeout(window._toastHideTimer);
+    toast.classList.remove('hidden');
+    toast.classList.remove('translate-y-2');
+    window._toastTimer = setTimeout(hideToast, 4500);
+}
+function hideToast() {
+    const toast = document.getElementById('notification-toast');
+    toast.classList.add('translate-y-2');
+    window._toastHideTimer = setTimeout(() => toast.classList.add('hidden'), 300);
+}
+
+// ==================== AUTH / RÔLES ====================
+function generateRandomToken(prefix) {
+    return prefix + '_' + Math.random().toString(36).substring(2, 8);
+}
+function getRoleFromURL() {
+    const params = new URLSearchParams(window.location.search);
+    const role = params.get('role');
+    const token = params.get('token');
+    if (role && ['admin', 'livreur1', 'livreur2', 'livreur3'].includes(role)) return { role, token };
+    return { role: null, token: null };
+}
+function lockRoleSelector(lockedRole) {
+    document.querySelectorAll('.role-btn').forEach(btn => btn.classList.add('hidden'));
+    const pinBtn = document.getElementById('admin-pin-settings-btn');
+    if (pinBtn) pinBtn.classList.add('hidden');
+    const activeBtn = document.getElementById(`role-btn-${lockedRole}`);
+    if (activeBtn) { activeBtn.classList.remove('hidden'); activeBtn.classList.add('bg-brand-600', 'text-white'); }
+}
+function switchRole(roleId, isURLCheck = false) {
+    if (roleId === 'admin' && !isAdminAuthenticated && !isURLCheck) {
+        document.getElementById('admin-pin-error').classList.add('hidden');
+        document.getElementById('input-admin-pin').value = '';
+        toggleAdminAuthModal(true);
+        return;
+    }
+    state.currentRole = roleId;
+    document.querySelectorAll('.role-btn').forEach(btn => {
+        btn.classList.remove('bg-brand-600', 'text-white', 'shadow-sm');
+        btn.classList.add('text-slate-300');
+    });
+    const activeBtn = document.getElementById(`role-btn-${roleId}`);
+    if (activeBtn) { activeBtn.classList.add('bg-brand-600', 'text-white', 'shadow-sm'); activeBtn.classList.remove('text-slate-300'); }
+    if (roleId === 'admin') {
+        document.getElementById('view-admin').classList.remove('hidden');
+        document.getElementById('view-livreur').classList.add('hidden');
+    } else {
+        document.getElementById('view-admin').classList.add('hidden');
+        document.getElementById('view-livreur').classList.remove('hidden');
+    }
+    renderApp();
+}
+function toggleAdminAuthModal(show) {
+    const modal = document.getElementById('modal-admin-auth');
+    if (show) modal.classList.remove('hidden'); else modal.classList.add('hidden');
+}
+function verifyAdminPIN(e) {
+    e.preventDefault();
+    const inputPIN = document.getElementById('input-admin-pin').value;
+    const currentPin = state.adminPin || "1234";
+    if (inputPIN === currentPin) {
+        isAdminAuthenticated = true;
+        toggleAdminAuthModal(false);
+        switchRole('admin', true);
+        showToast("Accès Admin Autorisé", "Vous êtes connecté en tant qu'Administrateur.");
+    } else {
+        document.getElementById('admin-pin-error').classList.remove('hidden');
+    }
+}
+function openChangeAdminPinModal() {
+    if (!isAdminAuthenticated) { switchRole('admin'); return; }
+    document.getElementById('form-change-admin-pin').reset();
+    document.getElementById('change-pin-error').classList.add('hidden');
+    toggleChangeAdminPinModal(true);
+}
+function toggleChangeAdminPinModal(show) {
+    const modal = document.getElementById('modal-change-admin-pin');
+    if (show) modal.classList.remove('hidden'); else modal.classList.add('hidden');
+}
+function handleSaveNewAdminPIN(e) {
+    e.preventDefault();
+    const currentInput = document.getElementById('input-current-pin').value;
+    const newInput = document.getElementById('input-new-pin').value;
+    const confirmInput = document.getElementById('input-confirm-new-pin').value;
+    const errorElement = document.getElementById('change-pin-error');
+    const currentPin = state.adminPin || "1234";
+    if (currentInput !== currentPin) { errorElement.textContent = "❌ PIN actuel incorrect !"; errorElement.classList.remove('hidden'); return; }
+    if (newInput.length < 4) { errorElement.textContent = "❌ Le nouveau PIN doit contenir au moins 4 caractères !"; errorElement.classList.remove('hidden'); return; }
+    if (newInput !== confirmInput) { errorElement.textContent = "❌ Les PIN ne correspondent pas !"; errorElement.classList.remove('hidden'); return; }
+    state.adminPin = newInput;
+    saveState();
+    toggleChangeAdminPinModal(false);
+    showToast("🔒 PIN Admin Modifié", "Le PIN a été mis à jour.");
+}
+
+// ==================== LIENS ====================
+function openDirectLinksModal() {
+    const baseUrl = window.location.href.split('?')[0];
+    ['livreur1', 'livreur2', 'livreur3'].forEach(id => {
+        if (!state.livreurs[id].token) state.livreurs[id].token = generateRandomToken(id);
+    });
+    document.getElementById('link-url-admin').value = `${baseUrl}?role=admin`;
+    document.getElementById('link-url-livreur1').value = `${baseUrl}?role=livreur1&token=${state.livreurs.livreur1.token}`;
+    document.getElementById('link-url-livreur2').value = `${baseUrl}?role=livreur2&token=${state.livreurs.livreur2.token}`;
+    document.getElementById('link-url-livreur3').value = `${baseUrl}?role=livreur3&token=${state.livreurs.livreur3.token}`;
+    toggleDirectLinksModal(true);
+}
+function toggleDirectLinksModal(show) {
+    const modal = document.getElementById('modal-direct-links');
+    if (show) modal.classList.remove('hidden'); else modal.classList.add('hidden');
+}
+function copyToClipboard(elementId) {
+    const input = document.getElementById(elementId);
+    input.select(); input.setSelectionRange(0, 99999);
+    navigator.clipboard.writeText(input.value);
+    showToast("Lien copié !", "Le lien direct a été copié.");
+}
+function revokeAndRegenerateLink(livreurId) {
+    const livreurName = state.livreurs[livreurId]?.name || livreurId;
+    if (confirm(`Révoquer le lien de ${livreurName} ? Son ancien lien sera IMMÉDIATEMENT bloqué.`)) {
+        state.livreurs[livreurId].token = generateRandomToken(livreurId);
+        saveState();
+        openDirectLinksModal();
+        showToast("🔴 Lien Révoqué !", `L'ancien lien de ${livreurName} a été désactivé.`);
+    }
+}
+
+// ==================== CALCULS ====================
+function getAdminStartBalance(date) {
+    return (state.adminStartBalances && state.adminStartBalances[date] !== undefined) ? state.adminStartBalances[date] : 0;
+}
+function getStartBalance(livreurId, date) {
+    return (state.livreurs[livreurId]?.startBalances?.[date]) ?? 0;
+}
+function getTotalLivreursStartBalance(date) {
+    return ['livreur1', 'livreur2', 'livreur3'].reduce((sum, id) => sum + getStartBalance(id, date), 0);
+}
+function getAddedCashDeliveredTotal(livreurId, date) {
+    return state.deliveries.filter(d => d.date === date && d.livreurId === livreurId && d.type === 'SOLDE_RECU' && d.status === 'delivered').reduce((s, d) => s + Number(d.amount), 0);
+}
+function getAddedCashTheoreticalTotal(livreurId, date) {
+    return state.deliveries.filter(d => d.date === date && d.livreurId === livreurId && d.type === 'SOLDE_RECU' && d.status !== 'cancelled').reduce((s, d) => s + Number(d.amount), 0);
+}
+function getDeliveredTotal(livreurId, date) {
+    return state.deliveries.filter(d => d.date === date && d.livreurId === livreurId && d.type === 'LIVRAISON' && d.status === 'delivered').reduce((s, d) => s + Number(d.amount), 0);
+}
+function getAllDeliveriesTotal(livreurId, date) {
+    return state.deliveries.filter(d => d.date === date && d.livreurId === livreurId && d.type === 'LIVRAISON' && d.status !== 'cancelled').reduce((s, d) => s + Number(d.amount), 0);
+}
+function calculateRealBalance(livreurId, date) {
+    return getStartBalance(livreurId, date) + getAddedCashDeliveredTotal(livreurId, date) - getDeliveredTotal(livreurId, date);
+}
+function calculateTheoreticalBalance(livreurId, date) {
+    return getStartBalance(livreurId, date) + getAddedCashTheoreticalTotal(livreurId, date) - getAllDeliveriesTotal(livreurId, date);
+}
+
+// ==================== RENDER ====================
+function renderApp() {
+    updateLivreurNamesInUI();
+    if (state.currentRole === 'admin') renderAdminDashboard();
+    else renderLivreurDashboard(state.currentRole);
+}
+function updateLivreurNamesInUI() {
+    document.querySelectorAll('.livreur-name-1').forEach(el => el.textContent = state.livreurs.livreur1.name);
+    document.querySelectorAll('.livreur-name-2').forEach(el => el.textContent = state.livreurs.livreur2.name);
+    document.querySelectorAll('.livreur-name-3').forEach(el => el.textContent = state.livreurs.livreur3.name);
+}
+
+// ==================== BLACKLIST ====================
+function openBlacklistModal() { renderBlacklistTable(); resetBlacklistForm(); document.getElementById('modal-blacklist').classList.remove('hidden'); }
+function toggleBlacklistModal(show) { const m = document.getElementById('modal-blacklist'); if (show) m.classList.remove('hidden'); else m.classList.add('hidden'); }
+function resetBlacklistForm() {
+    document.getElementById('form-add-blacklist').reset();
+    document.getElementById('blacklist-edit-id').value = '';
+    document.getElementById('blacklist-submit-btn').textContent = "Ajouter à la Liste Noire";
+    document.getElementById('blacklist-cancel-btn').classList.add('hidden');
+}
+function handleAddBlacklist(e) {
+    e.preventDefault();
+    const editId = document.getElementById('blacklist-edit-id').value;
+    const phone = document.getElementById('blacklist-input-phone').value.trim();
+    const clientName = document.getElementById('blacklist-input-name').value.trim();
+    const reason = document.getElementById('blacklist-input-reason').value.trim();
+    if (!state.blacklist) state.blacklist = [];
+    if (editId) {
+        const item = state.blacklist.find(b => b.id === editId);
+        if (item) { item.phone = phone; item.clientName = clientName; item.reason = reason; showToast("Liste Noire mise à jour", `${clientName} modifié.`); }
+    } else {
+        state.blacklist.push({ id: 'bl-' + Date.now(), phone, clientName, reason, date: getTodayStr() });
+        showToast("🔴 Client Blacklisté", `${clientName} ajouté à la liste noire.`);
+    }
+    saveState();
+    renderBlacklistTable();
+    resetBlacklistForm();
+}
+function renderBlacklistTable() {
+    const tbody = document.getElementById('blacklist-table-body');
+    tbody.innerHTML = '';
+    const list = state.blacklist || [];
+    document.getElementById('blacklist-badge-count').textContent = list.length;
+    if (list.length === 0) { tbody.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-slate-400">Aucun client sur la liste noire.</td></tr>`; return; }
+    list.forEach(item => {
+        const tr = document.createElement('tr');
+        tr.className = "hover:bg-slate-50";
+        tr.innerHTML = `
+            <td class="p-2.5 font-bold text-slate-900">${item.phone}</td>
+            <td class="p-2.5 font-semibold text-slate-800">${item.clientName}</td>
+            <td class="p-2.5 text-red-700 font-medium">${item.reason}</td>
+            <td class="p-2.5 text-right space-x-1">
+                <button onclick="editBlacklistEntry('${item.id}')" class="px-2 py-1 bg-brand-50 hover:bg-brand-100 text-brand-700 rounded text-[11px] font-bold"><i class="fa-solid fa-pen"></i></button>
+                <button onclick="removeBlacklistEntry('${item.id}')" class="px-2 py-1 bg-red-50 hover:bg-red-100 text-red-700 rounded text-[11px] font-bold"><i class="fa-solid fa-trash-can"></i></button>
+            </td>`;
+        tbody.appendChild(tr);
+    });
+}
+function editBlacklistEntry(id) {
+    const item = (state.blacklist || []).find(b => b.id === id);
+    if (!item) return;
+    document.getElementById('blacklist-edit-id').value = item.id;
+    document.getElementById('blacklist-input-phone').value = item.phone;
+    document.getElementById('blacklist-input-name').value = item.clientName;
+    document.getElementById('blacklist-input-reason').value = item.reason;
+    document.getElementById('blacklist-submit-btn').textContent = "Enregistrer les modifications";
+    document.getElementById('blacklist-cancel-btn').classList.remove('hidden');
+}
+function removeBlacklistEntry(id) {
+    if (confirm("Retirer ce client de la liste noire ?")) {
+        state.blacklist = (state.blacklist || []).filter(b => b.id !== id);
+        saveState(); renderBlacklistTable();
+        showToast("Client retiré", "Le client a été supprimé de la liste noire.");
+    }
+}
+function handlePhoneLookupAndBlacklist(phone) {
+    handlePhoneHistoryLookup(phone);
+    const cleaned = phone.replace(/\s+/g, '');
+    const banner = document.getElementById('blacklist-warning-banner');
+    const warningText = document.getElementById('blacklist-warning-text');
+    if (cleaned.length >= 8) {
+        const found = (state.blacklist || []).find(b => b.phone.replace(/\s+/g, '') === cleaned);
+        if (found) { warningText.textContent = `${found.clientName} — Motif : "${found.reason}". Confirmation demandée à la sauvegarde.`; banner.classList.remove('hidden'); return; }
+    }
+    banner.classList.add('hidden');
+}
+function handlePhoneHistoryLookup(phone) {
+    const cleaned = phone.replace(/\s+/g, '');
+    const alertBox = document.getElementById('history-alert');
+    if (cleaned.length >= 8) {
+        const prev = [...state.deliveries].sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0)).find(d => d.phone && d.phone.replace(/\s+/g, '') === cleaned && (d.clientName || d.location || d.address));
+        if (prev) {
+            if (prev.clientName) document.getElementById('input-client-name').value = prev.clientName;
+            if (prev.address) document.getElementById('input-address').value = prev.address;
+            if (prev.location) document.getElementById('input-location').value = prev.location;
+            if (prev.remarkAdmin) document.getElementById('input-remark-admin').value = prev.remarkAdmin;
+            alertBox.classList.remove('hidden'); return;
+        }
+    }
+    alertBox.classList.add('hidden');
+}
+
+// ==================== ADMIN DASHBOARD ====================
+function renderAdminDashboard() {
+    const blCount = (state.blacklist || []).length;
+    const badge = document.getElementById('blacklist-badge-count');
+    if (badge) badge.textContent = blCount;
+    const date = state.selectedDate;
+    const adminStart = getAdminStartBalance(date);
+    const totalLivreursStart = getTotalLivreursStartBalance(date);
+    const remainingStart = adminStart - totalLivreursStart;
+    document.getElementById('admin-global-start-balance').textContent = `${adminStart.toLocaleString('fr-FR')} TND`;
+    document.getElementById('admin-distributed-starts').textContent = `${totalLivreursStart.toLocaleString('fr-FR')} TND`;
+    document.getElementById('admin-remaining-starts').textContent = `${remainingStart.toLocaleString('fr-FR')} TND`;
+
+    let globalAddedDelivered = 0, globalAddedTheo = 0, globalDelivered = 0, globalDeliveriesTheo = 0;
+    let countPending = 0, countDelivered = 0, countCancelled = 0, countCash = 0;
+
+    ['livreur1', 'livreur2', 'livreur3'].forEach(id => {
+        const theo = calculateTheoreticalBalance(id, date);
+        const real = calculateRealBalance(id, date);
+        const start = getStartBalance(id, date);
+        const addedDelivered = getAddedCashDeliveredTotal(id, date);
+        globalAddedDelivered += addedDelivered;
+        globalAddedTheo += getAddedCashTheoreticalTotal(id, date);
+        globalDelivered += getDeliveredTotal(id, date);
+        globalDeliveriesTheo += getAllDeliveriesTotal(id, date);
+        document.getElementById(`admin-theo-${id}`).textContent = `${theo.toLocaleString('fr-FR')} TND`;
+        document.getElementById(`admin-real-${id}`).textContent = `${real.toLocaleString('fr-FR')} TND`;
+        document.getElementById(`admin-start-${id}`).textContent = `${start.toLocaleString('fr-FR')} TND`;
+        document.getElementById(`admin-added-${id}`).textContent = `+${addedDelivered.toLocaleString('fr-FR')} TND`;
+    });
+
+    const globalRealTotal = adminStart + globalAddedDelivered - globalDelivered;
+    const globalTheoTotal = adminStart + globalAddedTheo - globalDeliveriesTheo;
+    document.getElementById('admin-total-real-balance').textContent = `${globalRealTotal.toLocaleString('fr-FR')} TND`;
+    document.getElementById('admin-total-theo-balance').textContent = `${globalTheoTotal.toLocaleString('fr-FR')} TND`;
+    document.getElementById('admin-global-date-label').textContent = date === getTodayStr() ? "Aujourd'hui" : date;
+
+    const dayOps = state.deliveries.filter(d => (d.date || getTodayStr()) === date);
+    dayOps.forEach(d => {
+        if (d.type === 'SOLDE_RECU') countCash++;
+        if (d.status === 'pending') countPending++;
+        else if (d.status === 'delivered') countDelivered++;
+        else if (d.status === 'cancelled') countCancelled++;
+    });
+    document.getElementById('admin-count-pending').textContent = countPending;
+    document.getElementById('admin-count-delivered').textContent = countDelivered;
+    document.getElementById('admin-count-cancelled').textContent = countCancelled;
+    document.getElementById('admin-count-cash').textContent = countCash;
+    renderAdminTable();
+}
+
+function renderAdminTable() {
+    const filter = document.getElementById('admin-filter-status').value;
+    const search = (document.getElementById('global-search-input').value || '').toLowerCase().trim();
+    const date = state.selectedDate;
+    const tbody = document.getElementById('admin-delivery-list');
+    tbody.innerHTML = '';
+    let filtered = state.deliveries.filter(d => (d.date || getTodayStr()) === date);
+    if (filter === 'solde_recu') filtered = filtered.filter(d => d.type === 'SOLDE_RECU');
+    else if (filter === 'livrais_only') filtered = filtered.filter(d => d.type === 'LIVRAISON');
+    else if (filter !== 'all') filtered = filtered.filter(d => d.status === filter);
+    if (search) filtered = filtered.filter(d => (d.clientName && d.clientName.toLowerCase().includes(search)) || (d.phone && d.phone.includes(search)) || (d.phone2 && d.phone2.includes(search)) || (d.address && d.address.toLowerCase().includes(search)) || (d.location && d.location.toLowerCase().includes(search)));
+    filtered.sort((a, b) => { if (a.status === 'pending' && b.status !== 'pending') return -1; if (a.status !== 'pending' && b.status === 'pending') return 1; return b.timestamp - a.timestamp; });
+    if (filtered.length === 0) { tbody.innerHTML = `<tr><td colspan="7" class="p-8 text-center text-slate-400">Aucune opération pour cette journée.</td></tr>`; return; }
+
+    filtered.forEach(d => {
+        const tr = document.createElement('tr');
+        const cTime = d.creationTime || getTimeStr(d.timestamp);
+        let statusBadge = '', rowBgClass = 'hover:bg-slate-50/80', isStrikethrough = false;
+        const isCash = d.type === 'SOLDE_RECU';
+        if (isCash) {
+            if (d.status === 'delivered') { statusBadge = `<span class="px-2.5 py-1 rounded-full text-xs font-bold bg-purple-700 text-white">🟣 Validé (Crédité)</span>`; rowBgClass = 'bg-purple-100/90 font-semibold text-purple-950 border-b border-purple-200'; }
+            else if (d.status === 'cancelled') { statusBadge = `<span class="px-2.5 py-1 rounded-full text-xs font-bold bg-red-600 text-white">🔴 Annulé</span>`; rowBgClass = 'bg-red-100/90 text-red-950 border-b border-red-200'; isStrikethrough = true; }
+            else { statusBadge = `<span class="px-2.5 py-1 rounded-full text-xs font-bold bg-purple-200 text-purple-900 border border-purple-300">🟡 En cours</span>`; rowBgClass = 'bg-purple-50/80 border-b border-purple-100'; }
+        } else {
+            if (d.status === 'delivered') { statusBadge = `<span class="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-700 text-white">🟢 Envoyé</span>`; rowBgClass = 'bg-emerald-100/90 font-semibold text-emerald-950 border-b border-emerald-200'; }
+            else if (d.status === 'cancelled') { statusBadge = `<span class="px-2.5 py-1 rounded-full text-xs font-bold bg-red-600 text-white">🔴 Annulé</span>`; rowBgClass = 'bg-red-100/90 text-red-950 border-b border-red-200'; isStrikethrough = true; }
+            else { statusBadge = `<span class="px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-200">🟡 En cours</span>`; rowBgClass = 'hover:bg-slate-50/80 border-b border-slate-100'; }
+        }
+        tr.className = `${rowBgClass} ${isStrikethrough ? 'strikethrough-text text-slate-400' : ''} transition duration-150`;
+        const mapsUrl = d.location && d.location.startsWith('http') ? d.location : `https://maps.google.com/?q=${encodeURIComponent(d.location || '')}`;
+        const canEditAmount = d.status === 'pending';
+        let timeHTML = `<span class="px-2 py-1 bg-slate-100 border border-slate-200 text-slate-700 rounded-md text-xs font-bold" title="Heure d'insertion"><i class="fa-solid fa-plus text-brand-600 text-[10px] me-1"></i>${cTime}</span>`;
+        if (d.status !== 'pending' && d.actionTime) {
+            timeHTML += `<span class="px-2 py-1 bg-emerald-100 border border-emerald-200 text-emerald-800 rounded-md text-xs font-bold" title="Heure d'action"><i class="fa-solid fa-check text-emerald-600 text-[10px] me-1"></i>${d.actionTime}</span>`;
+        }
+        const canReassign = d.status === 'pending' || d.status === 'cancelled';
+        const typeIcon = isCash ? `<span class="inline-block text-[11px] font-bold bg-purple-100 text-purple-900 border border-purple-200 px-2 py-0.5 rounded-full mb-1">➕ ALIMENTATION</span>` : `<span class="inline-block text-[11px] font-bold bg-blue-100 text-blue-900 border border-blue-200 px-2 py-0.5 rounded-full mb-1">📦 LIVRAISON</span>`;
+        tr.innerHTML = `
+            <td class="p-3.5">
+                ${typeIcon}
+                <div class="flex items-center space-x-2 flex-wrap">
+                    <span class="font-bold text-slate-900">${d.clientName}</span>
+                    ${d.phone ? `<div class="inline-flex items-center space-x-1.5 bg-slate-100/80 px-1.5 py-0.5 rounded">
+                        <a href="tel:${d.phone}" class="text-xs font-semibold text-brand-600 hover:underline flex items-center gap-1"><i class="fa-solid fa-phone text-[10px]"></i> ${d.phone}</a>
+                        <a href="https://wa.me/${(d.phone || '').replace(/\s+/g, '')}" target="_blank" class="px-1.5 py-0.5 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold rounded flex items-center gap-0.5"><i class="fa-brands fa-whatsapp text-[10px]"></i> WA</a>
+                    </div>` : ''}
+                    ${d.phone2 ? `<div class="inline-flex items-center space-x-1.5 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
+                        <a href="tel:${d.phone2}" class="text-xs font-semibold text-amber-800 hover:underline flex items-center gap-1"><i class="fa-solid fa-phone text-[10px] text-amber-600"></i> ${d.phone2}</a>
+                        <a href="https://wa.me/${(d.phone2 || '').replace(/\s+/g, '')}" target="_blank" class="px-1.5 py-0.5 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold rounded flex items-center gap-0.5"><i class="fa-brands fa-whatsapp text-[10px]"></i> WA2</a>
+                    </div>` : ''}
+                    <button onclick="promptEditPhone('${d.id}')" class="text-slate-400 hover:text-brand-600 text-xs p-0.5"><i class="fa-solid fa-pen text-[10px]"></i></button>
+                </div>
+            </td>
+            <td class="p-3.5">
+                <div class="space-y-1">
+                    <div class="flex items-center space-x-1.5">
+                        <span class="text-xs font-medium text-slate-800 flex items-center gap-1"><i class="fa-solid fa-house text-slate-500 text-[10px]"></i> ${d.address || 'Pas d\'adresse'}</span>
+                        <button onclick="promptEditAddress('${d.id}')" class="text-slate-400 hover:text-brand-600 text-xs p-0.5"><i class="fa-solid fa-pen text-[10px]"></i></button>
+                    </div>
+                    <div class="flex items-center space-x-1.5">
+                        <a href="${mapsUrl}" target="_blank" class="text-slate-700 hover:text-brand-600 text-xs flex items-center gap-1 max-w-xs truncate"><i class="fa-solid fa-location-dot text-red-500"></i> ${d.location || 'Pas de GPS'}</a>
+                        <button onclick="promptEditLocation('${d.id}')" class="text-slate-400 hover:text-brand-600 text-xs p-0.5"><i class="fa-solid fa-pen text-[10px]"></i></button>
+                    </div>
+                </div>
+            </td>
+            <td class="p-3.5 font-black ${isCash ? 'text-purple-700' : 'text-slate-900'} text-base">
+                ${canEditAmount ? `<span onclick="promptEditAmount('${d.id}')" class="cursor-pointer text-brand-600 hover:underline">${isCash ? '+' : ''}${Number(d.amount).toLocaleString('fr-FR')} <i class="fa-solid fa-pen text-[10px]"></i></span>` : `<span>${isCash ? '+' : ''}${Number(d.amount).toLocaleString('fr-FR')}</span>`}
+                <span class="text-xs font-semibold text-slate-500">TND</span>
+            </td>
+            <td class="p-3.5 font-medium text-slate-700">
+                <div class="flex items-center space-x-1.5">
+                    <span class="inline-flex items-center gap-1 px-2 py-1 bg-slate-100 rounded-md text-xs font-semibold"><i class="fa-solid fa-user-gear text-slate-400 text-[10px]"></i> ${state.livreurs[d.livreurId] ? state.livreurs[d.livreurId].name : d.livreurId}</span>
+                    ${canReassign ? `<button onclick="openReassignModal('${d.id}')" class="text-brand-600 hover:text-brand-800 p-1 bg-brand-50 hover:bg-brand-100 rounded-md transition text-xs"><i class="fa-solid fa-arrow-right-arrow-left text-[10px]"></i></button>` : `<span class="text-slate-300 p-1 text-xs"><i class="fa-solid fa-lock text-[10px]"></i></span>`}
+                </div>
+            </td>
+            <td class="p-3.5"><div class="flex items-center space-x-1.5">${timeHTML}</div></td>
+            <td class="p-3.5">
+                <div class="space-y-1">
+                    ${statusBadge}
+                    ${d.remarkAdmin ? `<p class="text-[11px] text-brand-700 bg-brand-50 p-1 rounded border border-brand-100">👑 <strong>Admin:</strong> « ${d.remarkAdmin} »</p>` : ''}
+                    ${d.remarkLivreur ? `<p class="text-[11px] text-amber-800 bg-amber-50 p-1 rounded border border-amber-100">🛵 <strong>Livreur:</strong> « ${d.remarkLivreur} »</p>` : ''}
+                </div>
+            </td>
+            <td class="p-3.5 text-right space-x-1">
+                ${d.status === 'pending' ? `
+                    <button onclick="openConfirmValidationModal('${d.id}')" class="p-1.5 bg-emerald-600 text-white rounded-lg text-xs font-bold hover:bg-emerald-700 transition"><i class="fa-solid fa-check"></i></button>
+                    <button onclick="openCancelModal('${d.id}')" class="p-1.5 bg-red-600 text-white rounded-lg text-xs font-bold hover:bg-red-700 transition"><i class="fa-solid fa-ban"></i></button>
+                ` : `<button onclick="confirmResetToPending('${d.id}')" class="p-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-xs font-bold transition"><i class="fa-solid fa-rotate-left"></i></button>`}
+                <button onclick="openRemarkModal('${d.id}')" class="p-1.5 bg-brand-100 text-brand-700 hover:bg-brand-200 rounded-lg text-xs font-bold transition"><i class="fa-solid fa-comment-dots"></i></button>
+                <button onclick="openConfirmDeleteModal('${d.id}')" class="p-1.5 bg-red-100 hover:bg-red-200 text-red-700 rounded-lg text-xs font-bold transition"><i class="fa-solid fa-trash-can"></i></button>
+            </td>`;
+        tbody.appendChild(tr);
+    });
+}
+
+// ==================== LIVREUR DASHBOARD ====================
+function renderLivreurDashboard(livreurId) {
+    const livreur = state.livreurs[livreurId];
+    if (!livreur) return;
+    const date = state.selectedDate;
+    document.getElementById('livreur-view-title').textContent = `Espace : ${livreur.name}`;
+    const start = getStartBalance(livreurId, date);
+    const theo = calculateTheoreticalBalance(livreurId, date);
+    const real = calculateRealBalance(livreurId, date);
+    document.getElementById('livreur-start-balance').textContent = `${start.toLocaleString('fr-FR')} TND`;
+    document.getElementById('livreur-real-balance').textContent = `${real.toLocaleString('fr-FR')} TND`;
+    document.getElementById('livreur-theo-balance').textContent = `${theo.toLocaleString('fr-FR')} TND`;
+
+    let countPending = 0, countDelivered = 0, countCancelled = 0, countCash = 0;
+    const search = (document.getElementById('global-search-input').value || '').toLowerCase().trim();
+    const filter = document.getElementById('livreur-filter-status') ? document.getElementById('livreur-filter-status').value : 'all';
+    let myDeliveries = state.deliveries.filter(d => (d.date || getTodayStr()) === date && d.livreurId === livreurId);
+    myDeliveries.forEach(d => {
+        if (d.type === 'SOLDE_RECU') countCash++;
+        if (d.status === 'pending') countPending++;
+        else if (d.status === 'delivered') countDelivered++;
+        else if (d.status === 'cancelled') countCancelled++;
+    });
+    document.getElementById('livreur-count-pending').textContent = countPending;
+    document.getElementById('livreur-count-delivered').textContent = countDelivered;
+    document.getElementById('livreur-count-cancelled').textContent = countCancelled;
+    document.getElementById('livreur-count-cash').textContent = countCash;
+
+    if (filter === 'solde_recu') myDeliveries = myDeliveries.filter(d => d.type === 'SOLDE_RECU');
+    else if (filter === 'livrais_only') myDeliveries = myDeliveries.filter(d => d.type === 'LIVRAISON');
+    else if (filter !== 'all') myDeliveries = myDeliveries.filter(d => d.status === filter);
+    if (search) myDeliveries = myDeliveries.filter(d => (d.clientName && d.clientName.toLowerCase().includes(search)) || (d.phone && d.phone.includes(search)) || (d.phone2 && d.phone2.includes(search)) || (d.address && d.address.toLowerCase().includes(search)) || (d.location && d.location.toLowerCase().includes(search)));
+    myDeliveries.sort((a, b) => { if (a.status === 'pending' && b.status !== 'pending') return -1; if (a.status !== 'pending' && b.status === 'pending') return 1; return b.timestamp - a.timestamp; });
+
+    const cardsContainer = document.getElementById('livreur-delivery-cards');
+    cardsContainer.innerHTML = '';
+    if (myDeliveries.length === 0) {
+        cardsContainer.innerHTML = `<div class="bg-white p-8 text-center rounded-2xl border border-slate-200 text-slate-400"><i class="fa-solid fa-inbox text-3xl mb-2 text-slate-300"></i><p>Aucune opération correspondant aux filtres.</p></div>`;
+        return;
+    }
+    myDeliveries.forEach(d => {
+        const card = document.createElement('div');
+        const cTime = d.creationTime || getTimeStr(d.timestamp);
+        const mapsUrl = d.location && d.location.startsWith('http') ? d.location : `https://maps.google.com/?q=${encodeURIComponent(d.location || '')}`;
+        const isCash = d.type === 'SOLDE_RECU';
+        let borderClass = 'border-amber-300 bg-white';
+        let statusBadge = '<span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200">🟡 EN COURS</span>';
+        if (isCash) {
+            if (d.status === 'delivered') { borderClass = 'border-purple-500 bg-purple-100/90 text-purple-950'; statusBadge = '<span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-purple-700 text-white">🟣 VALIDÉ</span>'; }
+            else if (d.status === 'cancelled') { borderClass = 'border-red-400 bg-red-100/90 text-red-950'; statusBadge = '<span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-red-600 text-white">🔴 ANNULÉ</span>'; }
+            else { borderClass = 'border-purple-400 bg-purple-50/90'; statusBadge = '<span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-purple-200 text-purple-900 border border-purple-300">🟡 EN COURS</span>'; }
+        } else {
+            if (d.status === 'delivered') { borderClass = 'border-emerald-400 bg-emerald-100/90 text-emerald-950'; statusBadge = '<span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-700 text-white">🟢 ENVOYÉ</span>'; }
+            else if (d.status === 'cancelled') { borderClass = 'border-red-400 bg-red-100/90 text-red-950'; statusBadge = '<span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-red-600 text-white">🔴 ANNULÉ</span>'; }
+        }
+        const typeBadge = isCash ? '<span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-purple-100 text-purple-900 border border-purple-200">➕ ALIM</span>' : '<span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-blue-100 text-blue-900 border border-blue-200">📦 LIVR</span>';
+        card.className = `p-3 rounded-xl border-2 ${borderClass} shadow-sm transition space-y-2 text-xs`;
+        card.innerHTML = `
+            <div class="flex items-center justify-between gap-2 border-b border-slate-200/60 pb-1.5">
+                <div class="flex items-center space-x-1.5 flex-wrap gap-y-1">
+                    ${typeBadge}${statusBadge}
+                    <span class="text-[11px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">🕒 ${cTime}${d.actionTime ? ' ➔ ' + d.actionTime : ''}</span>
+                </div>
+                <div class="text-right shrink-0"><span class="text-lg font-black ${isCash ? 'text-purple-700' : (d.status==='cancelled'?'text-slate-400 strikethrough-text':'text-slate-900')}">${isCash ? '+' : ''}${Number(d.amount).toLocaleString('fr-FR')}</span> <span class="text-[11px] font-bold text-slate-500">TND</span></div>
+            </div>
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div>
+                    <span class="font-bold text-slate-900 text-sm ${d.status==='cancelled'?'strikethrough-text':''}">${d.clientName}</span>
+                    <div class="flex items-center space-x-2 text-slate-600 mt-0.5 flex-wrap gap-y-1">
+                        ${d.phone ? `<span class="inline-flex items-center gap-1 font-semibold text-brand-600 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-100"><i class="fa-solid fa-phone text-[10px]"></i> <a href="tel:${d.phone}" class="hover:underline">${d.phone}</a><a href="https://wa.me/${(d.phone||'').replace(/\s+/g,'')}" target="_blank" class="ms-0.5 px-1 py-0.2 bg-emerald-600 text-white rounded text-[10px] font-bold">WA</a></span>` : ''}
+                        ${d.phone2 ? `<span class="inline-flex items-center gap-1 font-semibold text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200"><i class="fa-solid fa-mobile-screen text-[10px]"></i> <a href="tel:${d.phone2}" class="hover:underline">${d.phone2}</a><a href="https://wa.me/${(d.phone2||'').replace(/\s+/g,'')}" target="_blank" class="ms-0.5 px-1 py-0.2 bg-emerald-600 text-white rounded text-[10px] font-bold">WA2</a></span>` : ''}
+                        <button onclick="promptEditPhone('${d.id}')" class="text-slate-400 hover:text-brand-600 text-xs px-1"><i class="fa-solid fa-pen text-[10px]"></i></button>
+                        ${d.address ? `<span class="inline-flex items-center gap-1 font-medium text-slate-800" title="${d.address}"><i class="fa-solid fa-house text-slate-500 text-[10px]"></i> ${d.address}</span>` : ''}
+                        <button onclick="promptEditAddress('${d.id}')" class="text-slate-400 hover:text-brand-600 text-xs px-1"><i class="fa-solid fa-pen text-[10px]"></i></button>
+                        ${d.location ? `<a href="${mapsUrl}" target="_blank" class="inline-flex items-center gap-1 font-medium text-slate-700 hover:text-brand-600 truncate max-w-[180px]" title="${d.location}"><i class="fa-solid fa-location-dot text-red-500 text-[10px]"></i> ${d.location}</a>` : ''}
+                        <button onclick="promptEditLocation('${d.id}')" class="text-slate-400 hover:text-brand-600 text-xs px-1"><i class="fa-solid fa-pen text-[10px]"></i></button>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-1 shrink-0 pt-1 sm:pt-0">
+                    ${d.status === 'pending' ? `
+                        <button onclick="openConfirmValidationModal('${d.id}')" class="px-3 py-1.5 ${isCash ? 'bg-purple-600 hover:bg-purple-700' : 'bg-emerald-600 hover:bg-emerald-700'} text-white font-bold text-xs rounded-lg shadow-sm transition flex items-center space-x-1"><i class="fa-solid fa-check"></i><span>${isCash ? 'VALIDER' : 'ENVOYER'}</span></button>
+                        <button onclick="openCancelModal('${d.id}')" class="px-2 py-1.5 bg-red-100 hover:bg-red-200 text-red-700 font-bold text-xs rounded-lg transition"><i class="fa-solid fa-ban"></i></button>
+                    ` : `<button onclick="confirmResetToPending('${d.id}')" class="px-2 py-1 bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs rounded-lg transition"><i class="fa-solid fa-rotate-left"></i></button>`}
+                    <button onclick="openRemarkModal('${d.id}')" class="px-2 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-lg transition"><i class="fa-solid fa-comment-dots"></i></button>
+                </div>
+            </div>
+            ${(d.remarkAdmin || d.remarkLivreur) ? `
+                <div class="text-[11px] pt-1.5 border-t border-slate-200/60 space-y-0.5">
+                    ${d.remarkAdmin ? `<p class="text-brand-800 bg-brand-50/80 px-2 py-0.5 rounded">👑 <strong>Admin:</strong> ${d.remarkAdmin}</p>` : ''}
+                    ${d.remarkLivreur ? `<p class="text-amber-900 bg-amber-50/80 px-2 py-0.5 rounded">🛵 <strong>Remarque:</strong> ${d.remarkLivreur}</p>` : ''}
+                </div>` : ''}`;
+        cardsContainer.appendChild(card);
+    });
+}
+
+// ==================== EXPORT EXCEL ====================
+function openExportExcelModal() {
+    const today = getTodayStr();
+    document.getElementById('export-start-date').value = today;
+    document.getElementById('export-end-date').value = today;
+    document.getElementById('modal-export-excel').classList.remove('hidden');
+}
+function toggleExportExcelModal(show) {
+    const m = document.getElementById('modal-export-excel');
+    if (show) m.classList.remove('hidden'); else m.classList.add('hidden');
+}
+function toggleExportModeUI() {
+    const rangeMode = document.querySelector('input[name="export-mode"]:checked').value === 'range';
+    const c = document.getElementById('export-range-inputs');
+    if (rangeMode) c.classList.remove('hidden'); else c.classList.add('hidden');
+}
+function executeExcelExport() {
+    const mode = document.querySelector('input[name="export-mode"]:checked').value;
+    let startDate = state.selectedDate || getTodayStr();
+    let endDate = startDate;
+    if (mode === 'range') {
+        startDate = document.getElementById('export-start-date').value;
+        endDate = document.getElementById('export-end-date').value;
+        if (!startDate || !endDate) { alert("Sélectionnez les dates !"); return; }
+        if (startDate > endDate) { alert("Date début > date fin !"); return; }
+    }
+    const list = state.deliveries.filter(d => d.date >= startDate && d.date <= endDate);
+    if (list.length === 0) { alert("Aucune opération trouvée."); return; }
+    const excelRows = list.map(d => ({
+        "Date": d.date,
+        "Type Opération": d.type === 'SOLDE_RECU' ? "Alimentation" : "Livraison d'Argent",
+        "Client / Remettant": d.clientName || 'N/A',
+        "Téléphone Principal": d.phone || 'N/A',
+        "Téléphone Secondaire": d.phone2 || 'N/A',
+        "Adresse physique": d.address || 'N/A',
+        "Localisation / GPS": d.location || 'N/A',
+        "Montant (TND)": Number(d.amount),
+        "Livreur Assigné": state.livreurs[d.livreurId]?.name || d.livreurId,
+        "Statut": d.status === 'pending' ? "En cours" : (d.status === 'delivered' ? (d.type === 'SOLDE_RECU' ? "Validé" : "Envoyé") : "Annulé"),
+        "Heure Insertion": d.creationTime || '',
+        "Heure Action": d.actionTime || '',
+        "Remarque Admin": d.remarkAdmin || '',
+        "Remarque / Motif Livreur": d.remarkLivreur || ''
+    }));
+    const worksheet = XLSX.utils.json_to_sheet(excelRows);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Opérations");
+    const blacklistRows = (state.blacklist || []).map(b => ({ "Téléphone": b.phone || '', "Nom Client": b.clientName || '', "Motif Blocage": b.reason || '', "Date Ajout": b.date || getTodayStr() }));
+    const blWs = XLSX.utils.json_to_sheet(blacklistRows.length > 0 ? blacklistRows : [{"Téléphone":"","Nom Client":"","Motif Blocage":"","Date Ajout":""}]);
+    XLSX.utils.book_append_sheet(workbook, blWs, "Liste Noire");
+    const fileName = mode === 'single' ? `Rapport_CashExpress_${startDate}.xlsx` : `Rapport_CashExpress_${startDate}_au_${endDate}.xlsx`;
+    XLSX.writeFile(workbook, fileName);
+    toggleExportExcelModal(false);
+    showToast("Extraction Réussie", `Fichier "${fileName}" généré.`);
+}
+
+// ==================== VALIDATION / CANCEL / RESET ====================
+function openConfirmValidationModal(deliveryId) {
+    const del = state.deliveries.find(d => d.id === deliveryId);
+    if (!del) return;
+    document.getElementById('validation-delivery-id').value = deliveryId;
+    const isAdmin = state.currentRole === 'admin';
+    document.getElementById('input-validation-remark').value = isAdmin ? (del.remarkAdmin || '') : (del.remarkLivreur || '');
+    document.getElementById('validation-prompt-text').textContent = `Confirmer la validation de "${del.clientName}" (${del.amount} TND) ?`;
+    toggleConfirmValidationModal(true);
+}
+function toggleConfirmValidationModal(show) { const m = document.getElementById('modal-confirm-validation'); if (show) m.classList.remove('hidden'); else m.classList.add('hidden'); }
+function executeConfirmValidation(e) {
+    e.preventDefault();
+    const id = document.getElementById('validation-delivery-id').value;
+    const remark = document.getElementById('input-validation-remark').value.trim();
+    const del = state.deliveries.find(d => d.id === id);
+    if (del) {
+        del.status = 'delivered';
+        del.timestamp = new Date().getTime();
+        del.actionTime = getTimeStr();
+        if (remark) { if (state.currentRole === 'admin') del.remarkAdmin = remark; else del.remarkLivreur = remark; }
+        saveState();
+        showToast(`🟢 Confirmation`, `${del.type === 'SOLDE_RECU' ? 'Alimentation validée' : 'Livraison validée'} pour ${del.clientName}.`);
+    }
+    toggleConfirmValidationModal(false);
+}
+function openCancelModal(id) {
+    const del = state.deliveries.find(d => d.id === id);
+    if (!del) return;
+    document.getElementById('cancel-delivery-id').value = id;
+    const isAdmin = state.currentRole === 'admin';
+    document.getElementById('input-cancel-remark').value = isAdmin ? (del.remarkAdmin || '') : (del.remarkLivreur || '');
+    document.getElementById('modal-cancel').classList.remove('hidden');
+}
+function toggleCancelModal(show) { const m = document.getElementById('modal-cancel'); if (show) m.classList.remove('hidden'); else m.classList.add('hidden'); }
+function handleConfirmCancel(e) {
+    e.preventDefault();
+    const id = document.getElementById('cancel-delivery-id').value;
+    const remark = document.getElementById('input-cancel-remark').value.trim();
+    const del = state.deliveries.find(d => d.id === id);
+    if (del) {
+        del.status = 'cancelled';
+        if (remark) { if (state.currentRole === 'admin') del.remarkAdmin = remark; else del.remarkLivreur = "Annulé : " + remark; }
+        else if (!del.remarkLivreur && state.currentRole !== 'admin') del.remarkLivreur = "Annulé sans motif";
+        del.timestamp = new Date().getTime();
+        del.actionTime = getTimeStr();
+        showToast("🔴 Annulation", `Opération pour ${del.clientName} annulée.`);
+    }
+    toggleCancelModal(false);
+    saveState();
+}
+function confirmResetToPending(id) { document.getElementById('reset-delivery-id').value = id; toggleConfirmResetModal(true); }
+function toggleConfirmResetModal(show) { const m = document.getElementById('modal-confirm-reset'); if (show) m.classList.remove('hidden'); else m.classList.add('hidden'); }
+function executeResetToPending() {
+    const id = document.getElementById('reset-delivery-id').value;
+    const del = state.deliveries.find(d => d.id === id);
+    if (del) {
+        del.status = 'pending';
+        del.timestamp = new Date().getTime();
+        del.actionTime = null;
+        saveState();
+        showToast("Remise en cours", `${del.clientName} est à nouveau EN COURS.`);
+    }
+    toggleConfirmResetModal(false);
+}
+
+// ==================== MODIFICATIONS RAPIDES ====================
+function promptEditPhone(deliveryId) {
+    const d = state.deliveries.find(x => x.id === deliveryId);
+    if (!d) return;
+    const p1 = prompt("Téléphone principal :", d.phone || '');
+    if (p1 === null) return;
+    const p2 = prompt("Téléphone secondaire (optionnel) :", d.phone2 || '');
+    d.phone = p1.trim();
+    d.phone2 = p2 !== null ? p2.trim() : (d.phone2 || '');
+    d.timestamp = new Date().getTime();
+    saveState();
+    showToast("Téléphone(s) mis à jour", `Contact(s) modifié(s) pour ${d.clientName}.`);
+}
+function promptEditAddress(id) {
+    const d = state.deliveries.find(x => x.id === id);
+    if (!d) return;
+    const v = prompt("Adresse physique :", d.address || '');
+    if (v !== null) { d.address = v.trim(); d.timestamp = new Date().getTime(); saveState(); showToast("Adresse modifiée", `Nouvelle adresse pour ${d.clientName}.`); }
+}
+function promptEditLocation(id) {
+    const d = state.deliveries.find(x => x.id === id);
+    if (!d) return;
+    const v = prompt("Localisation / GPS :", d.location || '');
+    if (v !== null) { d.location = v.trim(); d.timestamp = new Date().getTime(); saveState(); showToast("Localisation modifiée", `Nouvelle localisation pour ${d.clientName}.`); }
+}
+function promptEditAmount(id) {
+    if (state.currentRole !== 'admin') return;
+    const d = state.deliveries.find(x => x.id === id);
+    if (!d) return;
+    if (d.status !== 'pending') { alert("L'Admin ne peut modifier un montant qu'en cours !"); return; }
+    const v = prompt("Nouveau montant (TND) :", d.amount);
+    if (v !== null && !isNaN(v) && parseFloat(v) > 0) {
+        d.amount = parseFloat(v);
+        d.timestamp = new Date().getTime();
+        saveState();
+        showToast("Montant modifié", `Nouveau montant ${d.amount} TND.`);
+    }
+}
+
+// ==================== OPÉRATIONS ====================
+function toggleOpTypeForm() {
+    const type = document.querySelector('input[name="input-type-op"]:checked').value;
+    const lblTypeLiv = document.getElementById('label-type-livraison');
+    const lblTypeSol = document.getElementById('label-type-solde');
+    const lblPhone = document.getElementById('lbl-phone');
+    const lblClientName = document.getElementById('lbl-client-name');
+    if (type === 'SOLDE_RECU') {
+        lblTypeSol.classList.add('bg-white', 'text-slate-900', 'shadow-sm');
+        lblTypeSol.classList.remove('text-slate-500');
+        lblTypeLiv.classList.remove('bg-white', 'text-slate-900', 'shadow-sm');
+        lblTypeLiv.classList.add('text-slate-500');
+        lblPhone.textContent = "2. Téléphone Remettant / Contact (Facultatif)";
+        lblClientName.textContent = "3. Nom / Origine des fonds *";
+        document.getElementById('input-phone').required = false;
+    } else {
+        lblTypeLiv.classList.add('bg-white', 'text-slate-900', 'shadow-sm');
+        lblTypeLiv.classList.remove('text-slate-500');
+        lblTypeSol.classList.remove('bg-white', 'text-slate-900', 'shadow-sm');
+        lblTypeSol.classList.add('text-slate-500');
+        lblPhone.textContent = "2. Téléphone Client *";
+        lblClientName.textContent = "3. Nom et Prénom du Client *";
+        document.getElementById('input-phone').required = true;
+    }
+}
+function isPastDate(targetDate) { return targetDate < getTodayStr(); }
+function handleSaveDelivery(e) {
+    e.preventDefault();
+    const date = state.selectedDate || getTodayStr();
+    const phoneInput = document.getElementById('input-phone').value.trim();
+    const cleanedPhone = phoneInput.replace(/\s+/g, '');
+    if (cleanedPhone) {
+        const blacklisted = (state.blacklist || []).find(b => b.phone.replace(/\s+/g, '') === cleanedPhone);
+        if (blacklisted) {
+            const go = confirm(`⚠️ CLIENT BLACKLISTÉ !\n\nNom : ${blacklisted.clientName}\nTéléphone : ${blacklisted.phone}\nMotif : ${blacklisted.reason}\n\nForcer l'enregistrement ?`);
+            if (!go) return;
+        }
+    }
+    if (isPastDate(date)) { alert("Impossible : date passée."); return; }
+    const type = document.querySelector('input[name="input-type-op"]:checked').value;
+    const phone = document.getElementById('input-phone').value.trim();
+    const phone2 = document.getElementById('input-phone2') ? document.getElementById('input-phone2').value.trim() : '';
+    const clientName = document.getElementById('input-client-name').value.trim();
+    const amount = parseFloat(document.getElementById('input-amount').value);
+    const address = document.getElementById('input-address').value.trim();
+    const location = document.getElementById('input-location').value.trim();
+    const livreurId = document.getElementById('select-livreur').value;
+    const remarkAdmin = document.getElementById('input-remark-admin').value.trim();
+    const now = new Date();
+    state.deliveries.unshift({
+        id: (type === 'SOLDE_RECU' ? 'cash-' : 'del-') + Date.now(),
+        date, type, clientName, phone, phone2, amount, address, location, livreurId,
+        status: 'pending',
+        remarkAdmin, remarkLivreur: '',
+        creationTime: getTimeStr(now.getTime()),
+        actionTime: null,
+        timestamp: now.getTime()
+    });
+    toggleAddModal(false);
+    saveState();
+    showToast("🔔 Nouvelle Opération", `${type === 'SOLDE_RECU' ? 'Alimentation' : 'Livraison'} de ${amount} TND assignée à ${state.livreurs[livreurId]?.name || livreurId}.`);
+}
+function openRemarkModal(id) {
+    const del = state.deliveries.find(d => d.id === id);
+    if (!del) return;
+    document.getElementById('remark-delivery-id').value = id;
+    const isAdmin = state.currentRole === 'admin';
+    document.getElementById('modal-remark-title').textContent = isAdmin ? "Remarque Admin" : "Remarque Livreur";
+    document.getElementById('remark-role-label').textContent = isAdmin ? "Note / Remarque réservée Admin *" : "Remarque du Livreur *";
+    document.getElementById('input-delivery-remark').value = isAdmin ? (del.remarkAdmin || '') : (del.remarkLivreur || '');
+    document.getElementById('modal-remark').classList.remove('hidden');
+}
+function toggleRemarkModal(show) { const m = document.getElementById('modal-remark'); if (show) m.classList.remove('hidden'); else m.classList.add('hidden'); }
+function handleSaveRemark(e) {
+    e.preventDefault();
+    const id = document.getElementById('remark-delivery-id').value;
+    const text = document.getElementById('input-delivery-remark').value.trim();
+    const del = state.deliveries.find(d => d.id === id);
+    if (del) {
+        if (state.currentRole === 'admin') { del.remarkAdmin = text; showToast("Remarque Admin", "Mise à jour."); }
+        else { del.remarkLivreur = text; showToast("Remarque Livreur", "Enregistrée."); }
+    }
+    toggleRemarkModal(false);
+    saveState();
+}
+function handleSaveAddCash(e) {
+    e.preventDefault();
+    const date = state.selectedDate || getTodayStr();
+    if (isPastDate(date)) { alert("Impossible : date passée."); return; }
+    const amount = parseFloat(document.getElementById('input-add-cash-amount').value);
+    const clientName = document.getElementById('input-add-cash-name').value.trim();
+    const phone = document.getElementById('input-add-cash-phone').value.trim();
+    const address = document.getElementById('input-add-cash-address') ? document.getElementById('input-add-cash-address').value.trim() : '';
+    const location = document.getElementById('input-add-cash-location').value.trim();
+    const remarkLivreur = document.getElementById('input-add-cash-remark').value.trim();
+    const livreurId = state.currentRole === 'admin' ? 'livreur1' : state.currentRole;
+    if (!(amount > 0)) { alert("Montant invalide."); return; }
+    const now = new Date();
+    state.deliveries.unshift({
+        id: 'cash-' + Date.now(), date, type: 'SOLDE_RECU',
+        clientName: clientName || "Alimentation Caisse",
+        phone, address, location, livreurId, amount,
+        status: 'pending', remarkAdmin: '', remarkLivreur,
+        creationTime: getTimeStr(now.getTime()), actionTime: null, timestamp: now.getTime()
+    });
+    toggleAddCashModal(false);
+    saveState();
+    showToast("Alimentation ajoutée", `+${amount} TND en cours de validation.`);
+}
+function handleSaveStartBalance(e) {
+    e.preventDefault();
+    const livreurId = document.getElementById('start-balance-livreur-id').value;
+    const amount = parseFloat(document.getElementById('input-start-balance-amount').value);
+    const date = state.selectedDate || getTodayStr();
+    if (isNaN(amount) || amount < 0) { alert("Montant invalide."); return; }
+    const adminStart = getAdminStartBalance(date);
+    const otherSum = ['livreur1', 'livreur2', 'livreur3'].filter(id => id !== livreurId).reduce((s, id) => s + getStartBalance(id, date), 0);
+    if (otherSum + amount > adminStart) { alert(`Plafond dépassé ! Max : ${adminStart - otherSum} TND`); return; }
+    if (state.livreurs[livreurId]) {
+        if (!state.livreurs[livreurId].startBalances) state.livreurs[livreurId].startBalances = {};
+        state.livreurs[livreurId].startBalances[date] = amount;
+    }
+    toggleStartBalanceModal(false);
+    saveState();
+    showToast("Solde Livreur mis à jour", `Nouveau départ : ${amount} TND pour ${state.livreurs[livreurId]?.name}.`);
+}
+
+// ==================== MODALES ====================
+function toggleAddModal(show) {
+    const modal = document.getElementById('modal-delivery');
+    if (show) {
+        document.getElementById('form-delivery').reset();
+        document.getElementById('history-alert').classList.add('hidden');
+        toggleOpTypeForm();
+        modal.classList.remove('hidden');
+    } else modal.classList.add('hidden');
+}
+function openAddCashModal() { document.getElementById('form-add-cash').reset(); document.getElementById('modal-add-cash').classList.remove('hidden'); }
+function toggleAddCashModal(show) { const m = document.getElementById('modal-add-cash'); if (show) m.classList.remove('hidden'); else m.classList.add('hidden'); }
+function openStartBalanceModal(livreurId) {
+    const date = state.selectedDate || getTodayStr();
+    const currentStart = getStartBalance(livreurId, date);
+    const adminStart = getAdminStartBalance(date);
+    const otherSum = ['livreur1', 'livreur2', 'livreur3'].filter(id => id !== livreurId).reduce((s, id) => s + getStartBalance(id, date), 0);
+    const maxAllowed = Math.max(0, adminStart - otherSum);
+    document.getElementById('start-balance-livreur-id').value = livreurId;
+    document.getElementById('input-start-balance-amount').value = currentStart;
+    document.getElementById('modal-start-balance-title').textContent = `Solde Départ - ${state.livreurs[livreurId]?.name}`;
+    document.getElementById('start-balance-constraint-hint').innerHTML = `Solde Départ Admin: <strong>${adminStart} TND</strong><br>Déjà attribué: <strong>${otherSum} TND</strong><br>Maximum: <strong class="text-emerald-600">${maxAllowed} TND</strong>`;
+    document.getElementById('modal-start-balance').classList.remove('hidden');
+}
+function toggleStartBalanceModal(show) { const m = document.getElementById('modal-start-balance'); if (show) m.classList.remove('hidden'); else m.classList.add('hidden'); }
+function openAdminStartBalanceModal() {
+    const date = state.selectedDate || getTodayStr();
+    document.getElementById('input-admin-start-balance-amount').value = getAdminStartBalance(date);
+    toggleAdminStartBalanceModal(true);
+}
+function toggleAdminStartBalanceModal(show) { const m = document.getElementById('modal-admin-start-balance'); if (show) m.classList.remove('hidden'); else m.classList.add('hidden'); }
+function handleSaveAdminStartBalance(e) {
+    e.preventDefault();
+    const date = state.selectedDate || getTodayStr();
+    const amount = parseFloat(document.getElementById('input-admin-start-balance-amount').value);
+    if (isNaN(amount) || amount < 0) { alert("Montant invalide."); return; }
+    const currentLivreursTotal = getTotalLivreursStartBalance(date);
+    if (amount < currentLivreursTotal) { alert(`Impossible : déjà attribué ${currentLivreursTotal} TND aux livreurs.`); return; }
+    if (!state.adminStartBalances) state.adminStartBalances = {};
+    state.adminStartBalances[date] = amount;
+    toggleAdminStartBalanceModal(false);
+    saveState();
+    showToast("Solde Admin Enregistré", `${amount} TND pour le ${date}.`);
+}
+function openEditLivreurNameModal(id) {
+    document.getElementById('edit-livreur-id').value = id;
+    document.getElementById('input-livreur-name').value = state.livreurs[id]?.name || '';
+    toggleEditLivreurNameModal(true);
+}
+function toggleEditLivreurNameModal(show) { const m = document.getElementById('modal-edit-livreur-name'); if (show) m.classList.remove('hidden'); else m.classList.add('hidden'); }
+function handleSaveLivreurName(e) {
+    e.preventDefault();
+    const id = document.getElementById('edit-livreur-id').value;
+    const name = document.getElementById('input-livreur-name').value.trim();
+    if (state.livreurs[id] && name) { state.livreurs[id].name = name; saveState(); showToast("Nom modifié", "Le nom du livreur a été mis à jour."); }
+    toggleEditLivreurNameModal(false);
+}
+function openReassignModal(deliveryId) {
+    const del = state.deliveries.find(d => d.id === deliveryId);
+    if (!del) return;
+    if (del.status === 'delivered') { alert("Réaffectation impossible : déjà validée !"); return; }
+    document.getElementById('reassign-delivery-id').value = deliveryId;
+    document.getElementById('select-reassign-livreur').value = del.livreurId;
+    document.getElementById('reassign-client-info').textContent = `Réaffectation de "${del.clientName}" (${del.amount} TND) :`;
+    toggleReassignModal(true);
+}
+function toggleReassignModal(show) { const m = document.getElementById('modal-reassign'); if (show) m.classList.remove('hidden'); else m.classList.add('hidden'); }
+function handleSaveReassign(e) {
+    e.preventDefault();
+    const id = document.getElementById('reassign-delivery-id').value;
+    const newLivreurId = document.getElementById('select-reassign-livreur').value;
+    const del = state.deliveries.find(d => d.id === id);
+    if (del) {
+        if (del.status === 'delivered') { alert("Déjà validée."); toggleReassignModal(false); return; }
+        del.livreurId = newLivreurId;
+        del.timestamp = new Date().getTime();
+        saveState();
+        showToast(`🔔 Notification`, `Opération réaffectée à ${state.livreurs[newLivreurId]?.name}.`);
+    }
+    toggleReassignModal(false);
+}
+function openConfirmDeleteModal(id) { document.getElementById('delete-delivery-id').value = id; toggleConfirmDeleteModal(true); }
+function toggleConfirmDeleteModal(show) { const m = document.getElementById('modal-confirm-delete'); if (show) m.classList.remove('hidden'); else m.classList.add('hidden'); }
+function executeDeleteDelivery() {
+    const id = document.getElementById('delete-delivery-id').value;
+    const idx = state.deliveries.findIndex(d => d.id === id);
+    if (idx !== -1) { state.deliveries.splice(idx, 1); saveState(); showToast("Ligne supprimée", "Opération retirée."); }
+    toggleConfirmDeleteModal(false);
+}
+
+// ==================== DATE ====================
+function handleDateChange() {
+    state.selectedDate = document.getElementById('global-date-picker').value || getTodayStr();
+    saveState();
+}
+
+// ==================== DÉMARRAGE ====================
+function initAppAfterSync() {
+    checkAndExecuteDailyRollover();
+    document.getElementById('global-date-picker').value = state.selectedDate || getTodayStr();
+    if (!state.adminPin) state.adminPin = "1234";
+    ['livreur1', 'livreur2', 'livreur3'].forEach(id => {
+        if (!state.livreurs[id].token) state.livreurs[id].token = generateRandomToken(id);
+    });
+    const { role: urlRole, token: urlToken } = getRoleFromURL();
+    if (urlRole) {
+        if (urlRole === 'admin') { switchRole('admin', true); }
+        else {
+            const currentActiveToken = state.livreurs[urlRole]?.token;
+            if (urlToken && urlToken === currentActiveToken) {
+                state.currentRole = urlRole;
+                lockRoleSelector(urlRole);
+                switchRole(urlRole, false);
+            } else {
+                document.getElementById('modal-access-blocked').classList.remove('hidden');
+                document.body.innerHTML = document.getElementById('modal-access-blocked').outerHTML;
+                return;
+            }
+        }
+    } else {
+        switchRole('admin', false);
+    }
+}
+
+// ÉCOUTE FIREBASE
+STATE_REF.on('value', (snapshot) => {
+    const remote = snapshot.val();
+    if (!firebaseReady) {
+        if (remote) {
+            state = remote;
+            firebaseReady = true;
+            setSyncStatus('online');
+            initAppAfterSync();
+        } else {
+            firebaseReady = true;
+            setSyncStatus('syncing');
+            STATE_REF.set(state).then(() => { setSyncStatus('online'); initAppAfterSync(); })
+                .catch(err => { console.error(err); setSyncStatus('offline'); initAppAfterSync(); });
+        }
+        return;
+    }
+    if (!remote) return;
+    if (JSON.stringify(remote) !== JSON.stringify(state)) {
+        state = remote;
+        setSyncStatus('online');
+        renderApp();
+    }
+});
+
+// Gestion erreurs Firebase
+STATE_REF.on('value', () => {}, (error) => { console.error("Erreur Firebase:", error); setSyncStatus('offline'); });
+</script>
+</body>
+</html>
