@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Gestion de Livraison d'Argent v28 - CashExpress</title>
+<title>Gestion de Livraison d'Argent v30 - CashExpress</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -1270,6 +1270,9 @@ function calculateTheoreticalBalance(livreurId, date) {
 
 // ==================== RENDER ====================
 function renderApp() {
+
+        console.log('%c[RENDER-APP] Appelé', 'color: lime; font-weight: bold', new Date().toLocaleTimeString(), 'role=', state?.currentRole);
+    
     updateLivreurNamesInUI();
     if (state.currentRole === 'admin') renderAdminDashboard();
     else renderLivreurDashboard(state.currentRole);
@@ -2086,6 +2089,8 @@ function initAppAfterSync() {
 // ÉCOUTE FIREBASE
 STATE_REF.on('value', (snapshot) => {
     const remote = snapshot.val();
+
+        console.log('%c[SYNC-FIREBASE] Notification reçue', 'color: cyan; font-weight: bold', new Date().toLocaleTimeString(), remote ? 'avec données' : 'vide');
 
     if (!firebaseReady) {
         if (remote) {
