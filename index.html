@@ -1157,6 +1157,7 @@ function verifyAdminPIN(e) {
     const currentPin = state.adminPin || "1234";
     if (inputPIN === currentPin) {
         isAdminAuthenticated = true;
+        try { localStorage.setItem('cashexpress_admin_auth_expiry', String(Date.now() + 60 * 60 * 1000)); } catch (e) {}
         toggleAdminAuthModal(false);
         switchRole('admin', true);
         showToast("Accès Admin Autorisé", "Vous êtes connecté en tant qu'Administrateur.");
@@ -2033,6 +2034,7 @@ function handleDateChange() {
 
 // ==================== DÉMARRAGE ====================
 function initAppAfterSync() {
+        try { const e = parseInt(localStorage.getItem('cashexpress_admin_auth_expiry') || '0', 10); if (e && Date.now() < e) isAdminAuthenticated = true; } catch (err) {}
     checkAndExecuteDailyRollover();
     document.getElementById('global-date-picker').value = state.selectedDate || getTodayStr();
     if (!state.adminPin) state.adminPin = "1234";
