@@ -866,6 +866,8 @@ const db = firebase.database();
 const STATE_REF = db.ref('cashexpress/state');
 
 let firebaseReady = false;
+let lastKnownDeliveryIds = new Set();  // Pour détecter les nouvelles livraisons
+let notificationDebounce = null;        // Anti-spam
 let saveDebounceTimer = null;
 
 function setSyncStatus(status) {
@@ -2095,11 +2097,12 @@ STATE_REF.on('value', (snapshot) => {
 
     if (!firebaseReady) {
         if (remote) {
-            // Préserver le rôle local avant d'appliquer l'état distant
             const localRole = state.currentRole;
             state = remote;
             state.currentRole = localRole || 'admin';
             if (typeof ensureStateIntegrity === 'function') ensureStateIntegrity();
+            // Initialiser le set d'IDs connus
+            lastKnownDeliveryIds = new Set((state.deliveries || []).map(d => d.id));
             firebaseReady = true;
             setSyncStatus('online');
             initAppAfterSync();
@@ -2120,13 +2123,47 @@ STATE_REF.on('value', (snapshot) => {
 
     if (!remote) return;
 
-    // Préserver le rôle local avant d'appliquer la mise à jour
+    // Détecter les nouvelles livraisons (avant d'écraser state)
+    const newDeliveries = remote.deliveries || [];
+    const previousIds = lastKnownDeliveryIds;
+    const newIds = new Set(newDeliveries.map(d => d.id));
+    const addedDeliveries = newDeliveries.filter(d => !previousIds.has(d.id));
+
+    // Appliquer la mise à jour
     const localRole = state.currentRole;
     state = remote;
     state.currentRole = localRole || 'admin';
     if (typeof ensureStateIntegrity === 'function') ensureStateIntegrity();
+    lastKnownDeliveryIds = newIds;
     setSyncStatus('online');
     renderApp();
+
+    // Notification pour les nouvelles livraisons (debounced)
+    if (addedDeliveries.length > 0) {
+        clearTimeout(notificationDebounce);
+        notificationDebounce = setTimeout(() => {
+            const count = addedDeliveries.length;
+            const first = addedDeliveries[0];
+            const livreurName = state.livreurs[first.livreurId]?.name || first.livreurId;
+            
+            if (state.currentRole === 'admin') {
+                showToast(
+                    count > 1 ? `🔔 ${count} nouvelles opérations` : `🔔 Nouvelle opération`,
+                    `${first.clientName} — ${first.amount} TND → ${livreurName}`
+                );
+            } else {
+                // Côté livreur : ne notifier que pour SES livraisons
+                const myNew = addedDeliveries.filter(d => d.livreurId === state.currentRole);
+                if (myNew.length > 0) {
+                    const firstMine = myNew[0];
+                    showToast(
+                        myNew.length > 1 ? `🔔 ${myNew.length} nouvelles livraisons` : `🔔 Nouvelle livraison`,
+                        `${firstMine.clientName} — ${firstMine.amount} TND`
+                    );
+                }
+            }
+        }, 500);
+    }
 });
     
 // Gestion erreurs Firebase
