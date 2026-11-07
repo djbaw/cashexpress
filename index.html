@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Gestion de Livraison d'Argent v32aa - CashExpress</title>
+<title>Gestion de Livraison d'Argent v37 - CashExpress</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -241,7 +241,7 @@
                     CashExpress
                     <span id="sync-indicator" class="syncing inline-block w-2.5 h-2.5 rounded-full" title="État de la connexion"></span>
                 </h1>
-                <p class="text-xs text-slate-400 hidden sm:block">Gestion de livraison d'argent en temps réel - <span class="text-emerald-400 font-bold">v32aa</span></p>
+                <p class="text-xs text-slate-400 hidden sm:block">Gestion de livraison d'argent en temps réel - <span class="text-emerald-400 font-bold">v37</span></p>
             </div>
         </div>
         <div class="flex items-center gap-1 bg-slate-800 p-1 rounded-xl border border-slate-700 order-2 sm:order-3" title="Taille du texte">
@@ -450,6 +450,7 @@
                 <table class="w-full text-left border-collapse">
                     <thead>
                         <tr class="bg-slate-100/70 text-slate-600 text-xs font-bold uppercase tracking-wider border-b border-slate-200">
+                            <th class="p-3.5 text-center w-12">N°</th>
                             <th class="p-3.5">Type & Client / Remettant</th>
                             <th class="p-3.5">Adresse / Localisation</th>
                             <th class="p-3.5">Montant</th>
@@ -1571,9 +1572,10 @@ function renderAdminTable() {
     if (search) filtered = filtered.filter(d => (d.clientName && d.clientName.toLowerCase().includes(search)) || (d.phone && d.phone.includes(search)) || (d.phone2 && d.phone2.includes(search)) || (d.address && d.address.toLowerCase().includes(search)) || (d.location && d.location.toLowerCase().includes(search)));
     filtered.sort((a, b) => { if (a.status === 'pending' && b.status !== 'pending') return -1; if (a.status !== 'pending' && b.status === 'pending') return 1; return b.timestamp - a.timestamp; });
     if (filtered.length === 0) { tbody.innerHTML = `<tr><td colspan="7" class="p-8 text-center text-slate-400">Aucune opération pour cette journée.</td></tr>`; return; }
-
+    let rowNumber = 0;
     filtered.forEach(d => {
         const tr = document.createElement('tr');
+                cardNumber++;
         const cTime = d.creationTime || getTimeStr(d.timestamp);
         let statusBadge = '', rowBgClass = 'hover:bg-slate-50/80', isStrikethrough = false;
         const isCash = d.type === 'SOLDE_RECU';
@@ -1713,6 +1715,7 @@ function renderLivreurDashboard(livreurId) {
         card.innerHTML = `
             <div class="flex items-center justify-between gap-2 border-b border-slate-200/60 pb-1.5">
                 <div class="flex items-center space-x-1.5 flex-wrap gap-y-1">
+                                        <span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-700 text-white">#${cardNumber}</span>
                     ${typeBadge}${statusBadge}
                     <span class="text-[11px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">🕒 ${cTime}${d.actionTime ? ' ➔ ' + d.actionTime : ''}</span>
                 </div>
@@ -2316,16 +2319,16 @@ STATE_REF.on('value', (snapshot) => {
                     } else if (oldStatus === 'pending' && newStatus === 'cancelled') {
                         showToast(`🔴 Livraison annulée`, `${d.clientName} (${d.amount} TND) par ${livreurName}`);
                     }
-                } else if (isMine) {
-                    // Livreur reçoit les actions de l'admin sur SES livraisons
+                                } else if (isMine) {
                     if (oldStatus === 'pending' && newStatus === 'delivered') {
                         showToast(`✅ Validée par l'admin`, `${d.clientName} (${d.amount} TND)`);
                     } else if (oldStatus === 'pending' && newStatus === 'cancelled') {
                         showToast(`🔴 Annulée par l'admin`, `${d.clientName} (${d.amount} TND)`);
-                    } else if (oldStatus === 'delivered' && newStatus === 'pending') {
+                    } else if (newStatus === 'pending' && oldStatus !== 'pending') {
                         showToast(`🔄 Remise en cours`, `${d.clientName} (${d.amount} TND)`);
                     }
-                } else {
+                }
+            } else {
                     // Une opération d'un AUTRE livreur a changé → le livreur actuel ne notifie pas
                     // mais on peut quand même le faire si vous le souhaitez
                 }
