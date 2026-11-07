@@ -241,7 +241,7 @@
                     CashExpress
                     <span id="sync-indicator" class="syncing inline-block w-2.5 h-2.5 rounded-full" title="État de la connexion"></span>
                 </h1>
-                <p class="text-xs text-slate-400 hidden sm:block">Gestion de livraison d'argent en temps réel - <span class="text-emerald-400 font-bold">v30</span></p>
+                <p class="text-xs text-slate-400 hidden sm:block">Gestion de livraison d'argent en temps réel - <span class="text-emerald-400 font-bold">v31</span></p>
             </div>
         </div>
         <div class="flex items-center gap-1 bg-slate-800 p-1 rounded-xl border border-slate-700 order-2 sm:order-3" title="Taille du texte">
@@ -988,12 +988,15 @@ function ensureStateIntegrity() {
     saveDebounceTimer = setTimeout(() => {
         if (!firebaseReady) return;
         setSyncStatus('syncing');
-        STATE_REF.set(state)
-            .then(() => setSyncStatus('online'))
+        // On envoie une copie SANS currentRole (rôle local à chaque navigateur)
+        const stateToSave = Object.assign({}, state);
+        delete stateToSave.currentRole;
+        STATE_REF.set(stateToSave)
+            .then(() => { setSyncStatus('online'); })
             .catch(err => { console.error(err); setSyncStatus('offline'); });
     }, 250);
 }
-
+    
 // ==================== IMPORT EXCEL ====================
 function handleExcelImport(e) {
     const file = e.target.files[0];
@@ -2090,11 +2093,12 @@ function initAppAfterSync() {
 STATE_REF.on('value', (snapshot) => {
     const remote = snapshot.val();
 
-        console.log('%c[SYNC-FIREBASE] Notification reçue', 'color: cyan; font-weight: bold', new Date().toLocaleTimeString(), remote ? 'avec données' : 'vide');
-
     if (!firebaseReady) {
         if (remote) {
+            // Préserver le rôle local avant d'appliquer l'état distant
+            const localRole = state.currentRole;
             state = remote;
+            state.currentRole = localRole || 'admin';
             if (typeof ensureStateIntegrity === 'function') ensureStateIntegrity();
             firebaseReady = true;
             setSyncStatus('online');
@@ -2116,13 +2120,14 @@ STATE_REF.on('value', (snapshot) => {
 
     if (!remote) return;
 
-    // On applique TOUJOURS la mise à jour du serveur, sans comparaison JSON
+    // Préserver le rôle local avant d'appliquer la mise à jour
+    const localRole = state.currentRole;
     state = remote;
+    state.currentRole = localRole || 'admin';
     if (typeof ensureStateIntegrity === 'function') ensureStateIntegrity();
     setSyncStatus('online');
     renderApp();
 });
-
     
 // Gestion erreurs Firebase
 STATE_REF.on('value', () => {}, (error) => { console.error("Erreur Firebase:", error); setSyncStatus('offline'); });
