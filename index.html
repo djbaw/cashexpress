@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Gestion de Livraison d'Argent v31 - CashExpress</title>
+<title>Gestion de Livraison d'Argent v32 - CashExpress</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -241,7 +241,7 @@
                     CashExpress
                     <span id="sync-indicator" class="syncing inline-block w-2.5 h-2.5 rounded-full" title="État de la connexion"></span>
                 </h1>
-                <p class="text-xs text-slate-400 hidden sm:block">Gestion de livraison d'argent en temps réel - <span class="text-emerald-400 font-bold">v31</span></p>
+                <p class="text-xs text-slate-400 hidden sm:block">Gestion de livraison d'argent en temps réel - <span class="text-emerald-400 font-bold">v32</span></p>
             </div>
         </div>
         <div class="flex items-center gap-1 bg-slate-800 p-1 rounded-xl border border-slate-700 order-2 sm:order-3" title="Taille du texte">
@@ -897,16 +897,34 @@ function unlockAudio() {
             window._cashAudioCtx = new AudioContext();
         }
         window._cashAudioCtx.resume().then(() => {
-            // Petit bip de confirmation
             const ctx = window._cashAudioCtx;
+
+            // Petit bip de confirmation
             const osc = ctx.createOscillator();
             const gain = ctx.createGain();
             osc.type = 'sine';
             osc.frequency.setValueAtTime(880, ctx.currentTime);
-            gain.gain.setValueAtTime(0.1, ctx.currentTime);
+            gain.gain.setValueAtTime(0.2, ctx.currentTime);
             gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2);
             osc.connect(gain); gain.connect(ctx.destination);
             osc.start(); osc.stop(ctx.currentTime + 0.2);
+
+            // KEEP-ALIVE : jouer un silence périodique pour garder le contexte actif
+            if (window._audioKeepAlive) clearInterval(window._audioKeepAlive);
+            window._audioKeepAlive = setInterval(() => {
+                try {
+                    if (!window._cashAudioCtx || window._cashAudioCtx.state === 'closed') return;
+                    const silentOsc = window._cashAudioCtx.createOscillator();
+                    const silentGain = window._cashAudioCtx.createGain();
+                    silentOsc.frequency.value = 1;
+                    silentGain.gain.value = 0;
+                    silentOsc.connect(silentGain);
+                    silentGain.connect(window._cashAudioCtx.destination);
+                    silentOsc.start();
+                    silentOsc.stop(window._cashAudioCtx.currentTime + 0.01);
+                } catch (e) {}
+            }, 10000); // toutes les 10 secondes
+
             // Masquer le bouton définitivement
             const btn = document.getElementById('audio-unlock-btn');
             if (btn) btn.remove();
@@ -916,7 +934,6 @@ function unlockAudio() {
         console.log('Erreur unlock audio:', e);
     }
 }
-
 // Déblocage automatique au premier clic/tap n'importe où sur la page
 function autoUnlockOnFirstInteraction() {
     const handler = () => {
@@ -944,18 +961,38 @@ function autoUnlockOnFirstInteraction() {
 (function checkAudioStatus() {
     try {
         if (localStorage.getItem('cashexpress_audio_unlocked') === '1') {
-            // Le son est déjà débloqué : retirer le bouton dès que possible
             const removeBtn = () => {
                 const btn = document.getElementById('audio-unlock-btn');
                 if (btn) { btn.remove(); return true; }
                 return false;
             };
             if (!removeBtn()) {
-                // Attendre que le DOM soit prêt
                 document.addEventListener('DOMContentLoaded', removeBtn);
             }
+            // Restaurer le keep-alive
+            document.addEventListener('DOMContentLoaded', () => {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                if (!AudioContext) return;
+                if (!window._cashAudioCtx || window._cashAudioCtx.state === 'closed') {
+                    window._cashAudioCtx = new AudioContext();
+                }
+                window._cashAudioCtx.resume().catch(() => {});
+                if (window._audioKeepAlive) clearInterval(window._audioKeepAlive);
+                window._audioKeepAlive = setInterval(() => {
+                    try {
+                        if (!window._cashAudioCtx || window._cashAudioCtx.state === 'closed') return;
+                        const silentOsc = window._cashAudioCtx.createOscillator();
+                        const silentGain = window._cashAudioCtx.createGain();
+                        silentOsc.frequency.value = 1;
+                        silentGain.gain.value = 0;
+                        silentOsc.connect(silentGain);
+                        silentGain.connect(window._cashAudioCtx.destination);
+                        silentOsc.start();
+                        silentOsc.stop(window._cashAudioCtx.currentTime + 0.01);
+                    } catch (e) {}
+                }, 10000);
+            });
         } else {
-            // Pas encore débloqué : brancher le déblocage automatique
             document.addEventListener('DOMContentLoaded', autoUnlockOnFirstInteraction);
         }
     } catch (e) {}
@@ -970,26 +1007,39 @@ function autoUnlockOnFirstInteraction() {
         }
         const audioCtx = window._cashAudioCtx;
         if (audioCtx.state === 'suspended') audioCtx.resume();
-        const osc1 = audioCtx.createOscillator();
-        const gain1 = audioCtx.createGain();
-        osc1.type = 'sine';
-        osc1.frequency.setValueAtTime(587.33, audioCtx.currentTime);
-        gain1.gain.setValueAtTime(0.15, audioCtx.currentTime);
-        gain1.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.35);
-        osc1.connect(gain1); gain1.connect(audioCtx.destination);
-        osc1.start(); osc1.stop(audioCtx.currentTime + 0.35);
-        setTimeout(() => {
-            if (audioCtx.state === 'closed') return;
-            const osc2 = audioCtx.createOscillator();
-            const gain2 = audioCtx.createGain();
-            osc2.type = 'sine';
-            osc2.frequency.setValueAtTime(880, audioCtx.currentTime);
-            gain2.gain.setValueAtTime(0.2, audioCtx.currentTime);
-            gain2.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.5);
-            osc2.connect(gain2); gain2.connect(audioCtx.destination);
-            osc2.start(); osc2.stop(audioCtx.currentTime + 0.5);
-        }, 100);
-    } catch (err) {}
+
+        // Attendre que le contexte soit prêt
+        const playTones = () => {
+            const osc1 = audioCtx.createOscillator();
+            const gain1 = audioCtx.createGain();
+            osc1.type = 'sine';
+            osc1.frequency.setValueAtTime(587.33, audioCtx.currentTime);
+            gain1.gain.setValueAtTime(0.3, audioCtx.currentTime);
+            gain1.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.35);
+            osc1.connect(gain1); gain1.connect(audioCtx.destination);
+            osc1.start(); osc1.stop(audioCtx.currentTime + 0.35);
+
+            setTimeout(() => {
+                if (audioCtx.state === 'closed') return;
+                const osc2 = audioCtx.createOscillator();
+                const gain2 = audioCtx.createGain();
+                osc2.type = 'sine';
+                osc2.frequency.setValueAtTime(880, audioCtx.currentTime);
+                gain2.gain.setValueAtTime(0.4, audioCtx.currentTime);
+                gain2.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.5);
+                osc2.connect(gain2); gain2.connect(audioCtx.destination);
+                osc2.start(); osc2.stop(audioCtx.currentTime + 0.5);
+            }, 100);
+        };
+
+        if (audioCtx.state === 'running') {
+            playTones();
+        } else {
+            audioCtx.resume().then(playTones).catch(() => {});
+        }
+    } catch (err) {
+        console.log('Erreur son:', err);
+    }
 }
 
 const UI_ZOOM_KEY = 'cashexpress_ui_zoom';
@@ -2179,8 +2229,9 @@ STATE_REF.on('value', (snapshot) => {
             state = remote;
             state.currentRole = localRole || 'admin';
             if (typeof ensureStateIntegrity === 'function') ensureStateIntegrity();
-            // Initialiser le set d'IDs connus
             lastKnownDeliveryIds = new Set((state.deliveries || []).map(d => d.id));
+            window._lastStatusMap = {};
+            (state.deliveries || []).forEach(d => { window._lastStatusMap[d.id] = d.status; });
             firebaseReady = true;
             setSyncStatus('online');
             initAppAfterSync();
@@ -2201,11 +2252,19 @@ STATE_REF.on('value', (snapshot) => {
 
     if (!remote) return;
 
-    // Détecter les nouvelles livraisons (avant d'écraser state)
     const newDeliveries = remote.deliveries || [];
     const previousIds = lastKnownDeliveryIds;
+    const previousStatuses = window._lastStatusMap || {};
     const newIds = new Set(newDeliveries.map(d => d.id));
+
+    // Détection des NOUVELLES livraisons
     const addedDeliveries = newDeliveries.filter(d => !previousIds.has(d.id));
+
+    // Détection des CHANGEMENTS DE STATUT
+    const statusChanges = newDeliveries.filter(d => {
+        const prev = previousStatuses[d.id];
+        return prev && prev !== d.status;
+    });
 
     // Appliquer la mise à jour
     const localRole = state.currentRole;
@@ -2213,37 +2272,76 @@ STATE_REF.on('value', (snapshot) => {
     state.currentRole = localRole || 'admin';
     if (typeof ensureStateIntegrity === 'function') ensureStateIntegrity();
     lastKnownDeliveryIds = newIds;
+    const newStatusMap = {};
+    newDeliveries.forEach(d => { newStatusMap[d.id] = d.status; });
+    window._lastStatusMap = newStatusMap;
     setSyncStatus('online');
     renderApp();
 
-    // Notification pour les nouvelles livraisons (debounced)
-    if (addedDeliveries.length > 0) {
-        clearTimeout(notificationDebounce);
-        notificationDebounce = setTimeout(() => {
+    // Notifications debounced
+    clearTimeout(notificationDebounce);
+    notificationDebounce = setTimeout(() => {
+        // 1. Nouvelles livraisons
+        if (addedDeliveries.length > 0) {
             const count = addedDeliveries.length;
             const first = addedDeliveries[0];
             const livreurName = state.livreurs[first.livreurId]?.name || first.livreurId;
-            
             if (state.currentRole === 'admin') {
                 showToast(
                     count > 1 ? `🔔 ${count} nouvelles opérations` : `🔔 Nouvelle opération`,
                     `${first.clientName} — ${first.amount} TND → ${livreurName}`
                 );
             } else {
-                // Côté livreur : ne notifier que pour SES livraisons
                 const myNew = addedDeliveries.filter(d => d.livreurId === state.currentRole);
                 if (myNew.length > 0) {
-                    const firstMine = myNew[0];
                     showToast(
                         myNew.length > 1 ? `🔔 ${myNew.length} nouvelles livraisons` : `🔔 Nouvelle livraison`,
-                        `${firstMine.clientName} — ${firstMine.amount} TND`
+                        `${myNew[0].clientName} — ${myNew[0].amount} TND`
                     );
                 }
             }
-        }, 500);
-    }
-});
-    
+            return; // On ne notifie qu'une chose à la fois
+        }
+
+        // 2. Changements de statut
+        if (statusChanges.length > 0) {
+            statusChanges.forEach(d => {
+                const oldStatus = previousStatuses[d.id];
+                const newStatus = d.status;
+                const isMine = d.livreurId === state.currentRole;
+                
+                // Côté admin : recevoir les notifs de validation/cancel des livreurs
+                if (state.currentRole === 'admin') {
+                    if (oldStatus === 'pending' && newStatus === 'delivered') {
+                        showToast(
+                            `✅ Livraison validée`,
+                            `${d.clientName} (${d.amount} TND) par ${state.livreurs[d.livreurId]?.name || d.livreurId}`
+                        );
+                    } else if (oldStatus === 'pending' && newStatus === 'cancelled') {
+                        showToast(
+                            `🔴 Livraison annulée`,
+                            `${d.clientName} (${d.amount} TND) par ${state.livreurs[d.livreurId]?.name || d.livreurId}`
+                        );
+                    }
+                }
+                // Côté livreur : recevoir les notifs de l'admin sur SES livraisons
+                else if (isMine) {
+                    if (oldStatus === 'pending' && newStatus === 'delivered') {
+                        showToast(
+                            `✅ Validée par l'admin`,
+                            `${d.clientName} (${d.amount} TND)`
+                        );
+                    } else if (oldStatus === 'pending' && newStatus === 'cancelled') {
+                        showToast(
+                            `🔴 Annulée par l'admin`,
+                            `${d.clientName} (${d.amount} TND)`
+                        );
+                    }
+                }
+            });
+        }
+    }, 800);
+});    
 // Gestion erreurs Firebase
 STATE_REF.on('value', () => {}, (error) => { console.error("Erreur Firebase:", error); setSyncStatus('offline'); });
 </script>
