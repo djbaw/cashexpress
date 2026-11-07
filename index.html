@@ -266,6 +266,11 @@
 </header>
 
 <!-- TOAST -->
+    <!-- Bouton de déblocage audio (apparaît si le son n'est pas encore activé) -->
+<button id="audio-unlock-btn" onclick="unlockAudio()" class="fixed bottom-4 right-4 z-40 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-lg transition flex items-center gap-2">
+    <i class="fa-solid fa-volume-high"></i>
+    <span>Activer le son</span>
+</button>
 <div id="notification-toast" class="fixed top-20 right-4 z-50 bg-slate-900 text-white p-4 rounded-2xl shadow-2xl border border-slate-700 max-w-sm hidden transition-all duration-300 transform translate-y-2">
     <div class="flex items-start space-x-3">
         <div class="p-2 bg-emerald-500/20 text-emerald-400 rounded-xl"><i class="fa-solid fa-bell text-lg animate-bounce"></i></div>
@@ -883,7 +888,80 @@ window.addEventListener('offline', () => setSyncStatus('offline'));
 window.addEventListener('online',  () => setSyncStatus('syncing'));
 
 // ==================== UTILITAIRES ====================
-function playNotificationSound() {
+// ==================== DÉBLOCAGE AUDIO (Android/Chrome) ====================
+function unlockAudio() {
+    try {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContext) return;
+        if (!window._cashAudioCtx || window._cashAudioCtx.state === 'closed') {
+            window._cashAudioCtx = new AudioContext();
+        }
+        window._cashAudioCtx.resume().then(() => {
+            // Petit bip de confirmation
+            const ctx = window._cashAudioCtx;
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(880, ctx.currentTime);
+            gain.gain.setValueAtTime(0.1, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2);
+            osc.connect(gain); gain.connect(ctx.destination);
+            osc.start(); osc.stop(ctx.currentTime + 0.2);
+            // Masquer le bouton définitivement
+            const btn = document.getElementById('audio-unlock-btn');
+            if (btn) btn.remove();
+            try { localStorage.setItem('cashexpress_audio_unlocked', '1'); } catch (e) {}
+        });
+    } catch (e) {
+        console.log('Erreur unlock audio:', e);
+    }
+}
+
+// Déblocage automatique au premier clic/tap n'importe où sur la page
+function autoUnlockOnFirstInteraction() {
+    const handler = () => {
+        try {
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            if (!AudioContext) return;
+            if (!window._cashAudioCtx || window._cashAudioCtx.state === 'closed') {
+                window._cashAudioCtx = new AudioContext();
+            }
+            if (window._cashAudioCtx.state === 'suspended') {
+                window._cashAudioCtx.resume();
+            }
+            const btn = document.getElementById('audio-unlock-btn');
+            if (btn && window._cashAudioCtx.state === 'running') {
+                btn.remove();
+                try { localStorage.setItem('cashexpress_audio_unlocked', '1'); } catch (e) {}
+            }
+        } catch (e) {}
+    };
+    document.addEventListener('click', handler, { once: false, passive: true });
+    document.addEventListener('touchstart', handler, { once: false, passive: true });
+}
+
+// Vérifier si le son a déjà été débloqué précédemment
+(function checkAudioStatus() {
+    try {
+        if (localStorage.getItem('cashexpress_audio_unlocked') === '1') {
+            // Le son est déjà débloqué : retirer le bouton dès que possible
+            const removeBtn = () => {
+                const btn = document.getElementById('audio-unlock-btn');
+                if (btn) { btn.remove(); return true; }
+                return false;
+            };
+            if (!removeBtn()) {
+                // Attendre que le DOM soit prêt
+                document.addEventListener('DOMContentLoaded', removeBtn);
+            }
+        } else {
+            // Pas encore débloqué : brancher le déblocage automatique
+            document.addEventListener('DOMContentLoaded', autoUnlockOnFirstInteraction);
+        }
+    } catch (e) {}
+})();
+    
+    function playNotificationSound() {
     try {
         const AudioContext = window.AudioContext || window.webkitAudioContext;
         if (!AudioContext) return;
