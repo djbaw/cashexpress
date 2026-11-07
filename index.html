@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Gestion de Livraison d'Argent v32 - CashExpress</title>
+<title>Gestion de Livraison d'Argent v32aa - CashExpress</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -241,7 +241,7 @@
                     CashExpress
                     <span id="sync-indicator" class="syncing inline-block w-2.5 h-2.5 rounded-full" title="État de la connexion"></span>
                 </h1>
-                <p class="text-xs text-slate-400 hidden sm:block">Gestion de livraison d'argent en temps réel - <span class="text-emerald-400 font-bold">v32</span></p>
+                <p class="text-xs text-slate-400 hidden sm:block">Gestion de livraison d'argent en temps réel - <span class="text-emerald-400 font-bold">v32aa</span></p>
             </div>
         </div>
         <div class="flex items-center gap-1 bg-slate-800 p-1 rounded-xl border border-slate-700 order-2 sm:order-3" title="Taille du texte">
@@ -2257,19 +2257,18 @@ STATE_REF.on('value', (snapshot) => {
     const previousStatuses = window._lastStatusMap || {};
     const newIds = new Set(newDeliveries.map(d => d.id));
 
-    // Détection des NOUVELLES livraisons
     const addedDeliveries = newDeliveries.filter(d => !previousIds.has(d.id));
-
-    // Détection des CHANGEMENTS DE STATUT
     const statusChanges = newDeliveries.filter(d => {
         const prev = previousStatuses[d.id];
         return prev && prev !== d.status;
     });
 
+    // Sauvegarder le rôle LOCAL avant d'écraser l'état
+    const myRole = state.currentRole;
+
     // Appliquer la mise à jour
-    const localRole = state.currentRole;
     state = remote;
-    state.currentRole = localRole || 'admin';
+    state.currentRole = myRole;
     if (typeof ensureStateIntegrity === 'function') ensureStateIntegrity();
     lastKnownDeliveryIds = newIds;
     const newStatusMap = {};
@@ -2278,7 +2277,6 @@ STATE_REF.on('value', (snapshot) => {
     setSyncStatus('online');
     renderApp();
 
-    // Notifications debounced
     clearTimeout(notificationDebounce);
     notificationDebounce = setTimeout(() => {
         // 1. Nouvelles livraisons
@@ -2286,13 +2284,13 @@ STATE_REF.on('value', (snapshot) => {
             const count = addedDeliveries.length;
             const first = addedDeliveries[0];
             const livreurName = state.livreurs[first.livreurId]?.name || first.livreurId;
-            if (state.currentRole === 'admin') {
+            if (myRole === 'admin') {
                 showToast(
                     count > 1 ? `🔔 ${count} nouvelles opérations` : `🔔 Nouvelle opération`,
                     `${first.clientName} — ${first.amount} TND → ${livreurName}`
                 );
             } else {
-                const myNew = addedDeliveries.filter(d => d.livreurId === state.currentRole);
+                const myNew = addedDeliveries.filter(d => d.livreurId === myRole);
                 if (myNew.length > 0) {
                     showToast(
                         myNew.length > 1 ? `🔔 ${myNew.length} nouvelles livraisons` : `🔔 Nouvelle livraison`,
@@ -2300,7 +2298,7 @@ STATE_REF.on('value', (snapshot) => {
                     );
                 }
             }
-            return; // On ne notifie qu'une chose à la fois
+            return;
         }
 
         // 2. Changements de statut
@@ -2308,41 +2306,35 @@ STATE_REF.on('value', (snapshot) => {
             statusChanges.forEach(d => {
                 const oldStatus = previousStatuses[d.id];
                 const newStatus = d.status;
-                const isMine = d.livreurId === state.currentRole;
-                
-                // Côté admin : recevoir les notifs de validation/cancel des livreurs
-                if (state.currentRole === 'admin') {
+                const isMine = (d.livreurId === myRole);
+                const livreurName = state.livreurs[d.livreurId]?.name || d.livreurId;
+
+                if (myRole === 'admin') {
+                    // Admin reçoit les validations faites par les livreurs
                     if (oldStatus === 'pending' && newStatus === 'delivered') {
-                        showToast(
-                            `✅ Livraison validée`,
-                            `${d.clientName} (${d.amount} TND) par ${state.livreurs[d.livreurId]?.name || d.livreurId}`
-                        );
+                        showToast(`✅ Livraison validée`, `${d.clientName} (${d.amount} TND) par ${livreurName}`);
                     } else if (oldStatus === 'pending' && newStatus === 'cancelled') {
-                        showToast(
-                            `🔴 Livraison annulée`,
-                            `${d.clientName} (${d.amount} TND) par ${state.livreurs[d.livreurId]?.name || d.livreurId}`
-                        );
+                        showToast(`🔴 Livraison annulée`, `${d.clientName} (${d.amount} TND) par ${livreurName}`);
                     }
-                }
-                // Côté livreur : recevoir les notifs de l'admin sur SES livraisons
-                else if (isMine) {
+                } else if (isMine) {
+                    // Livreur reçoit les actions de l'admin sur SES livraisons
                     if (oldStatus === 'pending' && newStatus === 'delivered') {
-                        showToast(
-                            `✅ Validée par l'admin`,
-                            `${d.clientName} (${d.amount} TND)`
-                        );
+                        showToast(`✅ Validée par l'admin`, `${d.clientName} (${d.amount} TND)`);
                     } else if (oldStatus === 'pending' && newStatus === 'cancelled') {
-                        showToast(
-                            `🔴 Annulée par l'admin`,
-                            `${d.clientName} (${d.amount} TND)`
-                        );
+                        showToast(`🔴 Annulée par l'admin`, `${d.clientName} (${d.amount} TND)`);
+                    } else if (oldStatus === 'delivered' && newStatus === 'pending') {
+                        showToast(`🔄 Remise en cours`, `${d.clientName} (${d.amount} TND)`);
                     }
+                } else {
+                    // Une opération d'un AUTRE livreur a changé → le livreur actuel ne notifie pas
+                    // mais on peut quand même le faire si vous le souhaitez
                 }
             });
         }
     }, 800);
-});    
-// Gestion erreurs Firebase
+});
+    
+    // Gestion erreurs Firebase
 STATE_REF.on('value', () => {}, (error) => { console.error("Erreur Firebase:", error); setSyncStatus('offline'); });
 </script>
 </body>
