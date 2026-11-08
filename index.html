@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Gestion de Livraison d'Argent v33 - CashExpress</title>
+<title>Gestion de Livraison d'Argent v34 - CashExpress</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -158,11 +158,11 @@
 <div id="modal-admin-auth" class="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
     <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden transform transition-all border border-slate-200">
         <div class="bg-slate-900 px-6 py-4 text-white flex justify-between items-center">
-            <h3 class="font-bold text-base flex items-center gap-2"><i class="fa-solid fa-lock text-amber-400"></i> Accès Réservé Admin</h3>
+            <h3 class="font-bold text-base flex items-center gap-2"><i class="fa-solid fa-lock text-amber-400"></i> <span id="admin-auth-title">Accès Réservé Admin</span></h3>
             <button onclick="toggleAdminAuthModal(false)" class="text-slate-400 hover:text-white transition"><i class="fa-solid fa-xmark text-lg"></i></button>
         </div>
         <form id="form-admin-auth" onsubmit="verifyAdminPIN(event)" class="p-6 space-y-4">
-            <p class="text-xs text-slate-600 text-center">Veuillez saisir le code PIN confidentiel pour déverrouiller le tableau de bord Admin.</p>
+            <p id="admin-auth-help" class="text-xs text-slate-600 text-center">Veuillez saisir le code PIN confidentiel pour déverrouiller le tableau de bord Admin.</p>
             <div>
                 <label class="block text-xs font-bold text-slate-700 uppercase mb-1 text-center">Code PIN Secret *</label>
                 <input type="password" id="input-admin-pin" required placeholder="••••" maxlength="8" class="w-full text-center tracking-widest text-xl px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-500 focus:outline-none font-bold">
@@ -231,6 +231,13 @@
     </div>
 </div>
 
+<!-- ÉCRAN DE CHARGEMENT / ERREUR DE CONNEXION -->
+<div id="app-loading" class="fixed inset-0 z-[60] bg-slate-900 flex flex-col items-center justify-center text-white p-6 text-center gap-3">
+    <i id="app-loading-icon" class="fa-solid fa-circle-notch fa-spin text-3xl text-emerald-400"></i>
+    <p id="app-loading-text" class="text-sm font-semibold max-w-xs">Connexion au serveur…</p>
+    <button id="app-loading-retry" onclick="location.reload()" class="hidden px-4 py-2 bg-emerald-600 hover:bg-emerald-700 rounded-xl text-xs font-bold">Réessayer</button>
+</div>
+
 <!-- HEADER -->
 <header class="bg-slate-900 text-white shadow-md sm:sticky sm:top-0 z-30">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 min-h-16 py-2 flex flex-wrap items-center justify-between gap-2">
@@ -241,7 +248,7 @@
                     CashExpress
                     <span id="sync-indicator" class="syncing inline-block w-2.5 h-2.5 rounded-full" title="État de la connexion"></span>
                 </h1>
-                <p class="text-xs text-slate-400 hidden sm:block">Gestion de livraison d'argent en temps réel - <span class="text-emerald-400 font-bold">v33</span></p>
+                <p class="text-xs text-slate-400 hidden sm:block">Gestion de livraison d'argent en temps réel - <span class="text-emerald-400 font-bold">v34</span></p>
             </div>
         </div>
         <div class="flex items-center gap-1 bg-slate-800 p-1 rounded-xl border border-slate-700 order-2 sm:order-3" title="Taille du texte">
@@ -868,12 +875,10 @@ const firebaseConfig = {
 };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
-const STATE_REF = db.ref('cashexpress/state');
-
-let firebaseReady = false;
-let lastKnownDeliveryIds = new Set();  // Pour détecter les nouvelles livraisons
-let notificationDebounce = null;        // Anti-spam
-let saveDebounceTimer = null;
+const ROOT = 'cashexpress';
+const OPS_PATH = ROOT + '/ops';          // une entrée PAR opération
+const CFG_PATH = ROOT + '/config';       // PIN (empreinte), soldes, livreurs, liste noire
+const LEGACY_PATH = ROOT + '/state';     // ancienne structure (v33), lue une seule fois pour la migration
 
 function setSyncStatus(status) {
     const el = document.getElementById('sync-indicator');
@@ -1074,150 +1079,422 @@ const getTimeStr = (timestamp) => {
     return d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
 };
 
-// ==================== ÉTAT PAR DÉFAUT (démo si base vide) ====================
+// ==================== ÉTAT & COUCHE DONNÉES (Realtime Database) ====================
+// Chaque appareil ne charge que la journée affichée : l'application reste rapide même avec un long historique.
+const LIVREUR_IDS = ['livreur1', 'livreur2', 'livreur3'];
+const DEFAULT_NAMES = { livreur1: 'Sami (Livreur 1)', livreur2: 'Karim (Livreur 2)', livreur3: 'Youssef (Livreur 3)' };
+const VALID_ID = /^[A-Za-z0-9_-]{1,80}$/;
+
 let state = {
-    currentRole: 'admin',
-    selectedDate: getTodayStr(),
-    lastRolloverDate: getTodayStr(),
+    currentRole: 'admin',               // vue affichée (local à l'appareil)
+    selectedDate: getTodayStr(),        // journée affichée (local à l'appareil)
     adminStartBalances: {},
     livreurs: {
-        livreur1: { id: 'livreur1', name: 'Sami (Livreur 1)', startBalances: {} },
-        livreur2: { id: 'livreur2', name: 'Karim (Livreur 2)', startBalances: {} },
-        livreur3: { id: 'livreur3', name: 'Youssef (Livreur 3)', startBalances: {} }
+        livreur1: { id: 'livreur1', name: DEFAULT_NAMES.livreur1, startBalances: {} },
+        livreur2: { id: 'livreur2', name: DEFAULT_NAMES.livreur2, startBalances: {} },
+        livreur3: { id: 'livreur3', name: DEFAULT_NAMES.livreur3, startBalances: {} }
     },
     blacklist: [],
-    deliveries: []
+    deliveries: []                      // opérations de la journée affichée uniquement
 };
-state.adminStartBalances[getTodayStr()] = 5000;
 
 let isAdminAuthenticated = false;
+window.__me = null;          // identité de CET appareil : 'admin' ou 'livreurN'
+window.__myToken = null;
+window.__pinHash = null;
+window.__bootMode = 'normal';
 
-// ==================== SAUVEGARDE FIREBASE ====================
-// Fonction de sécurité : garantit que state.livreurs et ses sous-objets existent
-function ensureStateIntegrity() {
-    if (!state || typeof state !== 'object') state = {};
-    if (!state.livreurs || typeof state.livreurs !== 'object') state.livreurs = {};
-    ['livreur1', 'livreur2', 'livreur3'].forEach(id => {
-        if (!state.livreurs[id]) {
-            state.livreurs[id] = { id, name: `Livreur ${id.replace('livreur','')}`, startBalances: {} };
+function esc(s) {
+    return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+function withTimeout(promise, ms) {
+    return Promise.race([promise, new Promise((_, rej) => setTimeout(() => rej(Object.assign(new Error('timeout'), { code: 'timeout' })), ms))]);
+}
+async function hashPin(pin) {
+    if (!(window.crypto && crypto.subtle)) throw new Error("Connexion sécurisée (https) requise.");
+    const data = new TextEncoder().encode('cashexpress|' + pin);
+    const buf = await crypto.subtle.digest('SHA-256', data);
+    return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+function cleanObj(o) {
+    const r = {};
+    Object.keys(o).forEach(k => { if (o[k] !== undefined) r[k] = o[k]; });
+    return r;
+}
+
+// ---------- écritures ----------
+function handleWriteError(e) {
+    console.error('Erreur écriture :', e);
+    setSyncStatus('offline');
+    alert("❌ L'enregistrement a échoué (" + ((e && (e.code || e.message)) || 'erreur') + "). Vérifiez votre connexion puis réessayez.");
+}
+function dbSet(path, val) { return db.ref(path).set(val).catch(handleWriteError); }
+function dbUpdate(path, patch) { return db.ref(path).update(patch).catch(handleWriteError); }
+function dbRemove(path) { return db.ref(path).remove().catch(handleWriteError); }
+
+function writeOp(op) {
+    const o = cleanObj(Object.assign({}, op, {
+        phoneClean: String(op.phone || '').replace(/\s+/g, ''),
+        lastBy: window.__me, lastAt: Date.now()
+    }));
+    delete o.id;
+    return dbSet(OPS_PATH + '/' + op.id, o);
+}
+function patchOp(id, patch) {
+    return dbUpdate(OPS_PATH + '/' + id, Object.assign({}, patch, { lastBy: window.__me, lastAt: Date.now() }));
+}
+function deleteOp(id) { return dbRemove(OPS_PATH + '/' + id); }
+
+function normalizeOp(d, id) {
+    const isStr = v => (typeof v === 'string' && v.length === 10) ? v : getTodayStr();
+    const phone = String(d.phone || '');
+    return cleanObj({
+        date: isStr(d.date),
+        type: d.type === 'SOLDE_RECU' ? 'SOLDE_RECU' : 'LIVRAISON',
+        clientName: String(d.clientName || 'Client').slice(0, 300),
+        phone: phone.slice(0, 60),
+        phoneClean: phone.replace(/\s+/g, '').slice(0, 60),
+        phone2: String(d.phone2 || '').slice(0, 60),
+        address: String(d.address || '').slice(0, 500),
+        location: String(d.location || '').slice(0, 500),
+        amount: Number(d.amount) || 0,
+        livreurId: LIVREUR_IDS.includes(d.livreurId) ? d.livreurId : 'livreur1',
+        status: ['pending', 'delivered', 'cancelled'].includes(d.status) ? d.status : 'pending',
+        remarkAdmin: String(d.remarkAdmin || '').slice(0, 500),
+        remarkLivreur: String(d.remarkLivreur || '').slice(0, 500),
+        creationTime: String(d.creationTime || ''),
+        actionTime: d.actionTime ? String(d.actionTime) : undefined,
+        timestamp: Number(d.timestamp) || Date.now(),
+        lastBy: 'import', lastAt: Date.now()
+    });
+}
+
+async function fetchOpsRange(startDate, endDate) {
+    const snap = await db.ref(OPS_PATH).orderByChild('date').startAt(startDate).endAt(endDate).once('value');
+    const arr = [];
+    snap.forEach(ch => { const v = ch.val(); if (v) { v.id = ch.key; arr.push(v); } });
+    return arr.sort((a, b) => (a.date === b.date ? (a.timestamp || 0) - (b.timestamp || 0) : (a.date < b.date ? -1 : 1)));
+}
+
+// ---------- écran de chargement / blocage ----------
+function hideLoading() { const el = document.getElementById('app-loading'); if (el) el.classList.add('hidden'); }
+function showFatal(message) {
+    const el = document.getElementById('app-loading');
+    if (!el) return;
+    el.classList.remove('hidden');
+    document.getElementById('app-loading-icon').className = 'fa-solid fa-triangle-exclamation text-3xl text-amber-400';
+    document.getElementById('app-loading-text').textContent = message;
+    document.getElementById('app-loading-retry').classList.remove('hidden');
+}
+let appBlocked = false;
+function showAccessBlocked() {
+    appBlocked = true;
+    detachAllListeners();
+    hideLoading();
+    const modal = document.getElementById('modal-access-blocked');
+    modal.classList.remove('hidden');
+    document.body.innerHTML = modal.outerHTML;
+}
+
+// ---------- écoute temps réel ----------
+let cfgListeners = [];
+let opsRef = null, opsHandler = null, opsFirstLoad = true;
+
+function detachConfigListeners() {
+    cfgListeners.forEach(l => { try { l.ref.off('value', l.handler); } catch (e) {} });
+    cfgListeners = [];
+}
+function unsubscribeOps() {
+    if (opsRef && opsHandler) { try { opsRef.off('value', opsHandler); } catch (e) {} }
+    opsRef = null; opsHandler = null;
+}
+function detachAllListeners() { detachConfigListeners(); unsubscribeOps(); }
+
+function onListenerError(err) {
+    console.error('Erreur écoute :', err);
+    if (err && (err.code === 'PERMISSION_DENIED' || String(err.message || '').includes('permission_denied'))) {
+        detachAllListeners();
+        showFatal("Accès refusé par les règles de la base de données. Contactez l'administrateur.");
+    }
+}
+function mergeLivreur(id, v) {
+    if (!v) return;
+    const prev = state.livreurs[id] || { id };
+    state.livreurs[id] = { id, name: v.name || prev.name || DEFAULT_NAMES[id], token: v.token, startBalances: v.startBalances || {} };
+}
+function addCfgListener(path, handler) {
+    const ref = db.ref(path);
+    ref.on('value', handler, onListenerError);
+    cfgListeners.push({ ref, handler });
+}
+function attachConfigListeners(isAdmin, myId) {
+    detachConfigListeners();
+    if (isAdmin) {
+        addCfgListener(CFG_PATH + '/adminStartBalances', s => { state.adminStartBalances = s.val() || {}; renderApp(); });
+        addCfgListener(CFG_PATH + '/livreurs', s => {
+            const v = s.val() || {};
+            LIVREUR_IDS.forEach(id => mergeLivreur(id, v[id]));
+            renderApp();
+        });
+        addCfgListener(CFG_PATH + '/blacklist', s => {
+            const v = s.val() || {};
+            state.blacklist = Object.keys(v).filter(k => VALID_ID.test(k)).map(k => Object.assign({ id: k }, v[k]));
+            const m = document.getElementById('modal-blacklist');
+            if (m && !m.classList.contains('hidden')) renderBlacklistTable();
+            renderApp();
+        });
+        addCfgListener(CFG_PATH + '/adminPinHash', s => { if (s.val()) window.__pinHash = s.val(); });
+    } else {
+        addCfgListener(CFG_PATH + '/livreurs/' + myId, s => {
+            const v = s.val();
+            if (!v || v.token !== window.__myToken) { showAccessBlocked(); return; }   // lien révoqué : blocage immédiat
+            mergeLivreur(myId, v);
+            renderApp();
+        });
+    }
+}
+
+function subscribeOps() {
+    unsubscribeOps();
+    opsFirstLoad = true;
+    const date = state.selectedDate;
+    opsRef = db.ref(OPS_PATH).orderByChild('date').equalTo(date);
+    opsHandler = (snap) => {
+        const arr = [];
+        snap.forEach(ch => {
+            const v = ch.val();
+            if (v && VALID_ID.test(ch.key)) { v.id = ch.key; arr.push(v); }
+        });
+        const prev = state.deliveries;
+        state.deliveries = arr;
+        if (!opsFirstLoad) notifyOpsChanges(prev, arr);
+        opsFirstLoad = false;
+        renderApp();
+    };
+    opsRef.on('value', opsHandler, onListenerError);
+}
+
+// ---------- notifications : seulement pour les actions des AUTRES personnes ----------
+function notifyOpsChanges(prev, cur) {
+    if (appBlocked) return;
+    const me = window.__me;
+    const isAdminMe = me === 'admin';
+    const prevMap = new Map(prev.map(d => [d.id, d]));
+    const curMap = new Map(cur.map(d => [d.id, d]));
+    const nameOf = id => (state.livreurs[id] && state.livreurs[id].name) || id;
+    const msgs = [];
+
+    cur.forEach(d => {
+        if (d.lastBy === me) return;                         // ma propre action : déjà signalée
+        if (!isAdminMe && d.livreurId !== me) return;        // livreur : seulement mes opérations
+        const p = prevMap.get(d.id);
+        const wasMine = p && (isAdminMe || p.livreurId === me);
+        const label = d.type === 'SOLDE_RECU' ? 'Alimentation' : 'Livraison';
+        if (!wasMine) {
+            msgs.push([`🔔 Nouvelle ${label.toLowerCase()}`, isAdminMe ? `${d.clientName} — ${d.amount} TND → ${nameOf(d.livreurId)}` : `${d.clientName} — ${d.amount} TND`]);
+            return;
         }
-        if (!state.livreurs[id].startBalances || typeof state.livreurs[id].startBalances !== 'object') {
-            state.livreurs[id].startBalances = {};
+        if (p.status !== d.status) {
+            if (isAdminMe) {
+                if (p.status === 'pending' && d.status === 'delivered') msgs.push([`✅ ${label} validée`, `${d.clientName} (${d.amount} TND) par ${nameOf(d.livreurId)}`]);
+                else if (p.status === 'pending' && d.status === 'cancelled') msgs.push([`🔴 ${label} annulée`, `${d.clientName} (${d.amount} TND) par ${nameOf(d.livreurId)}`]);
+                else if (d.status === 'pending') msgs.push([`🔄 Remise en cours`, `${d.clientName} (${d.amount} TND) par ${nameOf(d.livreurId)}`]);
+            } else {
+                if (p.status === 'pending' && d.status === 'delivered') msgs.push([`✅ Validée par l'admin`, `${d.clientName} (${d.amount} TND)`]);
+                else if (p.status === 'pending' && d.status === 'cancelled') msgs.push([`🔴 Annulée par l'admin`, `${d.clientName} (${d.amount} TND)`]);
+                else if (d.status === 'pending') msgs.push([`🔄 Remise en cours`, `${d.clientName} (${d.amount} TND)`]);
+            }
+        } else if (isAdminMe && (p.remarkLivreur || '') !== (d.remarkLivreur || '')) {
+            msgs.push([`💬 Remarque de ${nameOf(d.livreurId)}`, `${d.clientName} : ${d.remarkLivreur || ''}`]);
+        } else if (!isAdminMe && (p.remarkAdmin || '') !== (d.remarkAdmin || '')) {
+            msgs.push([`💬 Remarque Admin`, `${d.clientName} : ${d.remarkAdmin || ''}`]);
+        } else if (!isAdminMe && Number(p.amount) !== Number(d.amount)) {
+            msgs.push([`✏️ Montant modifié`, `${d.clientName} : ${d.amount} TND`]);
         }
     });
-    if (!state.adminStartBalances || typeof state.adminStartBalances !== 'object') state.adminStartBalances = {};
-    if (!Array.isArray(state.deliveries)) state.deliveries = [];
-    if (!Array.isArray(state.blacklist)) state.blacklist = [];
-    if (!state.selectedDate) state.selectedDate = getTodayStr();
-    if (!state.lastRolloverDate) state.lastRolloverDate = getTodayStr();
-    if (!state.adminPin) state.adminPin = "1234";
+    if (!isAdminMe) {
+        prev.forEach(p => {
+            if (p.livreurId === me && p.lastBy !== me) {
+                const c = curMap.get(p.id);
+                if (!c || c.livreurId !== me) msgs.push([`↩️ Opération retirée`, `${p.clientName} n'est plus dans votre liste.`]);
+            }
+        });
+    }
+    if (msgs.length === 1) showToast(msgs[0][0], msgs[0][1]);
+    else if (msgs.length > 1) showToast(`🔔 ${msgs.length} nouveautés`, msgs.slice(0, 3).map(m => m[1]).join(' • '));
 }
-    function saveState() {
-    renderApp();
-    clearTimeout(saveDebounceTimer);
-    saveDebounceTimer = setTimeout(() => {
-        if (!firebaseReady) return;
-        setSyncStatus('syncing');
-        // On envoie une copie SANS currentRole (rôle local à chaque navigateur)
-        const stateToSave = Object.assign({}, state);
-        delete stateToSave.currentRole;
-        STATE_REF.set(stateToSave)
-            .then(() => { setSyncStatus('online'); })
-            .catch(err => { console.error(err); setSyncStatus('offline'); });
-    }, 250);
+
+function ensureStateIntegrity() { /* plus nécessaire : l'état local n'est plus réécrit en bloc */ }
+function saveState() { renderApp(); }
+
+// ---------- session admin mémorisée 1 h sur l'appareil (liée à l'empreinte du PIN) ----------
+function saveAdminSession() {
+    try { localStorage.setItem('cashexpress_admin_session', (window.__pinHash || '').slice(0, 16) + ':' + (Date.now() + 60 * 60 * 1000)); } catch (e) {}
 }
-    
+function restoreAdminSession() {
+    try {
+        const parts = (localStorage.getItem('cashexpress_admin_session') || '').split(':');
+        return !!parts[0] && parts[0] === (window.__pinHash || '').slice(0, 16) && Date.now() < Number(parts[1]);
+    } catch (e) { return false; }
+}
+
+// ---------- création de la configuration / migration depuis l'ancienne version ----------
+function buildConfig(legacy, pinHash) {
+    const lv = {};
+    LIVREUR_IDS.forEach(id => {
+        const l = (legacy && legacy.livreurs && legacy.livreurs[id]) || {};
+        lv[id] = { name: l.name || DEFAULT_NAMES[id], token: l.token || generateRandomToken(id), startBalances: l.startBalances || {} };
+    });
+    const bl = {};
+    let arr = (legacy && legacy.blacklist) || [];
+    if (!Array.isArray(arr)) arr = Object.values(arr);
+    arr.forEach((b, i) => {
+        if (!b) return;
+        const id = VALID_ID.test(String(b.id || '')) ? String(b.id) : 'bl-mig-' + Date.now() + '-' + i;
+        bl[id] = { phone: String(b.phone || ''), clientName: String(b.clientName || ''), reason: String(b.reason || ''), date: String(b.date || getTodayStr()) };
+    });
+    return { adminPinHash: pinHash, adminStartBalances: (legacy && legacy.adminStartBalances) || {}, livreurs: lv, blacklist: bl };
+}
+async function writeConfig(cfg) {
+    const u = {};
+    u[CFG_PATH + '/adminPinHash'] = cfg.adminPinHash;
+    Object.keys(cfg.adminStartBalances || {}).forEach(d => { u[CFG_PATH + '/adminStartBalances/' + d] = Number(cfg.adminStartBalances[d]) || 0; });
+    LIVREUR_IDS.forEach(id => {
+        const l = cfg.livreurs[id];
+        u[CFG_PATH + '/livreurs/' + id + '/name'] = l.name;
+        u[CFG_PATH + '/livreurs/' + id + '/token'] = l.token;
+        Object.keys(l.startBalances || {}).forEach(d => { u[CFG_PATH + '/livreurs/' + id + '/startBalances/' + d] = Number(l.startBalances[d]) || 0; });
+    });
+    Object.keys(cfg.blacklist || {}).forEach(id => { u[CFG_PATH + '/blacklist/' + id] = cfg.blacklist[id]; });
+    u[CFG_PATH + '/migratedAt'] = Date.now();
+    await db.ref().update(u);   // atomique : le PIN n'existe qu'une fois tout écrit
+}
+async function createInitialConfig(pinHash) { await writeConfig(buildConfig(null, pinHash)); }
+async function migrateLegacy(legacy, pinHash) {
+    let list = legacy.deliveries || [];
+    if (!Array.isArray(list)) list = Object.values(list);
+    const ops = [];
+    list.forEach((d, i) => {
+        if (!d) return;
+        const id = VALID_ID.test(String(d.id || '')) ? String(d.id) : 'mig-' + Date.now() + '-' + i;
+        ops.push([id, normalizeOp(d, id)]);
+    });
+    for (let i = 0; i < ops.length; i += 100) {
+        const u = {};
+        ops.slice(i, i + 100).forEach(([id, o]) => { u[OPS_PATH + '/' + id] = o; });
+        await db.ref().update(u);
+    }
+    await writeConfig(buildConfig(legacy, pinHash));   // en dernier : marque la fin de la migration
+}
+
 // ==================== IMPORT EXCEL ====================
 function handleExcelImport(e) {
-    const file = e.target.files[0];
+    const input = e.target;
+    const file = input.files[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = function(e) {
+    reader.onload = async function(ev) {
         try {
-            const data = new Uint8Array(e.target.result);
+            const data = new Uint8Array(ev.target.result);
             const workbook = XLSX.read(data, { type: 'array' });
-            const firstSheetName = workbook.SheetNames[0];
-            const worksheet = workbook.Sheets[firstSheetName];
+            const worksheet = workbook.Sheets[workbook.SheetNames[0]];
             const jsonRows = XLSX.utils.sheet_to_json(worksheet);
             if (!jsonRows || jsonRows.length === 0) { alert("❌ Le fichier Excel est vide ou invalide !"); return; }
             if (!confirm(`L'importation va fusionner les données (${jsonRows.length} lignes). Continuer ?`)) return;
             const clean = (v) => { const s = String(v ?? '').trim(); return s === 'N/A' ? '' : s; };
-            const importedDeliveries = jsonRows.map((row, idx) => {
-                const typeVal = (row["Type Opération"] && row["Type Opération"].includes("Alimentation")) ? "SOLDE_RECU" : "LIVRAISON";
+            const imported = [];
+            jsonRows.forEach((row, idx) => {
+                const typeVal = (row["Type Opération"] && String(row["Type Opération"]).includes("Alimentation")) ? "SOLDE_RECU" : "LIVRAISON";
                 let statusVal = 'pending';
                 const statusStr = String(row["Statut"] || "").toLowerCase();
                 if (statusStr.includes("validé") || statusStr.includes("envoyé")) statusVal = 'delivered';
                 else if (statusStr.includes("annulé")) statusVal = 'cancelled';
-                const livreurName = row["Livreur Assigné"] || "Livreur 1";
+                const livreurName = String(row["Livreur Assigné"] || "Livreur 1");
                 let livreurId = 'livreur1';
                 if (livreurName.includes("Karim") || livreurName.includes("2")) livreurId = 'livreur2';
                 else if (livreurName.includes("Youssef") || livreurName.includes("3")) livreurId = 'livreur3';
-                return {
-                    id: 'imp-' + Date.now() + '-' + idx,
-                    date: row["Date"] || getTodayStr(),
-                    type: typeVal,
+                const date = String(row["Date"] || getTodayStr());
+                if (date.length !== 10) return;   // date illisible : ligne ignorée
+                const id = 'imp-' + Date.now() + '-' + idx;
+                imported.push([id, normalizeOp({
+                    date, type: typeVal,
                     clientName: clean(row["Client / Remettant"]) || "Client",
-                    phone: clean(row["Téléphone Principal"]),
-                    phone2: clean(row["Téléphone Secondaire"]),
-                    address: clean(row["Adresse physique"]),
-                    location: clean(row["Localisation / GPS"]),
-                    amount: parseFloat(row["Montant (TND)"]) || 0,
-                    livreurId: livreurId,
-                    status: statusVal,
-                    remarkAdmin: row["Remarque Admin"] || '',
-                    remarkLivreur: row["Remarque / Motif Livreur"] || '',
-                    creationTime: row["Heure Insertion"] || getTimeStr(),
-                    actionTime: row["Heure Action"] || null,
+                    phone: clean(row["Téléphone Principal"]), phone2: clean(row["Téléphone Secondaire"]),
+                    address: clean(row["Adresse physique"]), location: clean(row["Localisation / GPS"]),
+                    amount: parseFloat(row["Montant (TND)"]) || 0, livreurId, status: statusVal,
+                    remarkAdmin: row["Remarque Admin"] || '', remarkLivreur: row["Remarque / Motif Livreur"] || '',
+                    creationTime: row["Heure Insertion"] || getTimeStr(), actionTime: row["Heure Action"] || null,
                     timestamp: Date.now() + idx
-                };
+                }, id)]);
             });
-            const sig = d => [d.date, d.type, d.clientName, d.phone, d.amount, d.livreurId, d.creationTime].join('|');
-            const known = new Set(state.deliveries.map(sig));
-            const newOnes = importedDeliveries.filter(d => { const s = sig(d); if (known.has(s)) return false; known.add(s); return true; });
-            state.deliveries = [...newOnes, ...state.deliveries];
-            let blCount = 0;
-            if (workbook.SheetNames.includes("Liste Noire")) {
-                const blJson = XLSX.utils.sheet_to_json(workbook.Sheets["Liste Noire"]);
-                if (blJson && blJson.length > 0) {
-                    if (!state.blacklist) state.blacklist = [];
-                    blJson.forEach(row => {
-                        const phone = String(row["Téléphone"] || "").trim();
-                        const name = String(row["Nom Client"] || "").trim();
-                        const reason = String(row["Motif Blocage"] || "").trim();
-                        if (phone && name) {
-                            const cleaned = phone.replace(/\s+/g, '');
-                            if (!state.blacklist.some(b => b.phone.replace(/\s+/g, '') === cleaned)) {
-                                state.blacklist.push({ id: 'bl-imp-' + Date.now() + Math.random().toString(36).substr(2,4), phone, clientName: name, reason: reason || 'Importé', date: row["Date Ajout"] || getTodayStr() });
-                                blCount++;
-                            }
-                        }
-                    });
-                }
+
+            // Évite les doublons avec ce qui existe déjà dans la base
+            let newOps = [];
+            if (imported.length) {
+                const sig = d => [d.date, d.type, d.clientName, d.phone, Number(d.amount), d.livreurId, d.creationTime].join('|');
+                const dates = imported.map(x => x[1].date).sort();
+                const existing = await fetchOpsRange(dates[0], dates[dates.length - 1]);
+                const known = new Set(existing.map(sig));
+                newOps = imported.filter(([id, o]) => { const s = sig(o); if (known.has(s)) return false; known.add(s); return true; });
             }
-            saveState();
-            showToast("📥 Importation Réussie", `${newOnes.length} opérations et ${blCount} client(s) bloqué(s) importés.`);
+
+            const blWrites = [];
+            const sheetBL = workbook.SheetNames.includes("Liste Noire") ? XLSX.utils.sheet_to_json(workbook.Sheets["Liste Noire"]) : [];
+            sheetBL.forEach(row => {
+                const phone = String(row["Téléphone"] || "").trim();
+                const name = String(row["Nom Client"] || "").trim();
+                const reason = String(row["Motif Blocage"] || "").trim();
+                if (phone && name) {
+                    const cleaned = phone.replace(/\s+/g, '');
+                    if (!state.blacklist.some(b => String(b.phone).replace(/\s+/g, '') === cleaned) &&
+                        !blWrites.some(b => b[1].phone.replace(/\s+/g, '') === cleaned)) {
+                        blWrites.push(['bl-imp-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4),
+                            { phone, clientName: name, reason: reason || 'Importé', date: String(row["Date Ajout"] || getTodayStr()) }]);
+                    }
+                }
+            });
+
+            if (newOps.length === 0 && blWrites.length === 0) { showToast("📥 Importation", "Rien de nouveau : tout existe déjà."); return; }
+            for (let i = 0; i < newOps.length; i += 100) {
+                const u = {};
+                newOps.slice(i, i + 100).forEach(([id, o]) => { u[OPS_PATH + '/' + id] = o; });
+                await db.ref().update(u);
+            }
+            if (blWrites.length) {
+                const u = {};
+                blWrites.forEach(([id, o]) => { u[CFG_PATH + '/blacklist/' + id] = o; });
+                await db.ref().update(u);
+            }
+            showToast("📥 Importation Réussie", `${newOps.length} opérations et ${blWrites.length} client(s) bloqué(s) importés (${imported.length - newOps.length} déjà présentes ignorées).`);
         } catch (err) {
             console.error(err);
-            alert("❌ Erreur : " + err.message);
-        } finally { e.target.value = ''; }
+            alert("❌ Erreur : " + (err.message || err));
+        } finally { input.value = ''; }
     };
     reader.readAsArrayBuffer(file);
 }
 
 // ==================== ROLLOVER ====================
-function checkAndExecuteDailyRollover() {
-    const today = getTodayStr();
-    if (!state.lastRolloverDate) state.lastRolloverDate = today;
-    if (state.lastRolloverDate !== today) {
-        const pendingToRollover = state.deliveries.filter(d => d.status === 'pending' && d.date < today);
-        pendingToRollover.forEach(d => {
-            const originalDate = d.date;
-            d.date = today;
+// Les opérations "En cours" des jours précédents sont reportées à aujourd'hui (par le premier appareil qui s'ouvre).
+async function checkAndExecuteDailyRollover() {
+    try {
+        const today = getTodayStr();
+        const snap = await db.ref(OPS_PATH).orderByChild('status').equalTo('pending').once('value');
+        const updates = {};
+        let n = 0;
+        snap.forEach(ch => {
+            const d = ch.val();
+            if (!d || !VALID_ID.test(ch.key) || !d.date || d.date >= today) return;
+            if (window.__me !== 'admin' && d.livreurId !== window.__me) return;
             const ra = d.remarkAdmin || '';
-            if (!ra.includes('[Reporté')) d.remarkAdmin = `[Reporté du ${originalDate}] ${ra}`.trim();
+            updates[OPS_PATH + '/' + ch.key + '/date'] = today;
+            if (!ra.includes('[Reporté')) updates[OPS_PATH + '/' + ch.key + '/remarkAdmin'] = `[Reporté du ${d.date}] ${ra}`.trim();
+            updates[OPS_PATH + '/' + ch.key + '/lastBy'] = 'system';
+            n++;
         });
-        state.lastRolloverDate = today;
-        saveState();
+        if (n > 0) await db.ref().update(updates);
+    } catch (e) {
+        console.warn('Report quotidien impossible :', e);
     }
 }
 
@@ -1235,13 +1512,16 @@ function showToast(title, message) {
 }
 function hideToast() {
     const toast = document.getElementById('notification-toast');
+    if (!toast) return;
     toast.classList.add('translate-y-2');
     window._toastHideTimer = setTimeout(() => toast.classList.add('hidden'), 300);
 }
 
 // ==================== AUTH / RÔLES ====================
 function generateRandomToken(prefix) {
-    return prefix + '_' + Math.random().toString(36).substring(2, 8);
+    const a = new Uint8Array(12);
+    crypto.getRandomValues(a);
+    return prefix + '_' + Array.from(a).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 function getRoleFromURL() {
     const params = new URLSearchParams(window.location.search);
@@ -1257,13 +1537,22 @@ function lockRoleSelector(lockedRole) {
     const activeBtn = document.getElementById(`role-btn-${lockedRole}`);
     if (activeBtn) { activeBtn.classList.remove('hidden'); activeBtn.classList.add('bg-brand-600', 'text-white'); }
 }
+function openAdminLogin() {
+    const help = document.getElementById('admin-auth-help');
+    const mode = window.__bootMode;
+    window.__setupFirst = null;
+    document.getElementById('admin-pin-error').classList.add('hidden');
+    document.getElementById('input-admin-pin').value = '';
+    if (mode === 'setup') help.textContent = window.__legacyBlocked
+        ? "ATTENTION : les anciennes données ne sont pas accessibles (règles publiées trop tôt). Si vous aviez déjà des données, ne créez pas de PIN maintenant : remettez temporairement les anciennes règles, puis rechargez. Sinon, choisissez votre PIN (4 à 8 caractères)."
+        : "Première utilisation : choisissez votre code PIN Admin (4 à 8 caractères), puis confirmez-le.";
+    else if (mode === 'migrate') help.textContent = "Mise à niveau : saisissez votre code PIN actuel. Vos données seront converties automatiquement (quelques secondes).";
+    else help.textContent = "Veuillez saisir le code PIN confidentiel pour déverrouiller le tableau de bord Admin.";
+    toggleAdminAuthModal(true);
+}
 function switchRole(roleId, isURLCheck = false) {
-    if (roleId === 'admin' && !isAdminAuthenticated && !isURLCheck) {
-        document.getElementById('admin-pin-error').classList.add('hidden');
-        document.getElementById('input-admin-pin').value = '';
-        toggleAdminAuthModal(true);
-        return;
-    }
+    const allowed = isAdminAuthenticated || window.__me === roleId;
+    if (!allowed) { openAdminLogin(); return; }
     state.currentRole = roleId;
     document.querySelectorAll('.role-btn').forEach(btn => {
         btn.classList.remove('bg-brand-600', 'text-white', 'shadow-sm');
@@ -1284,20 +1573,66 @@ function toggleAdminAuthModal(show) {
     const modal = document.getElementById('modal-admin-auth');
     if (show) modal.classList.remove('hidden'); else modal.classList.add('hidden');
 }
-function verifyAdminPIN(e) {
+async function verifyAdminPIN(e) {
     e.preventDefault();
-    const inputPIN = document.getElementById('input-admin-pin').value;
-    const currentPin = state.adminPin || "1234";
-    if (inputPIN === currentPin) {
-        isAdminAuthenticated = true;
-        try { localStorage.setItem('cashexpress_admin_auth_expiry', String(Date.now() + 60 * 60 * 1000)); } catch (e) {}
+    const input = document.getElementById('input-admin-pin');
+    const errEl = document.getElementById('admin-pin-error');
+    const help = document.getElementById('admin-auth-help');
+    const btn = document.querySelector('#form-admin-auth button[type="submit"]');
+    const pin = input.value;
+    const showErr = (m) => { errEl.textContent = m; errEl.classList.remove('hidden'); };
+    const fail = () => {
+        window.__pinFails = (window.__pinFails || 0) + 1;
+        if (window.__pinFails >= 5) { window.__pinLockUntil = Date.now() + 30000; window.__pinFails = 0; }
+        showErr('❌ Code PIN incorrect ! Réessayez.');
+    };
+    errEl.classList.add('hidden');
+
+    if (Date.now() < (window.__pinLockUntil || 0)) { showErr("⏳ Trop d'essais. Patientez 30 secondes."); return; }
+    if (pin.length < 4) { showErr('❌ Le code PIN doit contenir au moins 4 caractères.'); return; }
+
+    const oldLabel = btn.textContent;
+    btn.disabled = true; btn.textContent = 'Vérification…';
+    try {
+        const mode = window.__bootMode;
+        const hash = await hashPin(pin);
+        if (mode === 'setup') {
+            if (!window.__setupFirst) {
+                window.__setupFirst = pin; input.value = '';
+                help.textContent = "Confirmez le code PIN en le saisissant une seconde fois.";
+                return;
+            }
+            if (window.__setupFirst !== pin) {
+                window.__setupFirst = null;
+                help.textContent = "Première utilisation : choisissez votre code PIN Admin (4 à 8 caractères), puis confirmez-le.";
+                showErr('❌ Les deux codes ne correspondent pas. Recommencez.');
+                input.value = '';
+                return;
+            }
+            await createInitialConfig(hash);
+        } else if (mode === 'migrate') {
+            const legacyPin = String((window.__legacyState && window.__legacyState.adminPin) || '1234');
+            if (pin !== legacyPin) { fail(); return; }
+            help.textContent = "Conversion des données en cours… ne fermez pas la page.";
+            await migrateLegacy(window.__legacyState, hash);
+        } else if (hash !== window.__pinHash) {
+            fail(); return;
+        }
+        window.__pinHash = hash;
+        window.__bootMode = 'normal';
+        window.__pinFails = 0;
         toggleAdminAuthModal(false);
-        switchRole('admin', true);
+        saveAdminSession();
+        await startAdminSession();
         showToast("Accès Admin Autorisé", "Vous êtes connecté en tant qu'Administrateur.");
-    } else {
-        document.getElementById('admin-pin-error').classList.remove('hidden');
+    } catch (err) {
+        console.error(err);
+        showErr(err && err.code === 'PERMISSION_DENIED' ? "⚠️ Accès refusé par les règles de la base." : "⚠️ Erreur de connexion. Réessayez.");
+    } finally {
+        btn.disabled = false; btn.textContent = oldLabel;
     }
 }
+
 function openChangeAdminPinModal() {
     if (!isAdminAuthenticated) { switchRole('admin'); return; }
     document.getElementById('form-change-admin-pin').reset();
@@ -1308,42 +1643,45 @@ function toggleChangeAdminPinModal(show) {
     const modal = document.getElementById('modal-change-admin-pin');
     if (show) modal.classList.remove('hidden'); else modal.classList.add('hidden');
 }
-function handleSaveNewAdminPIN(e) {
+async function handleSaveNewAdminPIN(e) {
     e.preventDefault();
     const currentInput = document.getElementById('input-current-pin').value;
     const newInput = document.getElementById('input-new-pin').value;
     const confirmInput = document.getElementById('input-confirm-new-pin').value;
     const errorElement = document.getElementById('change-pin-error');
-    const currentPin = state.adminPin || "1234";
-    if (currentInput !== currentPin) { errorElement.textContent = "❌ PIN actuel incorrect !"; errorElement.classList.remove('hidden'); return; }
-    if (newInput.length < 4) { errorElement.textContent = "❌ Le nouveau PIN doit contenir au moins 4 caractères !"; errorElement.classList.remove('hidden'); return; }
-    if (newInput !== confirmInput) { errorElement.textContent = "❌ Les PIN ne correspondent pas !"; errorElement.classList.remove('hidden'); return; }
-    state.adminPin = newInput;
-    saveState();
-    toggleChangeAdminPinModal(false);
-    showToast("🔒 PIN Admin Modifié", "Le PIN a été mis à jour.");
+    const showErr = (m) => { errorElement.textContent = m; errorElement.classList.remove('hidden'); };
+    if ((await hashPin(currentInput)) !== window.__pinHash) { showErr("❌ PIN actuel incorrect !"); return; }
+    if (newInput.length < 4) { showErr("❌ Le nouveau PIN doit contenir au moins 4 caractères !"); return; }
+    if (newInput !== confirmInput) { showErr("❌ Les PIN ne correspondent pas !"); return; }
+    try {
+        const h = await hashPin(newInput);
+        await db.ref(CFG_PATH + '/adminPinHash').set(h);
+        window.__pinHash = h;
+        saveAdminSession();
+        toggleChangeAdminPinModal(false);
+        showToast("🔒 PIN Admin Modifié", "Le PIN a été mis à jour.");
+    } catch (err) {
+        console.error(err);
+        showErr("⚠️ Échec de l'enregistrement. Vérifiez la connexion.");
+    }
 }
 
 // ==================== LIENS ====================
 function openDirectLinksModal() {
-    let changed = false;
-    ['livreur1', 'livreur2', 'livreur3'].forEach(id => {
-        if (!state.livreurs[id].token) {
+    LIVREUR_IDS.forEach(id => {
+        if (state.livreurs[id] && !state.livreurs[id].token) {
             state.livreurs[id].token = generateRandomToken(id);
-            changed = true;
+            dbSet(CFG_PATH + '/livreurs/' + id + '/token', state.livreurs[id].token);
         }
     });
-    if (changed) {
-        STATE_REF.set(state).catch(err => console.error(err));
-    }
-    const baseUrl = window.location.href.split('?')[0];
+    const baseUrl = window.location.href.split('?')[0].split('#')[0];
     document.getElementById('link-url-admin').value = `${baseUrl}?role=admin`;
-    document.getElementById('link-url-livreur1').value = `${baseUrl}?role=livreur1&token=${state.livreurs.livreur1.token}`;
-    document.getElementById('link-url-livreur2').value = `${baseUrl}?role=livreur2&token=${state.livreurs.livreur2.token}`;
-    document.getElementById('link-url-livreur3').value = `${baseUrl}?role=livreur3&token=${state.livreurs.livreur3.token}`;
+    LIVREUR_IDS.forEach(id => {
+        document.getElementById(`link-url-${id}`).value = `${baseUrl}?role=${id}&token=${state.livreurs[id].token}`;
+    });
     toggleDirectLinksModal(true);
 }
-    function toggleDirectLinksModal(show) {
+function toggleDirectLinksModal(show) {
     const modal = document.getElementById('modal-direct-links');
     if (show) modal.classList.remove('hidden'); else modal.classList.add('hidden');
 }
@@ -1356,22 +1694,13 @@ function copyToClipboard(elementId) {
 function revokeAndRegenerateLink(livreurId) {
     const livreurName = state.livreurs[livreurId]?.name || livreurId;
     if (!confirm(`Révoquer le lien de ${livreurName} ?\n\nSon ancien lien sera IMMÉDIATEMENT bloqué.`)) return;
-    state.livreurs[livreurId].token = generateRandomToken(livreurId);
-    setSyncStatus('syncing');
-    STATE_REF.set(state)
-        .then(() => {
-            setSyncStatus('online');
-            renderApp();
-            openDirectLinksModal();
-            showToast("🔴 Lien Révoqué !", `L'ancien lien de ${livreurName} a été désactivé. Nouveau lien généré.`);
-        })
-        .catch(err => {
-            console.error(err);
-            setSyncStatus('offline');
-            alert("Erreur Firebase : " + err.message);
-        });
+    const newToken = generateRandomToken(livreurId);
+    state.livreurs[livreurId].token = newToken;
+    dbSet(CFG_PATH + '/livreurs/' + livreurId + '/token', newToken);
+    openDirectLinksModal();
+    showToast("🔴 Lien Révoqué !", `L'ancien lien de ${livreurName} a été désactivé. Nouveau lien généré.`);
 }
-    
+
 // ==================== CALCULS ====================
 function getAdminStartBalance(date) {
     return (state.adminStartBalances && state.adminStartBalances[date] !== undefined) ? state.adminStartBalances[date] : 0;
@@ -1403,9 +1732,7 @@ function calculateTheoreticalBalance(livreurId, date) {
 
 // ==================== RENDER ====================
 function renderApp() {
-
-        console.log('%c[RENDER-APP] Appelé', 'color: lime; font-weight: bold', new Date().toLocaleTimeString(), 'role=', state?.currentRole);
-    
+    if (appBlocked || !document.getElementById('view-admin')) return;
     updateLivreurNamesInUI();
     if (state.currentRole === 'admin') renderAdminDashboard();
     else renderLivreurDashboard(state.currentRole);
@@ -1431,15 +1758,20 @@ function handleAddBlacklist(e) {
     const phone = document.getElementById('blacklist-input-phone').value.trim();
     const clientName = document.getElementById('blacklist-input-name').value.trim();
     const reason = document.getElementById('blacklist-input-reason').value.trim();
-    if (!state.blacklist) state.blacklist = [];
     if (editId) {
         const item = state.blacklist.find(b => b.id === editId);
-        if (item) { item.phone = phone; item.clientName = clientName; item.reason = reason; showToast("Liste Noire mise à jour", `${clientName} modifié.`); }
+        if (item) {
+            item.phone = phone; item.clientName = clientName; item.reason = reason;
+            dbUpdate(CFG_PATH + '/blacklist/' + editId, { phone, clientName, reason });
+            showToast("Liste Noire mise à jour", `${clientName} modifié.`);
+        }
     } else {
-        state.blacklist.push({ id: 'bl-' + Date.now(), phone, clientName, reason, date: getTodayStr() });
+        const entry = { id: 'bl-' + Date.now(), phone, clientName, reason, date: getTodayStr() };
+        state.blacklist.push(entry);
+        dbSet(CFG_PATH + '/blacklist/' + entry.id, { phone, clientName, reason, date: entry.date });
         showToast("🔴 Client Blacklisté", `${clientName} ajouté à la liste noire.`);
     }
-    saveState();
+    renderApp();
     renderBlacklistTable();
     resetBlacklistForm();
 }
@@ -1453,9 +1785,9 @@ function renderBlacklistTable() {
         const tr = document.createElement('tr');
         tr.className = "hover:bg-slate-50";
         tr.innerHTML = `
-            <td class="p-2.5 font-bold text-slate-900">${item.phone}</td>
-            <td class="p-2.5 font-semibold text-slate-800">${item.clientName}</td>
-            <td class="p-2.5 text-red-700 font-medium">${item.reason}</td>
+            <td class="p-2.5 font-bold text-slate-900">${esc(item.phone)}</td>
+            <td class="p-2.5 font-semibold text-slate-800">${esc(item.clientName)}</td>
+            <td class="p-2.5 text-red-700 font-medium">${esc(item.reason)}</td>
             <td class="p-2.5 text-right space-x-1">
                 <button onclick="editBlacklistEntry('${item.id}')" class="px-2 py-1 bg-brand-50 hover:bg-brand-100 text-brand-700 rounded text-[11px] font-bold"><i class="fa-solid fa-pen"></i></button>
                 <button onclick="removeBlacklistEntry('${item.id}')" class="px-2 py-1 bg-red-50 hover:bg-red-100 text-red-700 rounded text-[11px] font-bold"><i class="fa-solid fa-trash-can"></i></button>
@@ -1476,7 +1808,8 @@ function editBlacklistEntry(id) {
 function removeBlacklistEntry(id) {
     if (confirm("Retirer ce client de la liste noire ?")) {
         state.blacklist = (state.blacklist || []).filter(b => b.id !== id);
-        saveState(); renderBlacklistTable();
+        dbRemove(CFG_PATH + '/blacklist/' + id);
+        renderApp(); renderBlacklistTable();
         showToast("Client retiré", "Le client a été supprimé de la liste noire.");
     }
 }
@@ -1491,20 +1824,30 @@ function handlePhoneLookupAndBlacklist(phone) {
     }
     banner.classList.add('hidden');
 }
+let _histTimer = null;
 function handlePhoneHistoryLookup(phone) {
+    clearTimeout(_histTimer);
     const cleaned = phone.replace(/\s+/g, '');
     const alertBox = document.getElementById('history-alert');
-    if (cleaned.length >= 8) {
-        const prev = [...state.deliveries].sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0)).find(d => d.phone && d.phone.replace(/\s+/g, '') === cleaned && (d.clientName || d.location || d.address));
-        if (prev) {
-            if (prev.clientName) document.getElementById('input-client-name').value = prev.clientName;
-            if (prev.address) document.getElementById('input-address').value = prev.address;
-            if (prev.location) document.getElementById('input-location').value = prev.location;
-            if (prev.remarkAdmin) document.getElementById('input-remark-admin').value = prev.remarkAdmin;
-            alertBox.classList.remove('hidden'); return;
-        }
-    }
-    alertBox.classList.add('hidden');
+    if (cleaned.length < 8) { alertBox.classList.add('hidden'); return; }
+    _histTimer = setTimeout(async () => {
+        try {
+            const snap = await db.ref(OPS_PATH).orderByChild('phoneClean').equalTo(cleaned).limitToLast(20).once('value');
+            const stillTyped = (document.getElementById('input-phone').value || '').replace(/\s+/g, '');
+            if (stillTyped !== cleaned) return;
+            const list = [];
+            snap.forEach(ch => { const v = ch.val(); if (v && (v.clientName || v.location || v.address)) list.push(v); });
+            list.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+            const prev = list[0];
+            if (prev) {
+                if (prev.clientName) document.getElementById('input-client-name').value = prev.clientName;
+                if (prev.address) document.getElementById('input-address').value = prev.address;
+                if (prev.location) document.getElementById('input-location').value = prev.location;
+                if (prev.remarkAdmin) document.getElementById('input-remark-admin').value = prev.remarkAdmin;
+                alertBox.classList.remove('hidden');
+            } else alertBox.classList.add('hidden');
+        } catch (err) { console.warn('Historique indisponible :', err); alertBox.classList.add('hidden'); }
+    }, 500);
 }
 
 // ==================== ADMIN DASHBOARD ====================
@@ -1599,14 +1942,14 @@ function renderAdminTable() {
             <td class="p-3.5">
                 ${typeIcon}
                 <div class="flex items-center space-x-2 flex-wrap">
-                    <span class="font-bold text-slate-900">${d.clientName}</span>
+                    <span class="font-bold text-slate-900">${esc(d.clientName)}</span>
                     ${d.phone ? `<div class="inline-flex items-center space-x-1.5 bg-slate-100/80 px-1.5 py-0.5 rounded">
-                        <a href="tel:${d.phone}" class="text-xs font-semibold text-brand-600 hover:underline flex items-center gap-1"><i class="fa-solid fa-phone text-[10px]"></i> ${d.phone}</a>
-                        <a href="https://wa.me/${(d.phone || '').replace(/\s+/g, '')}" target="_blank" class="px-1.5 py-0.5 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold rounded flex items-center gap-0.5"><i class="fa-brands fa-whatsapp text-[10px]"></i> WA</a>
+                        <a href="tel:${esc(d.phone)}" class="text-xs font-semibold text-brand-600 hover:underline flex items-center gap-1"><i class="fa-solid fa-phone text-[10px]"></i> ${esc(d.phone)}</a>
+                        <a href="https://wa.me/${esc((d.phone || '').replace(/\s+/g, ''))}" target="_blank" class="px-1.5 py-0.5 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold rounded flex items-center gap-0.5"><i class="fa-brands fa-whatsapp text-[10px]"></i> WA</a>
                     </div>` : ''}
                     ${d.phone2 ? `<div class="inline-flex items-center space-x-1.5 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
-                        <a href="tel:${d.phone2}" class="text-xs font-semibold text-amber-800 hover:underline flex items-center gap-1"><i class="fa-solid fa-phone text-[10px] text-amber-600"></i> ${d.phone2}</a>
-                        <a href="https://wa.me/${(d.phone2 || '').replace(/\s+/g, '')}" target="_blank" class="px-1.5 py-0.5 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold rounded flex items-center gap-0.5"><i class="fa-brands fa-whatsapp text-[10px]"></i> WA2</a>
+                        <a href="tel:${esc(d.phone2)}" class="text-xs font-semibold text-amber-800 hover:underline flex items-center gap-1"><i class="fa-solid fa-phone text-[10px] text-amber-600"></i> ${esc(d.phone2)}</a>
+                        <a href="https://wa.me/${esc((d.phone2 || '').replace(/\s+/g, ''))}" target="_blank" class="px-1.5 py-0.5 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold rounded flex items-center gap-0.5"><i class="fa-brands fa-whatsapp text-[10px]"></i> WA2</a>
                     </div>` : ''}
                     <button onclick="promptEditPhone('${d.id}')" class="text-slate-400 hover:text-brand-600 text-xs p-0.5"><i class="fa-solid fa-pen text-[10px]"></i></button>
                 </div>
@@ -1614,11 +1957,11 @@ function renderAdminTable() {
             <td class="p-3.5">
                 <div class="space-y-1">
                     <div class="flex items-center space-x-1.5">
-                        <span class="text-xs font-medium text-slate-800 flex items-center gap-1"><i class="fa-solid fa-house text-slate-500 text-[10px]"></i> ${d.address || 'Pas d\'adresse'}</span>
+                        <span class="text-xs font-medium text-slate-800 flex items-center gap-1"><i class="fa-solid fa-house text-slate-500 text-[10px]"></i> ${esc(d.address) || 'Pas d\'adresse'}</span>
                         <button onclick="promptEditAddress('${d.id}')" class="text-slate-400 hover:text-brand-600 text-xs p-0.5"><i class="fa-solid fa-pen text-[10px]"></i></button>
                     </div>
                     <div class="flex items-center space-x-1.5">
-                        <a href="${mapsUrl}" target="_blank" class="text-slate-700 hover:text-brand-600 text-xs flex items-center gap-1 max-w-xs truncate"><i class="fa-solid fa-location-dot text-red-500"></i> ${d.location || 'Pas de GPS'}</a>
+                        <a href="${esc(mapsUrl)}" target="_blank" class="text-slate-700 hover:text-brand-600 text-xs flex items-center gap-1 max-w-xs truncate"><i class="fa-solid fa-location-dot text-red-500"></i> ${esc(d.location) || 'Pas de GPS'}</a>
                         <button onclick="promptEditLocation('${d.id}')" class="text-slate-400 hover:text-brand-600 text-xs p-0.5"><i class="fa-solid fa-pen text-[10px]"></i></button>
                     </div>
                 </div>
@@ -1629,7 +1972,7 @@ function renderAdminTable() {
             </td>
             <td class="p-3.5 font-medium text-slate-700">
                 <div class="flex items-center space-x-1.5">
-                    <span class="inline-flex items-center gap-1 px-2 py-1 bg-slate-100 rounded-md text-xs font-semibold"><i class="fa-solid fa-user-gear text-slate-400 text-[10px]"></i> ${state.livreurs[d.livreurId] ? state.livreurs[d.livreurId].name : d.livreurId}</span>
+                    <span class="inline-flex items-center gap-1 px-2 py-1 bg-slate-100 rounded-md text-xs font-semibold"><i class="fa-solid fa-user-gear text-slate-400 text-[10px]"></i> ${esc(state.livreurs[d.livreurId] ? state.livreurs[d.livreurId].name : d.livreurId)}</span>
                     ${canReassign ? `<button onclick="openReassignModal('${d.id}')" class="text-brand-600 hover:text-brand-800 p-1 bg-brand-50 hover:bg-brand-100 rounded-md transition text-xs"><i class="fa-solid fa-arrow-right-arrow-left text-[10px]"></i></button>` : `<span class="text-slate-300 p-1 text-xs"><i class="fa-solid fa-lock text-[10px]"></i></span>`}
                 </div>
             </td>
@@ -1637,8 +1980,8 @@ function renderAdminTable() {
             <td class="p-3.5">
                 <div class="space-y-1">
                     ${statusBadge}
-                    ${d.remarkAdmin ? `<p class="text-[11px] text-brand-700 bg-brand-50 p-1 rounded border border-brand-100">👑 <strong>Admin:</strong> « ${d.remarkAdmin} »</p>` : ''}
-                    ${d.remarkLivreur ? `<p class="text-[11px] text-amber-800 bg-amber-50 p-1 rounded border border-amber-100">🛵 <strong>Livreur:</strong> « ${d.remarkLivreur} »</p>` : ''}
+                    ${d.remarkAdmin ? `<p class="text-[11px] text-brand-700 bg-brand-50 p-1 rounded border border-brand-100">👑 <strong>Admin:</strong> « ${esc(d.remarkAdmin)} »</p>` : ''}
+                    ${d.remarkLivreur ? `<p class="text-[11px] text-amber-800 bg-amber-50 p-1 rounded border border-amber-100">🛵 <strong>Livreur:</strong> « ${esc(d.remarkLivreur)} »</p>` : ''}
                 </div>
             </td>
             <td class="p-3.5 text-right space-x-1">
@@ -1720,14 +2063,14 @@ function renderLivreurDashboard(livreurId) {
             </div>
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <div>
-                    <span class="font-bold text-slate-900 text-sm ${d.status==='cancelled'?'strikethrough-text':''}">${d.clientName}</span>
+                    <span class="font-bold text-slate-900 text-sm ${d.status==='cancelled'?'strikethrough-text':''}">${esc(d.clientName)}</span>
                     <div class="flex items-center space-x-2 text-slate-600 mt-0.5 flex-wrap gap-y-1">
-                        ${d.phone ? `<span class="inline-flex items-center gap-1 font-semibold text-brand-600 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-100"><i class="fa-solid fa-phone text-[10px]"></i> <a href="tel:${d.phone}" class="hover:underline">${d.phone}</a><a href="https://wa.me/${(d.phone||'').replace(/\s+/g,'')}" target="_blank" class="ms-0.5 px-1 py-0.2 bg-emerald-600 text-white rounded text-[10px] font-bold">WA</a></span>` : ''}
-                        ${d.phone2 ? `<span class="inline-flex items-center gap-1 font-semibold text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200"><i class="fa-solid fa-mobile-screen text-[10px]"></i> <a href="tel:${d.phone2}" class="hover:underline">${d.phone2}</a><a href="https://wa.me/${(d.phone2||'').replace(/\s+/g,'')}" target="_blank" class="ms-0.5 px-1 py-0.2 bg-emerald-600 text-white rounded text-[10px] font-bold">WA2</a></span>` : ''}
+                        ${d.phone ? `<span class="inline-flex items-center gap-1 font-semibold text-brand-600 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-100"><i class="fa-solid fa-phone text-[10px]"></i> <a href="tel:${esc(d.phone)}" class="hover:underline">${esc(d.phone)}</a><a href="https://wa.me/${esc((d.phone || '').replace(/\s+/g, ''))}" target="_blank" class="ms-0.5 px-1 py-0.2 bg-emerald-600 text-white rounded text-[10px] font-bold">WA</a></span>` : ''}
+                        ${d.phone2 ? `<span class="inline-flex items-center gap-1 font-semibold text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200"><i class="fa-solid fa-mobile-screen text-[10px]"></i> <a href="tel:${esc(d.phone2)}" class="hover:underline">${esc(d.phone2)}</a><a href="https://wa.me/${esc((d.phone2 || '').replace(/\s+/g, ''))}" target="_blank" class="ms-0.5 px-1 py-0.2 bg-emerald-600 text-white rounded text-[10px] font-bold">WA2</a></span>` : ''}
                         <button onclick="promptEditPhone('${d.id}')" class="text-slate-400 hover:text-brand-600 text-xs px-1"><i class="fa-solid fa-pen text-[10px]"></i></button>
-                        ${d.address ? `<span class="inline-flex items-center gap-1 font-medium text-slate-800" title="${d.address}"><i class="fa-solid fa-house text-slate-500 text-[10px]"></i> ${d.address}</span>` : ''}
+                        ${d.address ? `<span class="inline-flex items-center gap-1 font-medium text-slate-800" title="${esc(d.address)}"><i class="fa-solid fa-house text-slate-500 text-[10px]"></i> ${esc(d.address)}</span>` : ''}
                         <button onclick="promptEditAddress('${d.id}')" class="text-slate-400 hover:text-brand-600 text-xs px-1"><i class="fa-solid fa-pen text-[10px]"></i></button>
-                        ${d.location ? `<a href="${mapsUrl}" target="_blank" class="inline-flex items-center gap-1 font-medium text-slate-700 hover:text-brand-600 truncate max-w-[180px]" title="${d.location}"><i class="fa-solid fa-location-dot text-red-500 text-[10px]"></i> ${d.location}</a>` : ''}
+                        ${d.location ? `<a href="${esc(mapsUrl)}" target="_blank" class="inline-flex items-center gap-1 font-medium text-slate-700 hover:text-brand-600 truncate max-w-[180px]" title="${esc(d.location)}"><i class="fa-solid fa-location-dot text-red-500 text-[10px]"></i> ${esc(d.location)}</a>` : ''}
                         <button onclick="promptEditLocation('${d.id}')" class="text-slate-400 hover:text-brand-600 text-xs px-1"><i class="fa-solid fa-pen text-[10px]"></i></button>
                     </div>
                 </div>
@@ -1741,8 +2084,8 @@ function renderLivreurDashboard(livreurId) {
             </div>
             ${(d.remarkAdmin || d.remarkLivreur) ? `
                 <div class="text-[11px] pt-1.5 border-t border-slate-200/60 space-y-0.5">
-                    ${d.remarkAdmin ? `<p class="text-brand-800 bg-brand-50/80 px-2 py-0.5 rounded">👑 <strong>Admin:</strong> ${d.remarkAdmin}</p>` : ''}
-                    ${d.remarkLivreur ? `<p class="text-amber-900 bg-amber-50/80 px-2 py-0.5 rounded">🛵 <strong>Remarque:</strong> ${d.remarkLivreur}</p>` : ''}
+                    ${d.remarkAdmin ? `<p class="text-brand-800 bg-brand-50/80 px-2 py-0.5 rounded">👑 <strong>Admin:</strong> ${esc(d.remarkAdmin)}</p>` : ''}
+                    ${d.remarkLivreur ? `<p class="text-amber-900 bg-amber-50/80 px-2 py-0.5 rounded">🛵 <strong>Remarque:</strong> ${esc(d.remarkLivreur)}</p>` : ''}
                 </div>` : ''}`;
         cardsContainer.appendChild(card);
     });
@@ -1764,7 +2107,7 @@ function toggleExportModeUI() {
     const c = document.getElementById('export-range-inputs');
     if (rangeMode) c.classList.remove('hidden'); else c.classList.add('hidden');
 }
-function executeExcelExport() {
+async function executeExcelExport() {
     const mode = document.querySelector('input[name="export-mode"]:checked').value;
     let startDate = state.selectedDate || getTodayStr();
     let endDate = startDate;
@@ -1774,7 +2117,9 @@ function executeExcelExport() {
         if (!startDate || !endDate) { alert("Sélectionnez les dates !"); return; }
         if (startDate > endDate) { alert("Date début > date fin !"); return; }
     }
-    const list = state.deliveries.filter(d => d.date >= startDate && d.date <= endDate);
+    let list;
+    try { list = await fetchOpsRange(startDate, endDate); }
+    catch (err) { console.error(err); alert("❌ Impossible de lire les données du serveur. Vérifiez la connexion."); return; }
     if (list.length === 0) { alert("Aucune opération trouvée."); return; }
     const excelRows = list.map(d => ({
         "Date": d.date,
@@ -1821,11 +2166,9 @@ function executeConfirmValidation(e) {
     const remark = document.getElementById('input-validation-remark').value.trim();
     const del = state.deliveries.find(d => d.id === id);
     if (del) {
-        del.status = 'delivered';
-        del.timestamp = new Date().getTime();
-        del.actionTime = getTimeStr();
-        if (remark) { if (state.currentRole === 'admin') del.remarkAdmin = remark; else del.remarkLivreur = remark; }
-        saveState();
+        const patch = { status: 'delivered', timestamp: new Date().getTime(), actionTime: getTimeStr() };
+        if (remark) { if (state.currentRole === 'admin') patch.remarkAdmin = remark; else patch.remarkLivreur = remark; }
+        patchOp(id, patch);
         showToast(`🟢 Confirmation`, `${del.type === 'SOLDE_RECU' ? 'Alimentation validée' : 'Livraison validée'} pour ${del.clientName}.`);
     }
     toggleConfirmValidationModal(false);
@@ -1845,15 +2188,13 @@ function handleConfirmCancel(e) {
     const remark = document.getElementById('input-cancel-remark').value.trim();
     const del = state.deliveries.find(d => d.id === id);
     if (del) {
-        del.status = 'cancelled';
-        if (remark) { if (state.currentRole === 'admin') del.remarkAdmin = remark; else del.remarkLivreur = "Annulé : " + remark; }
-        else if (!del.remarkLivreur && state.currentRole !== 'admin') del.remarkLivreur = "Annulé sans motif";
-        del.timestamp = new Date().getTime();
-        del.actionTime = getTimeStr();
+        const patch = { status: 'cancelled', timestamp: new Date().getTime(), actionTime: getTimeStr() };
+        if (remark) { if (state.currentRole === 'admin') patch.remarkAdmin = remark; else patch.remarkLivreur = "Annulé : " + remark; }
+        else if (!del.remarkLivreur && state.currentRole !== 'admin') patch.remarkLivreur = "Annulé sans motif";
+        patchOp(id, patch);
         showToast("🔴 Annulation", `Opération pour ${del.clientName} annulée.`);
     }
     toggleCancelModal(false);
-    saveState();
 }
 function confirmResetToPending(id) { document.getElementById('reset-delivery-id').value = id; toggleConfirmResetModal(true); }
 function toggleConfirmResetModal(show) { const m = document.getElementById('modal-confirm-reset'); if (show) m.classList.remove('hidden'); else m.classList.add('hidden'); }
@@ -1861,10 +2202,7 @@ function executeResetToPending() {
     const id = document.getElementById('reset-delivery-id').value;
     const del = state.deliveries.find(d => d.id === id);
     if (del) {
-        del.status = 'pending';
-        del.timestamp = new Date().getTime();
-        del.actionTime = null;
-        saveState();
+        patchOp(id, { status: 'pending', timestamp: new Date().getTime(), actionTime: null });
         showToast("Remise en cours", `${del.clientName} est à nouveau EN COURS.`);
     }
     toggleConfirmResetModal(false);
@@ -1877,23 +2215,22 @@ function promptEditPhone(deliveryId) {
     const p1 = prompt("Téléphone principal :", d.phone || '');
     if (p1 === null) return;
     const p2 = prompt("Téléphone secondaire (optionnel) :", d.phone2 || '');
-    d.phone = p1.trim();
-    d.phone2 = p2 !== null ? p2.trim() : (d.phone2 || '');
-    d.timestamp = new Date().getTime();
-    saveState();
+    const phone = p1.trim();
+    const phone2 = p2 !== null ? p2.trim() : (d.phone2 || '');
+    patchOp(deliveryId, { phone, phone2, phoneClean: phone.replace(/\s+/g, ''), timestamp: new Date().getTime() });
     showToast("Téléphone(s) mis à jour", `Contact(s) modifié(s) pour ${d.clientName}.`);
 }
 function promptEditAddress(id) {
     const d = state.deliveries.find(x => x.id === id);
     if (!d) return;
     const v = prompt("Adresse physique :", d.address || '');
-    if (v !== null) { d.address = v.trim(); d.timestamp = new Date().getTime(); saveState(); showToast("Adresse modifiée", `Nouvelle adresse pour ${d.clientName}.`); }
+    if (v !== null) { patchOp(id, { address: v.trim(), timestamp: new Date().getTime() }); showToast("Adresse modifiée", `Nouvelle adresse pour ${d.clientName}.`); }
 }
 function promptEditLocation(id) {
     const d = state.deliveries.find(x => x.id === id);
     if (!d) return;
     const v = prompt("Localisation / GPS :", d.location || '');
-    if (v !== null) { d.location = v.trim(); d.timestamp = new Date().getTime(); saveState(); showToast("Localisation modifiée", `Nouvelle localisation pour ${d.clientName}.`); }
+    if (v !== null) { patchOp(id, { location: v.trim(), timestamp: new Date().getTime() }); showToast("Localisation modifiée", `Nouvelle localisation pour ${d.clientName}.`); }
 }
 function promptEditAmount(id) {
     if (state.currentRole !== 'admin') return;
@@ -1902,10 +2239,9 @@ function promptEditAmount(id) {
     if (d.status !== 'pending') { alert("L'Admin ne peut modifier un montant qu'en cours !"); return; }
     const v = prompt("Nouveau montant (TND) :", d.amount);
     if (v !== null && !isNaN(v) && parseFloat(v) > 0) {
-        d.amount = parseFloat(v);
-        d.timestamp = new Date().getTime();
-        saveState();
-        showToast("Montant modifié", `Nouveau montant ${d.amount} TND.`);
+        const amount = parseFloat(v);
+        patchOp(id, { amount, timestamp: new Date().getTime() });
+        showToast("Montant modifié", `Nouveau montant ${amount} TND.`);
     }
 }
 
@@ -1941,7 +2277,7 @@ function handleSaveDelivery(e) {
     const phoneInput = document.getElementById('input-phone').value.trim();
     const cleanedPhone = phoneInput.replace(/\s+/g, '');
     if (cleanedPhone) {
-        const blacklisted = (state.blacklist || []).find(b => b.phone.replace(/\s+/g, '') === cleanedPhone);
+        const blacklisted = (state.blacklist || []).find(b => String(b.phone).replace(/\s+/g, '') === cleanedPhone);
         if (blacklisted) {
             const go = confirm(`⚠️ CLIENT BLACKLISTÉ !\n\nNom : ${blacklisted.clientName}\nTéléphone : ${blacklisted.phone}\nMotif : ${blacklisted.reason}\n\nForcer l'enregistrement ?`);
             if (!go) return;
@@ -1958,17 +2294,13 @@ function handleSaveDelivery(e) {
     const livreurId = document.getElementById('select-livreur').value;
     const remarkAdmin = document.getElementById('input-remark-admin').value.trim();
     const now = new Date();
-    state.deliveries.unshift({
+    writeOp({
         id: (type === 'SOLDE_RECU' ? 'cash-' : 'del-') + Date.now(),
         date, type, clientName, phone, phone2, amount, address, location, livreurId,
-        status: 'pending',
-        remarkAdmin, remarkLivreur: '',
-        creationTime: getTimeStr(now.getTime()),
-        actionTime: null,
-        timestamp: now.getTime()
+        status: 'pending', remarkAdmin, remarkLivreur: '',
+        creationTime: getTimeStr(now.getTime()), actionTime: null, timestamp: now.getTime()
     });
     toggleAddModal(false);
-    saveState();
     showToast("🔔 Nouvelle Opération", `${type === 'SOLDE_RECU' ? 'Alimentation' : 'Livraison'} de ${amount} TND assignée à ${state.livreurs[livreurId]?.name || livreurId}.`);
 }
 function openRemarkModal(id) {
@@ -1988,11 +2320,10 @@ function handleSaveRemark(e) {
     const text = document.getElementById('input-delivery-remark').value.trim();
     const del = state.deliveries.find(d => d.id === id);
     if (del) {
-        if (state.currentRole === 'admin') { del.remarkAdmin = text; showToast("Remarque Admin", "Mise à jour."); }
-        else { del.remarkLivreur = text; showToast("Remarque Livreur", "Enregistrée."); }
+        if (state.currentRole === 'admin') { patchOp(id, { remarkAdmin: text }); showToast("Remarque Admin", "Mise à jour."); }
+        else { patchOp(id, { remarkLivreur: text }); showToast("Remarque Livreur", "Enregistrée."); }
     }
     toggleRemarkModal(false);
-    saveState();
 }
 function handleSaveAddCash(e) {
     e.preventDefault();
@@ -2007,55 +2338,33 @@ function handleSaveAddCash(e) {
     const livreurId = state.currentRole === 'admin' ? 'livreur1' : state.currentRole;
     if (!(amount > 0)) { alert("Montant invalide."); return; }
     const now = new Date();
-    state.deliveries.unshift({
+    writeOp({
         id: 'cash-' + Date.now(), date, type: 'SOLDE_RECU',
         clientName: clientName || "Alimentation Caisse",
-        phone, address, location, livreurId, amount,
+        phone, phone2: '', address, location, livreurId, amount,
         status: 'pending', remarkAdmin: '', remarkLivreur,
         creationTime: getTimeStr(now.getTime()), actionTime: null, timestamp: now.getTime()
     });
     toggleAddCashModal(false);
-    saveState();
     showToast("Alimentation ajoutée", `+${amount} TND en cours de validation.`);
 }
 function handleSaveStartBalance(e) {
     e.preventDefault();
-    ensureStateIntegrity(); // ← PROTECTION AJOUTÉE
-
     const livreurId = document.getElementById('start-balance-livreur-id').value;
     const amount = parseFloat(document.getElementById('input-start-balance-amount').value);
     const date = state.selectedDate || getTodayStr();
     if (isNaN(amount) || amount < 0) { alert("Montant invalide."); return; }
-
     const adminStart = getAdminStartBalance(date);
-    const otherSum = ['livreur1', 'livreur2', 'livreur3']
-        .filter(id => id !== livreurId)
-        .reduce((s, id) => s + getStartBalance(id, date), 0);
-
-    if (otherSum + amount > adminStart) {
-        alert(`Plafond dépassé ! Max : ${adminStart - otherSum} TND`);
-        return;
-    }
-
+    const otherSum = LIVREUR_IDS.filter(id => id !== livreurId).reduce((s, id) => s + getStartBalance(id, date), 0);
+    if (otherSum + amount > adminStart) { alert(`Plafond dépassé ! Max : ${adminStart - otherSum} TND`); return; }
     if (!state.livreurs[livreurId].startBalances) state.livreurs[livreurId].startBalances = {};
     state.livreurs[livreurId].startBalances[date] = amount;
-
+    dbSet(CFG_PATH + '/livreurs/' + livreurId + '/startBalances/' + date, amount);
     toggleStartBalanceModal(false);
-    renderApp(); // mise à jour locale immédiate
-
-    setSyncStatus('syncing');
-    STATE_REF.set(state)
-        .then(() => {
-            setSyncStatus('online');
-            showToast("Solde Livreur mis à jour", `${amount} TND attribués à ${state.livreurs[livreurId]?.name}.`);
-        })
-        .catch(err => {
-            console.error(err);
-            setSyncStatus('offline');
-            alert("Erreur de sauvegarde Firebase : " + err.message);
-        });
+    renderApp();
+    showToast("Solde Livreur mis à jour", `${amount} TND attribués à ${state.livreurs[livreurId]?.name}.`);
 }
-    // ==================== MODALES ====================
+// ==================== MODALES ====================
 function toggleAddModal(show) {
     const modal = document.getElementById('modal-delivery');
     if (show) {
@@ -2088,35 +2397,18 @@ function openAdminStartBalanceModal() {
 function toggleAdminStartBalanceModal(show) { const m = document.getElementById('modal-admin-start-balance'); if (show) m.classList.remove('hidden'); else m.classList.add('hidden'); }
 function handleSaveAdminStartBalance(e) {
     e.preventDefault();
-    ensureStateIntegrity(); // ← PROTECTION AJOUTÉE
-
     const date = state.selectedDate || getTodayStr();
     const amount = parseFloat(document.getElementById('input-admin-start-balance-amount').value);
     if (isNaN(amount) || amount < 0) { alert("Montant invalide."); return; }
-
     const currentLivreursTotal = getTotalLivreursStartBalance(date);
-    if (amount < currentLivreursTotal) {
-        alert(`Impossible : déjà attribué ${currentLivreursTotal} TND aux livreurs.`);
-        return;
-    }
-
+    if (amount < currentLivreursTotal) { alert(`Impossible : déjà attribué ${currentLivreursTotal} TND aux livreurs.`); return; }
     state.adminStartBalances[date] = amount;
+    dbSet(CFG_PATH + '/adminStartBalances/' + date, amount);
     toggleAdminStartBalanceModal(false);
     renderApp();
-
-    setSyncStatus('syncing');
-    STATE_REF.set(state)
-        .then(() => {
-            setSyncStatus('online');
-            showToast("Solde Admin Enregistré", `${amount} TND pour le ${date}.`);
-        })
-        .catch(err => {
-            console.error(err);
-            setSyncStatus('offline');
-            alert("Erreur de sauvegarde Firebase : " + err.message);
-        });
+    showToast("Solde Admin Enregistré", `${amount} TND pour le ${date}.`);
 }
-    function openEditLivreurNameModal(id) {
+function openEditLivreurNameModal(id) {
     document.getElementById('edit-livreur-id').value = id;
     document.getElementById('input-livreur-name').value = state.livreurs[id]?.name || '';
     toggleEditLivreurNameModal(true);
@@ -2126,7 +2418,12 @@ function handleSaveLivreurName(e) {
     e.preventDefault();
     const id = document.getElementById('edit-livreur-id').value;
     const name = document.getElementById('input-livreur-name').value.trim();
-    if (state.livreurs[id] && name) { state.livreurs[id].name = name; saveState(); showToast("Nom modifié", "Le nom du livreur a été mis à jour."); }
+    if (state.livreurs[id] && name) {
+        state.livreurs[id].name = name;
+        dbSet(CFG_PATH + '/livreurs/' + id + '/name', name.slice(0, 80));
+        renderApp();
+        showToast("Nom modifié", "Le nom du livreur a été mis à jour.");
+    }
     toggleEditLivreurNameModal(false);
 }
 function openReassignModal(deliveryId) {
@@ -2146,9 +2443,7 @@ function handleSaveReassign(e) {
     const del = state.deliveries.find(d => d.id === id);
     if (del) {
         if (del.status === 'delivered') { alert("Déjà validée."); toggleReassignModal(false); return; }
-        del.livreurId = newLivreurId;
-        del.timestamp = new Date().getTime();
-        saveState();
+        patchOp(id, { livreurId: newLivreurId, timestamp: new Date().getTime() });
         showToast(`🔔 Notification`, `Opération réaffectée à ${state.livreurs[newLivreurId]?.name}.`);
     }
     toggleReassignModal(false);
@@ -2157,185 +2452,109 @@ function openConfirmDeleteModal(id) { document.getElementById('delete-delivery-i
 function toggleConfirmDeleteModal(show) { const m = document.getElementById('modal-confirm-delete'); if (show) m.classList.remove('hidden'); else m.classList.add('hidden'); }
 function executeDeleteDelivery() {
     const id = document.getElementById('delete-delivery-id').value;
-    const idx = state.deliveries.findIndex(d => d.id === id);
-    if (idx !== -1) { state.deliveries.splice(idx, 1); saveState(); showToast("Ligne supprimée", "Opération retirée."); }
+    if (state.deliveries.some(d => d.id === id)) {
+        deleteOp(id);
+        showToast("Ligne supprimée", "Opération retirée.");
+    }
     toggleConfirmDeleteModal(false);
 }
 
 // ==================== DATE ====================
+// La journée affichée est propre à chaque appareil (elle n'est plus partagée).
 function handleDateChange() {
     state.selectedDate = document.getElementById('global-date-picker').value || getTodayStr();
-    saveState();
+    state.deliveries = [];
+    if (window.__me) subscribeOps();
+    renderApp();
 }
 
 // ==================== DÉMARRAGE ====================
-function initAppAfterSync() {
-        try { const e = parseInt(localStorage.getItem('cashexpress_admin_auth_expiry') || '0', 10); if (e && Date.now() < e) isAdminAuthenticated = true; } catch (err) {}
-    checkAndExecuteDailyRollover();
-    document.getElementById('global-date-picker').value = state.selectedDate || getTodayStr();
-    if (!state.adminPin) state.adminPin = "1234";
-
-    let tokensChanged = false;
-    ['livreur1', 'livreur2', 'livreur3'].forEach(id => {
-        if (!state.livreurs[id].token) {
-            state.livreurs[id].token = generateRandomToken(id);
-            tokensChanged = true;
+let midnightWatcherStarted = false;
+function startMidnightWatcher() {
+    if (midnightWatcherStarted) return;
+    midnightWatcherStarted = true;
+    window.__lastToday = getTodayStr();
+    setInterval(() => {
+        const t = getTodayStr();
+        if (window.__lastToday && window.__lastToday !== t && state.selectedDate === window.__lastToday) {
+            state.selectedDate = t;
+            document.getElementById('global-date-picker').value = t;
+            state.deliveries = [];
+            subscribeOps();
+            checkAndExecuteDailyRollover();
+            renderApp();
         }
-    });
-    if (tokensChanged) {
-        STATE_REF.set(state).catch(err => console.error(err));
-    }
-
-    const { role: urlRole, token: urlToken } = getRoleFromURL();
-
-    if (urlRole) {
-        if (urlRole === 'admin') {
-            switchRole('admin', true);
-            return;
-        }
-        const currentActiveToken = state.livreurs[urlRole]?.token;
-        if (urlToken && currentActiveToken && urlToken === currentActiveToken) {
-            state.currentRole = urlRole;
-            lockRoleSelector(urlRole);
-            switchRole(urlRole, false);
-        } else {
-            const modal = document.getElementById('modal-access-blocked');
-            modal.classList.remove('hidden');
-            const info = modal.querySelector('p.text-xs.text-slate-600');
-            if (info) {
-                info.innerHTML = `
-                    Ce lien d'accès n'est plus valide ou a été <strong>révoqué par l'administrateur</strong>.<br><br>
-                    <span style="color:#dc2626;font-weight:bold;">Diagnostic technique :</span><br>
-                    Rôle demandé : <code>${urlRole}</code><br>
-                    Token dans l'URL : <code>${urlToken || '(absent)'}</code><br>
-                    Token attendu : <code>${currentActiveToken || '(non défini)'}</code><br><br>
-                    Veuillez demander un nouveau lien à votre responsable.
-                `;
-            }
-            document.body.innerHTML = modal.outerHTML;
-        }
-        return;
-    }
-    switchRole('admin', false);
+        window.__lastToday = t;
+    }, 60000);
 }
-    
-// ÉCOUTE FIREBASE
-STATE_REF.on('value', (snapshot) => {
-    const remote = snapshot.val();
 
-    if (!firebaseReady) {
-        if (remote) {
-            const localRole = state.currentRole;
-            state = remote;
-            state.currentRole = localRole || 'admin';
-            if (typeof ensureStateIntegrity === 'function') ensureStateIntegrity();
-            lastKnownDeliveryIds = new Set((state.deliveries || []).map(d => d.id));
-            window._lastStatusMap = {};
-            (state.deliveries || []).forEach(d => { window._lastStatusMap[d.id] = d.status; });
-            firebaseReady = true;
-            setSyncStatus('online');
-            initAppAfterSync();
-        } else {
-            if (typeof ensureStateIntegrity === 'function') ensureStateIntegrity();
-            firebaseReady = true;
-            STATE_REF.set(state).then(() => {
-                setSyncStatus('online');
-                initAppAfterSync();
-            }).catch(err => {
-                console.error(err);
-                setSyncStatus('offline');
-                initAppAfterSync();
-            });
-        }
-        return;
-    }
+async function startAdminSession() {
+    window.__me = 'admin';
+    isAdminAuthenticated = true;
+    hideLoading();
+    attachConfigListeners(true);
+    subscribeOps();
+    switchRole('admin', true);
+    checkAndExecuteDailyRollover();
+    startMidnightWatcher();
+}
 
-    if (!remote) return;
-
-    const newDeliveries = remote.deliveries || [];
-    const previousIds = lastKnownDeliveryIds;
-    const previousStatuses = window._lastStatusMap || {};
-    const newIds = new Set(newDeliveries.map(d => d.id));
-
-    const addedDeliveries = newDeliveries.filter(d => !previousIds.has(d.id));
-    const statusChanges = newDeliveries.filter(d => {
-        const prev = previousStatuses[d.id];
-        return prev && prev !== d.status;
-    });
-
-    // Sauvegarder le rôle LOCAL avant d'écraser l'état
-    const myRole = state.currentRole;
-
-    // Appliquer la mise à jour
-    state = remote;
-    state.currentRole = myRole;
-    if (typeof ensureStateIntegrity === 'function') ensureStateIntegrity();
-    lastKnownDeliveryIds = newIds;
-    const newStatusMap = {};
-    newDeliveries.forEach(d => { newStatusMap[d.id] = d.status; });
-    window._lastStatusMap = newStatusMap;
-    setSyncStatus('online');
-    renderApp();
-
-    clearTimeout(notificationDebounce);
-    notificationDebounce = setTimeout(() => {
-        // 1. Nouvelles livraisons
-        if (addedDeliveries.length > 0) {
-            const count = addedDeliveries.length;
-            const first = addedDeliveries[0];
-            const livreurName = state.livreurs[first.livreurId]?.name || first.livreurId;
-            if (myRole === 'admin') {
-                showToast(
-                    count > 1 ? `🔔 ${count} nouvelles opérations` : `🔔 Nouvelle opération`,
-                    `${first.clientName} — ${first.amount} TND → ${livreurName}`
-                );
-            } else {
-                const myNew = addedDeliveries.filter(d => d.livreurId === myRole);
-                if (myNew.length > 0) {
-                    showToast(
-                        myNew.length > 1 ? `🔔 ${myNew.length} nouvelles livraisons` : `🔔 Nouvelle livraison`,
-                        `${myNew[0].clientName} — ${myNew[0].amount} TND`
-                    );
-                }
-            }
+async function boot() {
+    document.getElementById('global-date-picker').value = state.selectedDate || getTodayStr();
+    db.ref('.info/connected').on('value', s => setSyncStatus(s.val() ? 'online' : 'offline'));
+    const { role: urlRole, token: urlToken } = getRoleFromURL();
+    try {
+        if (urlRole && urlRole !== 'admin') {
+            // ----- Espace livreur (lien personnel) -----
+            const snap = await withTimeout(db.ref(CFG_PATH + '/livreurs/' + urlRole).once('value'), 15000);
+            const v = snap.val();
+            if (!v) { showFatal("L'application est en cours de mise à jour par l'administrateur. Réessayez dans quelques minutes."); return; }
+            if (!urlToken || v.token !== urlToken) { showAccessBlocked(); return; }
+            window.__me = urlRole;
+            window.__myToken = urlToken;
+            state.currentRole = urlRole;
+            mergeLivreur(urlRole, v);
+            lockRoleSelector(urlRole);
+            hideLoading();
+            attachConfigListeners(false, urlRole);
+            subscribeOps();
+            switchRole(urlRole, false);
+            checkAndExecuteDailyRollover();
+            startMidnightWatcher();
             return;
         }
-
-        // 2. Changements de statut
-        if (statusChanges.length > 0) {
-            statusChanges.forEach(d => {
-                const oldStatus = previousStatuses[d.id];
-                const newStatus = d.status;
-                const isMine = (d.livreurId === myRole);
-                const livreurName = state.livreurs[d.livreurId]?.name || d.livreurId;
-
-                if (myRole === 'admin') {
-                    // Admin reçoit les validations faites par les livreurs
-                    if (oldStatus === 'pending' && newStatus === 'delivered') {
-                        showToast(`✅ Livraison validée`, `${d.clientName} (${d.amount} TND) par ${livreurName}`);
-                    } else if (oldStatus === 'pending' && newStatus === 'cancelled') {
-                        showToast(`🔴 Livraison annulée`, `${d.clientName} (${d.amount} TND) par ${livreurName}`);
-                    }
-                } else if (isMine) {
-                    // Livreur reçoit les actions de l'admin sur SES livraisons
-                    if (oldStatus === 'pending' && newStatus === 'delivered') {
-                        showToast(`✅ Validée par l'admin`, `${d.clientName} (${d.amount} TND)`);
-                    } else if (oldStatus === 'pending' && newStatus === 'cancelled') {
-                        showToast(`🔴 Annulée par l'admin`, `${d.clientName} (${d.amount} TND)`);
-                    } else if (oldStatus === 'delivered' && newStatus === 'pending') {
-                        showToast(`🔄 Remise en cours`, `${d.clientName} (${d.amount} TND)`);
-                    }
-                } else {
-                    // Une opération d'un AUTRE livreur a changé → le livreur actuel ne notifie pas
-                    // mais on peut quand même le faire si vous le souhaitez
-                }
-            });
+        // ----- Espace admin -----
+        const hashSnap = await withTimeout(db.ref(CFG_PATH + '/adminPinHash').once('value'), 15000);
+        window.__pinHash = hashSnap.val();
+        if (window.__pinHash) {
+            window.__bootMode = 'normal';
+            if (restoreAdminSession()) { await startAdminSession(); }
+            else { hideLoading(); openAdminLogin(); }
+        } else {
+            try {
+                const legacySnap = await withTimeout(db.ref(LEGACY_PATH).once('value'), 15000);
+                window.__legacyState = legacySnap.val();
+            } catch (legacyErr) {
+                if (legacyErr && (legacyErr.code === 'PERMISSION_DENIED' || String(legacyErr.message || '').includes('permission_denied'))) {
+                    // Les nouvelles règles masquent l'ancienne structure : on ne peut pas migrer automatiquement
+                    window.__legacyState = null;
+                    window.__legacyBlocked = true;
+                } else { throw legacyErr; }
+            }
+            window.__bootMode = window.__legacyState ? 'migrate' : 'setup';
+            hideLoading();
+            openAdminLogin();
         }
-    }, 800);
-});
-    
-    // Gestion erreurs Firebase
-STATE_REF.on('value', () => {}, (error) => { console.error("Erreur Firebase:", error); setSyncStatus('offline'); });
+    } catch (err) {
+        console.error('Démarrage impossible :', err);
+        if (err && (err.code === 'PERMISSION_DENIED' || String(err.message || '').includes('permission_denied'))) {
+            showFatal("Accès refusé par les règles de la base de données. Vérifiez les règles publiées dans Firebase.");
+        } else {
+            showFatal("Impossible de joindre le serveur. Vérifiez votre connexion Internet.");
+        }
+    }
+}
+window.addEventListener('DOMContentLoaded', boot);
 </script>
 </body>
 </html>
