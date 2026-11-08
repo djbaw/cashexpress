@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Gestion de Livraison d'Argent v34 - CashExpress</title>
+<title>Gestion de Livraison d'Argent v35 - CashExpress</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -248,7 +248,7 @@
                     CashExpress
                     <span id="sync-indicator" class="syncing inline-block w-2.5 h-2.5 rounded-full" title="État de la connexion"></span>
                 </h1>
-                <p class="text-xs text-slate-400 hidden sm:block">Gestion de livraison d'argent en temps réel - <span class="text-emerald-400 font-bold">v34</span></p>
+                <p class="text-xs text-slate-400 hidden sm:block">Gestion de livraison d'argent en temps réel - <span class="text-emerald-400 font-bold">v35</span></p>
             </div>
         </div>
         <div class="flex items-center gap-1 bg-slate-800 p-1 rounded-xl border border-slate-700 order-2 sm:order-3" title="Taille du texte">
@@ -304,7 +304,7 @@
     </div>
 
     <!-- ADMIN VIEW -->
-    <div id="view-admin" class="space-y-6 hidden">
+    <div id="view-admin" class="space-y-6">
         <div class="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white p-6 rounded-2xl shadow-md space-y-4">
             <div class="flex justify-between items-center border-b border-slate-700/80 pb-3">
                 <div class="flex items-center space-x-3">
@@ -1543,6 +1543,15 @@ function openAdminLogin() {
     window.__setupFirst = null;
     document.getElementById('admin-pin-error').classList.add('hidden');
     document.getElementById('input-admin-pin').value = '';
+
+    // Masquer le dashboard tant que le PIN n'est pas saisi
+    const viewAdmin = document.getElementById('view-admin');
+    const viewLivreur = document.getElementById('view-livreur');
+    if (viewAdmin) viewAdmin.classList.add('hidden');
+    if (viewLivreur) viewLivreur.classList.add('hidden');
+    const main = document.querySelector('main');
+    if (main) main.style.visibility = 'hidden';
+
     if (mode === 'setup') help.textContent = window.__legacyBlocked
         ? "ATTENTION : les anciennes données ne sont pas accessibles (règles publiées trop tôt). Si vous aviez déjà des données, ne créez pas de PIN maintenant : remettez temporairement les anciennes règles, puis rechargez. Sinon, choisissez votre PIN (4 à 8 caractères)."
         : "Première utilisation : choisissez votre code PIN Admin (4 à 8 caractères), puis confirmez-le.";
@@ -1550,7 +1559,7 @@ function openAdminLogin() {
     else help.textContent = "Veuillez saisir le code PIN confidentiel pour déverrouiller le tableau de bord Admin.";
     toggleAdminAuthModal(true);
 }
-function switchRole(roleId, isURLCheck = false) {
+    function switchRole(roleId, isURLCheck = false) {
     const allowed = isAdminAuthenticated || window.__me === roleId;
     if (!allowed) { openAdminLogin(); return; }
     state.currentRole = roleId;
@@ -1569,10 +1578,27 @@ function switchRole(roleId, isURLCheck = false) {
     }
     renderApp();
 }
+
 function toggleAdminAuthModal(show) {
     const modal = document.getElementById('modal-admin-auth');
-    if (show) modal.classList.remove('hidden'); else modal.classList.add('hidden');
-}
+    if (show) {
+        modal.classList.remove('hidden');
+    } else {
+        modal.classList.add('hidden');
+        // Si l'admin n'est pas authentifié, on masque complètement le dashboard
+        if (!isAdminAuthenticated) {
+            const viewAdmin = document.getElementById('view-admin');
+            const viewLivreur = document.getElementById('view-livreur');
+            if (viewAdmin) viewAdmin.classList.add('hidden');
+            if (viewLivreur) viewLivreur.classList.add('hidden');
+            // On affiche un écran neutre à la place
+            const main = document.querySelector('main');
+            if (main) {
+                main.style.visibility = 'hidden';
+            }
+        }
+    }
+}    
 async function verifyAdminPIN(e) {
     e.preventDefault();
     const input = document.getElementById('input-admin-pin');
@@ -1623,6 +1649,8 @@ async function verifyAdminPIN(e) {
         window.__pinFails = 0;
         toggleAdminAuthModal(false);
         saveAdminSession();
+        const mainEl = document.querySelector('main');
+        if (mainEl) mainEl.style.visibility = 'visible';
         await startAdminSession();
         showToast("Accès Admin Autorisé", "Vous êtes connecté en tant qu'Administrateur.");
     } catch (err) {
@@ -2489,6 +2517,8 @@ function startMidnightWatcher() {
 }
 
 async function startAdminSession() {
+    const mainEl = document.querySelector('main');
+    if (mainEl) mainEl.style.visibility = 'visible';
     window.__me = 'admin';
     isAdminAuthenticated = true;
     hideLoading();
