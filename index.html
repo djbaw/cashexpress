@@ -2730,42 +2730,40 @@ function handleSaveStartBalance(e) {
     const livreurId = document.getElementById('start-balance-livreur-id').value;
     const amount = parseFloat(document.getElementById('input-start-balance-amount').value);
     const date = state.selectedDate || getTodayStr();
-    if (isNaN(amount) || amount < 0) { alert("Montant invalide."); return; }
+    if (isNaN(amount)) { alert("Montant invalide."); return; }
     const adminStart = getAdminStartBalance(date);
     const otherSum = LIVREUR_IDS.filter(id => id !== livreurId).reduce((s, id) => s + getStartBalance(id, date), 0);
-    if (otherSum + amount > adminStart) { alert(`Plafond dépassé ! Max : ${adminStart - otherSum} TND`); return; }
+    if (otherSum + amount > adminStart) {
+        const max = adminStart - otherSum;
+        alert(`❌ Plafond dépassé !\n\nTotal des soldes livreurs (y compris ce montant) : ${(otherSum + amount).toLocaleString('fr-FR')} TND\nSolde de départ Admin : ${adminStart.toLocaleString('fr-FR')} TND\n\nMaximum autorisé pour ce livreur : ${max.toLocaleString('fr-FR')} TND (peut être négatif)`);
+        return;
+    }
     if (!state.livreurs[livreurId].startBalances) state.livreurs[livreurId].startBalances = {};
     state.livreurs[livreurId].startBalances[date] = amount;
     dbSet(CFG_PATH + '/livreurs/' + livreurId + '/startBalances/' + date, amount);
     toggleStartBalanceModal(false);
     renderApp();
-    showToast("Solde Livreur mis à jour", `${amount} TND attribués à ${state.livreurs[livreurId]?.name}.`);
+    showToast("Solde Livreur mis à jour", `${amount.toLocaleString('fr-FR')} TND pour ${state.livreurs[livreurId]?.name}.`);
 }
-// ==================== MODALES ====================
-function toggleAddModal(show) {
-    const modal = document.getElementById('modal-delivery');
-    if (show) {
-        document.getElementById('form-delivery').reset();
-        document.getElementById('history-alert').classList.add('hidden');
-        toggleOpTypeForm();
-        modal.classList.remove('hidden');
-    } else modal.classList.add('hidden');
-}
-function openAddCashModal() { document.getElementById('form-add-cash').reset(); document.getElementById('modal-add-cash').classList.remove('hidden'); }
+    function openAddCashModal() { document.getElementById('form-add-cash').reset(); document.getElementById('modal-add-cash').classList.remove('hidden'); }
 function toggleAddCashModal(show) { const m = document.getElementById('modal-add-cash'); if (show) m.classList.remove('hidden'); else m.classList.add('hidden'); }
 function openStartBalanceModal(livreurId) {
     const date = state.selectedDate || getTodayStr();
     const currentStart = getStartBalance(livreurId, date);
     const adminStart = getAdminStartBalance(date);
     const otherSum = ['livreur1', 'livreur2', 'livreur3'].filter(id => id !== livreurId).reduce((s, id) => s + getStartBalance(id, date), 0);
-    const maxAllowed = Math.max(0, adminStart - otherSum);
+    const maxAllowed = adminStart - otherSum;
     document.getElementById('start-balance-livreur-id').value = livreurId;
     document.getElementById('input-start-balance-amount').value = currentStart;
     document.getElementById('modal-start-balance-title').textContent = `Solde Départ - ${state.livreurs[livreurId]?.name}`;
-    document.getElementById('start-balance-constraint-hint').innerHTML = `Solde Départ Admin: <strong>${adminStart} TND</strong><br>Déjà attribué: <strong>${otherSum} TND</strong><br>Maximum: <strong class="text-emerald-600">${maxAllowed} TND</strong>`;
+    document.getElementById('start-balance-constraint-hint').innerHTML =
+        `Solde Départ Admin: <strong>${adminStart.toLocaleString('fr-FR')} TND</strong><br>` +
+        `Déjà attribué aux autres livreurs: <strong>${otherSum.toLocaleString('fr-FR')} TND</strong><br>` +
+        `Maximum pour ce livreur: <strong class="text-emerald-600">${maxAllowed.toLocaleString('fr-FR')} TND</strong><br>` +
+        `<span class="text-[11px] text-slate-500">💡 Les montants négatifs sont acceptés (pas de minimum).</span>`;
     document.getElementById('modal-start-balance').classList.remove('hidden');
 }
-function toggleStartBalanceModal(show) { const m = document.getElementById('modal-start-balance'); if (show) m.classList.remove('hidden'); else m.classList.add('hidden'); }
+    function toggleStartBalanceModal(show) { const m = document.getElementById('modal-start-balance'); if (show) m.classList.remove('hidden'); else m.classList.add('hidden'); }
 function openAdminStartBalanceModal() {
     const date = state.selectedDate || getTodayStr();
     document.getElementById('input-admin-start-balance-amount').value = getAdminStartBalance(date);
