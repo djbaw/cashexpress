@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Gestion de Livraison d'Argent v35c - CashExpress</title>
+<title>Gestion de Livraison d'Argent v36 - CashExpress</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -47,7 +47,7 @@
             input, select, textarea { font-size: 16px !important; }
         }
 
-        body.locked > header, body.locked > main, body.locked > #audio-unlock-btn, body.locked > #notification-toast { display: none !important; }
+        body.locked > header, body.locked > main, body.locked > #audio-unlock-btn, body.locked > #notification-toast, body.locked > #notif-stack { display: none !important; }
         #sync-indicator.online  { background-color: #10b981; }
         #sync-indicator.offline { background-color: #ef4444; }
         #sync-indicator.syncing { background-color: #f59e0b; }
@@ -232,6 +232,24 @@
     </div>
 </div>
 
+<!-- NOTIFICATIONS PERSISTANTES (restent jusqu'au clic sur OK) -->
+<div id="notif-stack" class="fixed top-20 right-4 left-4 sm:left-auto sm:w-96 z-[55] flex flex-col gap-2 max-h-[75vh] overflow-y-auto pointer-events-none"></div>
+
+<!-- MODAL: HISTORIQUE DES NOTIFICATIONS -->
+<div id="modal-notifs" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden transform transition-all max-h-[90vh] flex flex-col">
+        <div class="bg-slate-900 px-6 py-4 text-white flex justify-between items-center shrink-0">
+            <h3 class="font-bold text-lg flex items-center gap-2"><i class="fa-solid fa-bell text-amber-300"></i><span>Notifications</span></h3>
+            <button type="button" onclick="closeNotifPanel()" class="text-slate-300 hover:text-white transition"><i class="fa-solid fa-xmark text-xl"></i></button>
+        </div>
+        <div id="notif-list" class="p-4 space-y-2 overflow-y-auto"></div>
+        <div class="p-4 bg-slate-50 border-t border-slate-100 flex justify-between gap-2 shrink-0">
+            <button type="button" onclick="clearAllNotifs()" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded-xl transition"><i class="fa-solid fa-trash-can me-1"></i> Effacer tout</button>
+            <button type="button" onclick="closeNotifPanel()" class="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-800 font-semibold text-xs rounded-xl transition">Fermer</button>
+        </div>
+    </div>
+</div>
+
 <!-- ÉCRAN DE CHARGEMENT / ERREUR DE CONNEXION -->
 <div id="app-loading" class="fixed inset-0 z-[60] bg-slate-900 flex flex-col items-center justify-center text-white p-6 text-center gap-3">
     <i id="app-loading-icon" class="fa-solid fa-circle-notch fa-spin text-3xl text-emerald-400"></i>
@@ -249,9 +267,13 @@
                     CashExpress
                     <span id="sync-indicator" class="syncing inline-block w-2.5 h-2.5 rounded-full" title="État de la connexion"></span>
                 </h1>
-                <p class="text-xs text-slate-400 hidden sm:block">Gestion de livraison d'argent en temps réel - <span class="text-emerald-400 font-bold">v35c</span></p>
+                <p class="text-xs text-slate-400 hidden sm:block">Gestion de livraison d'argent en temps réel - <span class="text-emerald-400 font-bold">v36</span></p>
             </div>
         </div>
+        <button id="notif-bell" type="button" onclick="openNotifPanel()" title="Toutes les notifications" class="relative w-11 h-11 bg-slate-800 border border-slate-700 rounded-xl text-slate-200 hover:text-white hover:bg-slate-700 transition order-2 sm:order-3">
+            <i class="fa-solid fa-bell"></i>
+            <span id="notif-badge" class="hidden absolute -top-1.5 -right-1.5 min-w-[1.15rem] h-[1.15rem] px-1 rounded-full bg-red-600 text-white text-[10px] font-bold items-center justify-center">0</span>
+        </button>
         <div class="flex items-center gap-1 bg-slate-800 p-1 rounded-xl border border-slate-700 order-2 sm:order-3" title="Taille du texte">
             <button type="button" onclick="changeUiZoom(-0.1)" class="w-9 h-9 text-sm font-bold text-slate-200 hover:text-white hover:bg-slate-700 rounded-lg">A−</button>
             <button type="button" onclick="resetUiZoom()" id="ui-zoom-label" class="min-w-[3rem] h-9 text-xs font-semibold text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg">100%</button>
@@ -1178,7 +1200,7 @@ async function fetchOpsRange(startDate, endDate) {
 }
 
 // ---------- écran de chargement / blocage ----------
-function unlockUI() { document.body.classList.remove('locked'); }
+function unlockUI() { document.body.classList.remove('locked'); loadNotifs(); }
 function hideLoading() { const el = document.getElementById('app-loading'); if (el) el.classList.add('hidden'); }
 function showFatal(message) {
     const el = document.getElementById('app-loading');
@@ -1276,6 +1298,99 @@ function subscribeOps() {
     opsRef.on('value', opsHandler, onListenerError);
 }
 
+// ==================== CENTRE DE NOTIFICATIONS ====================
+// Les notifications des AUTRES personnes restent affichées jusqu'au clic sur « OK » ; l'historique est gardé sur l'appareil.
+let notifs = [];
+function notifKey() { return 'cashexpress_notifs_' + (window.__me || 'none'); }
+function loadNotifs() {
+    try {
+        const v = JSON.parse(localStorage.getItem(notifKey()) || '[]');
+        notifs = Array.isArray(v) ? v.filter(n => n && n.id && typeof n.text === 'string') : [];
+    } catch (e) { notifs = []; }
+    renderNotifs();
+}
+function saveNotifs() { try { localStorage.setItem(notifKey(), JSON.stringify(notifs.slice(-200))); } catch (e) {} }
+function fmtNotifTime(at) {
+    const d = new Date(at);
+    const hm = d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+    return toLocalDateStr(d) === getTodayStr() ? hm : d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' }) + ' ' + hm;
+}
+function pushNotification(title, text) {
+    notifs.push({ id: Date.now() + '-' + Math.random().toString(36).slice(2, 6), title: String(title), text: String(text), at: Date.now(), ack: false });
+    if (notifs.length > 200) notifs = notifs.slice(-200);
+    saveNotifs();
+    renderNotifs();
+    playNotificationSound();
+    try { if (navigator.vibrate) navigator.vibrate([150, 80, 150]); } catch (e) {}
+}
+function ackNotif(id) {
+    const n = notifs.find(x => x.id === id);
+    if (n) { n.ack = true; saveNotifs(); renderNotifs(); }
+}
+function clearAllNotifs() {
+    const pending = notifs.filter(n => !n.ack).length;
+    if (pending > 0 && !confirm(`${pending} notification(s) n'ont pas encore été validées (OK). Tout effacer quand même ?`)) return;
+    notifs = [];
+    saveNotifs();
+    renderNotifs();
+}
+function openNotifPanel() { renderNotifs(); document.getElementById('modal-notifs').classList.remove('hidden'); }
+function closeNotifPanel() { document.getElementById('modal-notifs').classList.add('hidden'); }
+function renderNotifs() {
+    const stack = document.getElementById('notif-stack');
+    if (!stack) return;
+    const pending = notifs.filter(n => !n.ack);
+
+    // Pile des notifications non validées (la plus récente en haut)
+    stack.innerHTML = '';
+    pending.slice().reverse().forEach(n => {
+        const card = document.createElement('div');
+        card.className = 'pointer-events-auto bg-slate-900 text-white p-3 rounded-2xl shadow-2xl border border-slate-600';
+        const t = document.createElement('p'); t.className = 'font-bold text-sm'; t.textContent = n.title;
+        const b = document.createElement('p'); b.className = 'text-xs text-slate-200 mt-1 break-words'; b.textContent = n.text;
+        const row = document.createElement('div'); row.className = 'flex items-center justify-between mt-2';
+        const tm = document.createElement('span'); tm.className = 'text-[10px] text-slate-400'; tm.textContent = fmtNotifTime(n.at);
+        const ok = document.createElement('button');
+        ok.type = 'button';
+        ok.className = 'px-5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-lg transition';
+        ok.textContent = 'OK';
+        ok.onclick = () => ackNotif(n.id);
+        row.appendChild(tm); row.appendChild(ok);
+        card.appendChild(t); card.appendChild(b); card.appendChild(row);
+        stack.appendChild(card);
+    });
+
+    // Pastille sur la cloche
+    const badge = document.getElementById('notif-badge');
+    if (badge) {
+        badge.textContent = pending.length > 99 ? '99+' : String(pending.length);
+        badge.classList.toggle('hidden', pending.length === 0);
+    }
+
+    // Historique complet
+    const list = document.getElementById('notif-list');
+    if (list) {
+        list.innerHTML = '';
+        if (notifs.length === 0) {
+            const e = document.createElement('p');
+            e.className = 'text-center text-slate-400 text-sm py-6';
+            e.textContent = 'Aucune notification.';
+            list.appendChild(e);
+        }
+        notifs.slice().reverse().forEach(n => {
+            const row = document.createElement('div');
+            row.className = 'p-3 rounded-xl border ' + (n.ack ? 'bg-slate-50 border-slate-200' : 'bg-amber-50 border-amber-300');
+            const top = document.createElement('div'); top.className = 'flex justify-between items-start gap-2';
+            const t = document.createElement('p'); t.className = 'font-bold text-sm text-slate-900'; t.textContent = n.title;
+            const tm = document.createElement('span'); tm.className = 'text-[10px] text-slate-500 shrink-0'; tm.textContent = fmtNotifTime(n.at) + (n.ack ? '' : ' • non validée');
+            top.appendChild(t); top.appendChild(tm);
+            const b = document.createElement('p'); b.className = 'text-xs text-slate-700 mt-1 break-words'; b.textContent = n.text;
+            row.appendChild(top); row.appendChild(b);
+            list.appendChild(row);
+        });
+    }
+}
+
 // ---------- notifications : seulement pour les actions des AUTRES personnes ----------
 function notifyOpsChanges(prev, cur) {
     if (appBlocked) return;
@@ -1284,46 +1399,88 @@ function notifyOpsChanges(prev, cur) {
     const prevMap = new Map(prev.map(d => [d.id, d]));
     const curMap = new Map(cur.map(d => [d.id, d]));
     const nameOf = id => (state.livreurs[id] && state.livreurs[id].name) || id;
-    const msgs = [];
+    const actorOf = d => d.lastBy === 'admin' ? 'Admin' : (LIVREUR_IDS.includes(d.lastBy) ? nameOf(d.lastBy) : null);
+    const q = v => String(v == null ? '' : v).trim();
+    const out = [];   // [titre, texte]
 
     cur.forEach(d => {
-        if (d.lastBy === me) return;                         // ma propre action : déjà signalée
-        if (!isAdminMe && d.livreurId !== me) return;        // livreur : seulement mes opérations
+        if (d.lastBy === me || d.lastBy === 'system') return;      // ma propre action / report automatique
+        if (!isAdminMe && d.livreurId !== me) return;              // livreur : seulement mes opérations
         const p = prevMap.get(d.id);
         const wasMine = p && (isAdminMe || p.livreurId === me);
-        const label = d.type === 'SOLDE_RECU' ? 'Alimentation' : 'Livraison';
+        const isCash = d.type === 'SOLDE_RECU';
+        const label = isCash ? 'alimentation' : 'livraison';
+        const art = isCash ? "l'" : 'la ';
+        const client = q(d.clientName) || 'client';
+        const who = actorOf(d) || (isAdminMe ? nameOf(d.livreurId) : 'Admin');
+
         if (!wasMine) {
-            msgs.push([`🔔 Nouvelle ${label.toLowerCase()}`, isAdminMe ? `${d.clientName} — ${d.amount} TND → ${nameOf(d.livreurId)}` : `${d.clientName} — ${d.amount} TND`]);
+            out.push([`🔔 Nouvelle ${label}`, `${who} a ajouté une ${label} pour ${client} — ${d.amount} TND` + (isAdminMe ? ` → ${nameOf(d.livreurId)}` : '')]);
             return;
         }
+
+        // Remarques modifiées (le texte saisi est inclus dans la notification)
+        const remarkFields = ['remarkAdmin', 'remarkLivreur'].filter(f => q(p[f]) !== q(d[f]));
+
+        // Validation / annulation / remise en cours
         if (p.status !== d.status) {
-            if (isAdminMe) {
-                if (p.status === 'pending' && d.status === 'delivered') msgs.push([`✅ ${label} validée`, `${d.clientName} (${d.amount} TND) par ${nameOf(d.livreurId)}`]);
-                else if (p.status === 'pending' && d.status === 'cancelled') msgs.push([`🔴 ${label} annulée`, `${d.clientName} (${d.amount} TND) par ${nameOf(d.livreurId)}`]);
-                else if (d.status === 'pending') msgs.push([`🔄 Remise en cours`, `${d.clientName} (${d.amount} TND) par ${nameOf(d.livreurId)}`]);
-            } else {
-                if (p.status === 'pending' && d.status === 'delivered') msgs.push([`✅ Validée par l'admin`, `${d.clientName} (${d.amount} TND)`]);
-                else if (p.status === 'pending' && d.status === 'cancelled') msgs.push([`🔴 Annulée par l'admin`, `${d.clientName} (${d.amount} TND)`]);
-                else if (d.status === 'pending') msgs.push([`🔄 Remise en cours`, `${d.clientName} (${d.amount} TND)`]);
-            }
-        } else if (isAdminMe && (p.remarkLivreur || '') !== (d.remarkLivreur || '')) {
-            msgs.push([`💬 Remarque de ${nameOf(d.livreurId)}`, `${d.clientName} : ${d.remarkLivreur || ''}`]);
-        } else if (!isAdminMe && (p.remarkAdmin || '') !== (d.remarkAdmin || '')) {
-            msgs.push([`💬 Remarque Admin`, `${d.clientName} : ${d.remarkAdmin || ''}`]);
-        } else if (!isAdminMe && Number(p.amount) !== Number(d.amount)) {
-            msgs.push([`✏️ Montant modifié`, `${d.clientName} : ${d.amount} TND`]);
+            const verb = d.status === 'delivered' ? 'validé' : (d.status === 'cancelled' ? 'annulé' : 'remis en cours');
+            const title = d.status === 'delivered' ? '✅ Validation' : (d.status === 'cancelled' ? '🔴 Annulation' : '🔄 Remise en cours');
+            let txt = `${who} a ${verb} ${art}${label} de ${client} (${d.amount} TND)`;
+            const withText = remarkFields.find(f => q(d[f]));
+            if (withText) { txt += ` — remarque : « ${q(d[withText])} »`; remarkFields.length = 0; }
+            out.push([title, txt]);
+        }
+
+        // Remarque laissée / modifiée / supprimée
+        remarkFields.forEach(f => {
+            const before = q(p[f]), after = q(d[f]);
+            const whoR = actorOf(d) || (f === 'remarkAdmin' ? 'Admin' : nameOf(d.livreurId));
+            if (!after) out.push(['💬 Remarque', `${whoR} a supprimé la remarque de ${client}`]);
+            else if (!before) out.push(['💬 Remarque', `${whoR} a laissé une remarque pour ${client} (${after})`]);
+            else out.push(['💬 Remarque', `${whoR} a modifié une remarque pour ${client} (${after})`]);
+        });
+
+        // Téléphones
+        if (q(p.phone) !== q(d.phone)) {
+            out.push(['📞 Téléphone', q(d.phone) ? `${who} a modifié le numéro de téléphone de ${client} ${q(d.phone)}` : `${who} a supprimé le numéro de téléphone de ${client}`]);
+        }
+        if (q(p.phone2) !== q(d.phone2)) {
+            out.push(['📞 Téléphone', q(d.phone2) ? `${who} a modifié le second numéro de téléphone de ${client} ${q(d.phone2)}` : `${who} a supprimé le second numéro de téléphone de ${client}`]);
+        }
+
+        // Adresse
+        if (q(p.address) !== q(d.address)) {
+            const a0 = q(p.address), a1 = q(d.address);
+            out.push(['🏠 Adresse', !a1 ? `${who} a supprimé l'adresse de ${client}`
+                : (!a0 ? `${who} a ajouté une adresse pour ${client} (${a1})` : `${who} a modifié l'adresse de ${client} (${a1})`)]);
+        }
+
+        // Localisation
+        if (q(p.location) !== q(d.location)) {
+            const l0 = q(p.location), l1 = q(d.location);
+            out.push(['📍 Localisation', !l1 ? `${who} a supprimé la localisation de ${client}`
+                : (!l0 ? `${who} a ajouté une localisation de ${client}` : `${who} a modifié la localisation de ${client}`)]);
+        }
+
+        // Montant
+        if (Number(p.amount) !== Number(d.amount)) {
+            out.push(['✏️ Montant', `${who} a modifié le montant de ${client} : ${d.amount} TND`]);
         }
     });
-    if (!isAdminMe) {
+
+    // Livreur : opération retirée ou réaffectée à un autre livreur
+    if (!isAdminMe && state.selectedDate === getTodayStr()) {
         prev.forEach(p => {
-            if (p.livreurId === me && p.lastBy !== me) {
+            if (p.livreurId === me) {
                 const c = curMap.get(p.id);
-                if (!c || c.livreurId !== me) msgs.push([`↩️ Opération retirée`, `${p.clientName} n'est plus dans votre liste.`]);
+                if (!c || c.livreurId !== me) out.push(['↩️ Opération retirée', `${q(p.clientName) || 'Une opération'} n'est plus dans votre liste.`]);
             }
         });
     }
-    if (msgs.length === 1) showToast(msgs[0][0], msgs[0][1]);
-    else if (msgs.length > 1) showToast(`🔔 ${msgs.length} nouveautés`, msgs.slice(0, 3).map(m => m[1]).join(' • '));
+
+    if (out.length > 12) pushNotification(`🔔 ${out.length} nouveautés`, out.slice(0, 3).map(m => m[1]).join(' • ') + ' …');
+    else out.forEach(m => pushNotification(m[0], m[1]));
 }
 
 function ensureStateIntegrity() { /* plus nécessaire : l'état local n'est plus réécrit en bloc */ }
