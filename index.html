@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Gestion de Livraison d'Argent v36 - CashExpress</title>
+<title>Gestion de Livraison d'Argent v37 - CashExpress</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -267,7 +267,7 @@
                     CashExpress
                     <span id="sync-indicator" class="syncing inline-block w-2.5 h-2.5 rounded-full" title="État de la connexion"></span>
                 </h1>
-                <p class="text-xs text-slate-400 hidden sm:block">Gestion de livraison d'argent en temps réel - <span class="text-emerald-400 font-bold">v36</span></p>
+                <p class="text-xs text-slate-400 hidden sm:block">Gestion de livraison d'argent en temps réel - <span class="text-emerald-400 font-bold">v37</span></p>
             </div>
         </div>
         <button id="notif-bell" type="button" onclick="openNotifPanel()" title="Toutes les notifications" class="relative w-11 h-11 bg-slate-800 border border-slate-700 rounded-xl text-slate-200 hover:text-white hover:bg-slate-700 transition order-2 sm:order-3">
@@ -901,6 +901,7 @@ const db = firebase.database();
 const ROOT = 'cashexpress';
 const OPS_PATH = ROOT + '/ops';          // une entrée PAR opération
 const CFG_PATH = ROOT + '/config';       // PIN (empreinte), soldes, livreurs, liste noire
+const NOTIF_PATH = ROOT + '/notifs';       // notifications par destinataire (admin, livreur1..3)
 const LEGACY_PATH = ROOT + '/state';     // ancienne structure (v33), lue une seule fois pour la migration
 
 function setSyncStatus(status) {
@@ -1161,12 +1162,19 @@ function writeOp(op) {
         lastBy: window.__me, lastAt: Date.now()
     }));
     delete o.id;
+    notifyOp(null, op);
     return dbSet(OPS_PATH + '/' + op.id, o);
 }
 function patchOp(id, patch) {
+    const _before = state.deliveries.find(d => d.id === id);
+    if (_before) notifyOp(_before, Object.assign({}, _before, patch));
     return dbUpdate(OPS_PATH + '/' + id, Object.assign({}, patch, { lastBy: window.__me, lastAt: Date.now() }));
 }
-function deleteOp(id) { return dbRemove(OPS_PATH + '/' + id); }
+function deleteOp(id) {
+    const _before = state.deliveries.find(d => d.id === id);
+    if (_before) notifyOp(_before, null);
+    return dbRemove(OPS_PATH + '/' + id);
+}
 
 function normalizeOp(d, id) {
     const isStr = v => (typeof v === 'string' && v.length === 10) ? v : getTodayStr();
@@ -1200,7 +1208,7 @@ async function fetchOpsRange(startDate, endDate) {
 }
 
 // ---------- écran de chargement / blocage ----------
-function unlockUI() { document.body.classList.remove('locked'); loadNotifs(); }
+function unlockUI() { document.body.classList.remove('locked'); startNotifs(); }
 function hideLoading() { const el = document.getElementById('app-loading'); if (el) el.classList.add('hidden'); }
 function showFatal(message) {
     const el = document.getElementById('app-loading');
@@ -1232,7 +1240,7 @@ function unsubscribeOps() {
     if (opsRef && opsHandler) { try { opsRef.off('value', opsHandler); } catch (e) {} }
     opsRef = null; opsHandler = null;
 }
-function detachAllListeners() { detachConfigListeners(); unsubscribeOps(); }
+function detachAllListeners() { detachConfigListeners(); unsubscribeOps(); stopNotifs(); }
 
 function onListenerError(err) {
     console.error('Erreur écoute :', err);
@@ -1299,8 +1307,57 @@ function subscribeOps() {
 }
 
 // ==================== CENTRE DE NOTIFICATIONS ====================
-// Les notifications des AUTRES personnes restent affichées jusqu'au clic sur « OK » ; l'historique est gardé sur l'appareil.
+// Les notifications sont enregistrées dans la base, au nom du DESTINATAIRE (admin, livreur1, livreur2, livreur3).
+// Elles restent jusqu'au clic sur « OK » et se retrouvent sur n'importe quel appareil / navigateur.
 let notifs = [];
+let notifMode = 'pending';          // 'pending' (démarrage) | 'server' (base) | 'local' (secours si les règles ne sont pas à jour)
+let notifServerLoaded = false;
+let notifRef = null, notifHandler = null;
+
+function stopNotifs() {
+    if (notifRef && notifHandler) { try { notifRef.off('value', notifHandler); } catch (e) {} }
+    notifRef = null; notifHandler = null;
+}
+function startNotifs() {
+    stopNotifs();
+    notifs = [];
+    notifMode = 'pending';
+    notifServerLoaded = false;
+    renderNotifs();
+    notifRef = db.ref(NOTIF_PATH + '/' + window.__me);
+    notifHandler = (snap) => {
+        const v = snap.val() || {};
+        const arr = Object.keys(v)
+            .filter(k => VALID_ID.test(k) && v[k] && typeof v[k] === 'object')
+            .map(k => ({ id: k, title: String(v[k].title || ''), text: String(v[k].text || ''), at: Number(v[k].at) || 0, ack: v[k].ack === true }))
+            .sort((a, b) => a.at - b.at);
+        const known = new Set(notifs.map(n => n.id));
+        const fresh = arr.filter(n => !n.ack && !known.has(n.id));
+        const wasLoaded = notifServerLoaded;
+        notifs = arr;
+        notifMode = 'server';
+        notifServerLoaded = true;
+        renderNotifs();
+        if (wasLoaded && fresh.length) {
+            playNotificationSound();
+            try { if (navigator.vibrate) navigator.vibrate([150, 80, 150]); } catch (e) {}
+        }
+        // historique limité à 200 entrées (on supprime les plus anciennes déjà validées)
+        if (arr.length > 200) {
+            const u = {};
+            arr.filter(n => n.ack).slice(0, arr.length - 200).forEach(n => { u[NOTIF_PATH + '/' + window.__me + '/' + n.id] = null; });
+            if (Object.keys(u).length) db.ref().update(u).catch(() => {});
+        }
+    };
+    notifRef.on('value', notifHandler, (err) => {
+        console.warn('Notifications serveur indisponibles (règles non republiées ?) — mode local :', err);
+        notifRef = null; notifHandler = null;
+        notifMode = 'local';
+        loadNotifs();
+    });
+}
+
+// ----- mode de secours (stockage sur l'appareil) -----
 function notifKey() { return 'cashexpress_notifs_' + (window.__me || 'none'); }
 function loadNotifs() {
     try {
@@ -1310,12 +1367,7 @@ function loadNotifs() {
     renderNotifs();
 }
 function saveNotifs() { try { localStorage.setItem(notifKey(), JSON.stringify(notifs.slice(-200))); } catch (e) {} }
-function fmtNotifTime(at) {
-    const d = new Date(at);
-    const hm = d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-    return toLocalDateStr(d) === getTodayStr() ? hm : d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' }) + ' ' + hm;
-}
-function pushNotification(title, text) {
+function pushNotification(title, text) {   // utilisé seulement en mode de secours
     notifs.push({ id: Date.now() + '-' + Math.random().toString(36).slice(2, 6), title: String(title), text: String(text), at: Date.now(), ack: false });
     if (notifs.length > 200) notifs = notifs.slice(-200);
     saveNotifs();
@@ -1323,19 +1375,36 @@ function pushNotification(title, text) {
     playNotificationSound();
     try { if (navigator.vibrate) navigator.vibrate([150, 80, 150]); } catch (e) {}
 }
+
+// ----- actions de l'utilisateur sur ses notifications -----
 function ackNotif(id) {
     const n = notifs.find(x => x.id === id);
-    if (n) { n.ack = true; saveNotifs(); renderNotifs(); }
+    if (!n) return;
+    n.ack = true;
+    renderNotifs();
+    if (notifMode === 'server') db.ref(NOTIF_PATH + '/' + window.__me + '/' + id + '/ack').set(true).catch(e => console.warn(e));
+    else saveNotifs();
 }
 function clearAllNotifs() {
     const pending = notifs.filter(n => !n.ack).length;
     if (pending > 0 && !confirm(`${pending} notification(s) n'ont pas encore été validées (OK). Tout effacer quand même ?`)) return;
+    if (notifMode === 'server') {
+        const u = {};
+        notifs.forEach(n => { u[NOTIF_PATH + '/' + window.__me + '/' + n.id] = null; });
+        if (Object.keys(u).length) db.ref().update(u).catch(e => console.warn(e));
+    }
     notifs = [];
-    saveNotifs();
+    if (notifMode !== 'server') saveNotifs();
     renderNotifs();
 }
 function openNotifPanel() { renderNotifs(); document.getElementById('modal-notifs').classList.remove('hidden'); }
 function closeNotifPanel() { document.getElementById('modal-notifs').classList.add('hidden'); }
+
+function fmtNotifTime(at) {
+    const d = new Date(at);
+    const hm = d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+    return toLocalDateStr(d) === getTodayStr() ? hm : d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' }) + ' ' + hm;
+}
 function renderNotifs() {
     const stack = document.getElementById('notif-stack');
     if (!stack) return;
@@ -1391,94 +1460,129 @@ function renderNotifs() {
     }
 }
 
-// ---------- notifications : seulement pour les actions des AUTRES personnes ----------
+// ----- construction des messages (une opération passe de p à d, par « who ») -----
+function opMessages(p, d, who, toAdmin) {
+    const q = v => String(v == null ? '' : v).trim();
+    const nameOf = id => (state.livreurs[id] && state.livreurs[id].name) || id;
+    const out = [];
+    const isCash = d.type === 'SOLDE_RECU';
+    const label = isCash ? 'alimentation' : 'livraison';
+    const art = isCash ? "l'" : 'la ';
+    const client = q(d.clientName) || 'client';
+
+    if (!p) {
+        out.push([`🔔 Nouvelle ${label}`, `${who} a ajouté une ${label} pour ${client} — ${d.amount} TND` + (toAdmin ? ` → ${nameOf(d.livreurId)}` : '')]);
+        return out;
+    }
+
+    // Remarques modifiées (le texte saisi est inclus dans la notification)
+    const remarkFields = ['remarkAdmin', 'remarkLivreur'].filter(f => q(p[f]) !== q(d[f]));
+
+    // Validation / annulation / remise en cours
+    if (p.status !== d.status) {
+        const verb = d.status === 'delivered' ? 'validé' : (d.status === 'cancelled' ? 'annulé' : 'remis en cours');
+        const title = d.status === 'delivered' ? '✅ Validation' : (d.status === 'cancelled' ? '🔴 Annulation' : '🔄 Remise en cours');
+        let txt = `${who} a ${verb} ${art}${label} de ${client} (${d.amount} TND)`;
+        const withText = remarkFields.find(f => q(d[f]));
+        if (withText) { txt += ` — remarque : « ${q(d[withText])} »`; remarkFields.length = 0; }
+        out.push([title, txt]);
+    }
+
+    // Remarque laissée / modifiée / supprimée
+    remarkFields.forEach(f => {
+        const before = q(p[f]), after = q(d[f]);
+        if (!after) out.push(['💬 Remarque', `${who} a supprimé la remarque de ${client}`]);
+        else if (!before) out.push(['💬 Remarque', `${who} a laissé une remarque pour ${client} (${after})`]);
+        else out.push(['💬 Remarque', `${who} a modifié une remarque pour ${client} (${after})`]);
+    });
+
+    // Téléphones
+    if (q(p.phone) !== q(d.phone)) {
+        out.push(['📞 Téléphone', q(d.phone) ? `${who} a modifié le numéro de téléphone de ${client} ${q(d.phone)}` : `${who} a supprimé le numéro de téléphone de ${client}`]);
+    }
+    if (q(p.phone2) !== q(d.phone2)) {
+        out.push(['📞 Téléphone', q(d.phone2) ? `${who} a modifié le second numéro de téléphone de ${client} ${q(d.phone2)}` : `${who} a supprimé le second numéro de téléphone de ${client}`]);
+    }
+
+    // Adresse
+    if (q(p.address) !== q(d.address)) {
+        const a0 = q(p.address), a1 = q(d.address);
+        out.push(['🏠 Adresse', !a1 ? `${who} a supprimé l'adresse de ${client}`
+            : (!a0 ? `${who} a ajouté une adresse pour ${client} (${a1})` : `${who} a modifié l'adresse de ${client} (${a1})`)]);
+    }
+
+    // Localisation
+    if (q(p.location) !== q(d.location)) {
+        const l0 = q(p.location), l1 = q(d.location);
+        out.push(['📍 Localisation', !l1 ? `${who} a supprimé la localisation de ${client}`
+            : (!l0 ? `${who} a ajouté une localisation de ${client}` : `${who} a modifié la localisation de ${client}`)]);
+    }
+
+    // Montant
+    if (Number(p.amount) !== Number(d.amount)) {
+        out.push(['✏️ Montant', `${who} a modifié le montant de ${client} : ${d.amount} TND`]);
+    }
+    return out;
+}
+
+// ----- envoi côté action : le destinataire retrouvera la notification même s'il est hors ligne -----
+function sendNotification(recipient, title, text) {
+    if (!recipient) return;
+    const id = 'n' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    db.ref(NOTIF_PATH + '/' + recipient + '/' + id)
+        .set({ title: String(title).slice(0, 200), text: String(text).slice(0, 2000), at: Date.now(), ack: false })
+        .catch(e => console.warn('Notification non envoyée :', e));
+}
+function notifyOp(before, after) {          // before = null : création ; after = null : suppression
+    if (!window.__me || notifMode === 'local') return;
+    const me = window.__me;
+    const nameOf = id => (state.livreurs[id] && state.livreurs[id].name) || id;
+    const who = me === 'admin' ? 'Admin' : nameOf(me);
+    const removedMsg = (op) => ['↩️ Opération retirée', `${String(op.clientName || '').trim() || 'Une opération'} n'est plus dans votre liste.`];
+
+    if (me !== 'admin') {                    // livreur -> admin
+        if (!after) return;
+        opMessages(before, after, who, true).forEach(m => sendNotification('admin', m[0], m[1]));
+        return;
+    }
+    // admin -> livreur concerné
+    if (before && !after) { const m = removedMsg(before); sendNotification(before.livreurId, m[0], m[1]); return; }
+    if (before && after && before.livreurId !== after.livreurId) {
+        const m = removedMsg(before);
+        sendNotification(before.livreurId, m[0], m[1]);
+        opMessages(null, after, who, false).forEach(x => sendNotification(after.livreurId, x[0], x[1]));
+        return;
+    }
+    if (after) opMessages(before, after, who, false).forEach(m => sendNotification(after.livreurId, m[0], m[1]));
+}
+
+// ----- secours : calcul côté destinataire (seulement si les règles de notifications ne sont pas publiées) -----
 function notifyOpsChanges(prev, cur) {
-    if (appBlocked) return;
+    if (appBlocked || notifMode !== 'local') return;
     const me = window.__me;
     const isAdminMe = me === 'admin';
     const prevMap = new Map(prev.map(d => [d.id, d]));
     const curMap = new Map(cur.map(d => [d.id, d]));
     const nameOf = id => (state.livreurs[id] && state.livreurs[id].name) || id;
     const actorOf = d => d.lastBy === 'admin' ? 'Admin' : (LIVREUR_IDS.includes(d.lastBy) ? nameOf(d.lastBy) : null);
-    const q = v => String(v == null ? '' : v).trim();
-    const out = [];   // [titre, texte]
+    const out = [];
 
     cur.forEach(d => {
-        if (d.lastBy === me || d.lastBy === 'system') return;      // ma propre action / report automatique
-        if (!isAdminMe && d.livreurId !== me) return;              // livreur : seulement mes opérations
+        if (d.lastBy === me || d.lastBy === 'system') return;
+        if (!isAdminMe && d.livreurId !== me) return;
         const p = prevMap.get(d.id);
         const wasMine = p && (isAdminMe || p.livreurId === me);
-        const isCash = d.type === 'SOLDE_RECU';
-        const label = isCash ? 'alimentation' : 'livraison';
-        const art = isCash ? "l'" : 'la ';
-        const client = q(d.clientName) || 'client';
         const who = actorOf(d) || (isAdminMe ? nameOf(d.livreurId) : 'Admin');
-
-        if (!wasMine) {
-            out.push([`🔔 Nouvelle ${label}`, `${who} a ajouté une ${label} pour ${client} — ${d.amount} TND` + (isAdminMe ? ` → ${nameOf(d.livreurId)}` : '')]);
-            return;
-        }
-
-        // Remarques modifiées (le texte saisi est inclus dans la notification)
-        const remarkFields = ['remarkAdmin', 'remarkLivreur'].filter(f => q(p[f]) !== q(d[f]));
-
-        // Validation / annulation / remise en cours
-        if (p.status !== d.status) {
-            const verb = d.status === 'delivered' ? 'validé' : (d.status === 'cancelled' ? 'annulé' : 'remis en cours');
-            const title = d.status === 'delivered' ? '✅ Validation' : (d.status === 'cancelled' ? '🔴 Annulation' : '🔄 Remise en cours');
-            let txt = `${who} a ${verb} ${art}${label} de ${client} (${d.amount} TND)`;
-            const withText = remarkFields.find(f => q(d[f]));
-            if (withText) { txt += ` — remarque : « ${q(d[withText])} »`; remarkFields.length = 0; }
-            out.push([title, txt]);
-        }
-
-        // Remarque laissée / modifiée / supprimée
-        remarkFields.forEach(f => {
-            const before = q(p[f]), after = q(d[f]);
-            const whoR = actorOf(d) || (f === 'remarkAdmin' ? 'Admin' : nameOf(d.livreurId));
-            if (!after) out.push(['💬 Remarque', `${whoR} a supprimé la remarque de ${client}`]);
-            else if (!before) out.push(['💬 Remarque', `${whoR} a laissé une remarque pour ${client} (${after})`]);
-            else out.push(['💬 Remarque', `${whoR} a modifié une remarque pour ${client} (${after})`]);
-        });
-
-        // Téléphones
-        if (q(p.phone) !== q(d.phone)) {
-            out.push(['📞 Téléphone', q(d.phone) ? `${who} a modifié le numéro de téléphone de ${client} ${q(d.phone)}` : `${who} a supprimé le numéro de téléphone de ${client}`]);
-        }
-        if (q(p.phone2) !== q(d.phone2)) {
-            out.push(['📞 Téléphone', q(d.phone2) ? `${who} a modifié le second numéro de téléphone de ${client} ${q(d.phone2)}` : `${who} a supprimé le second numéro de téléphone de ${client}`]);
-        }
-
-        // Adresse
-        if (q(p.address) !== q(d.address)) {
-            const a0 = q(p.address), a1 = q(d.address);
-            out.push(['🏠 Adresse', !a1 ? `${who} a supprimé l'adresse de ${client}`
-                : (!a0 ? `${who} a ajouté une adresse pour ${client} (${a1})` : `${who} a modifié l'adresse de ${client} (${a1})`)]);
-        }
-
-        // Localisation
-        if (q(p.location) !== q(d.location)) {
-            const l0 = q(p.location), l1 = q(d.location);
-            out.push(['📍 Localisation', !l1 ? `${who} a supprimé la localisation de ${client}`
-                : (!l0 ? `${who} a ajouté une localisation de ${client}` : `${who} a modifié la localisation de ${client}`)]);
-        }
-
-        // Montant
-        if (Number(p.amount) !== Number(d.amount)) {
-            out.push(['✏️ Montant', `${who} a modifié le montant de ${client} : ${d.amount} TND`]);
-        }
+        opMessages(wasMine ? p : null, d, who, isAdminMe).forEach(m => out.push(m));
     });
-
-    // Livreur : opération retirée ou réaffectée à un autre livreur
     if (!isAdminMe && state.selectedDate === getTodayStr()) {
         prev.forEach(p => {
             if (p.livreurId === me) {
                 const c = curMap.get(p.id);
-                if (!c || c.livreurId !== me) out.push(['↩️ Opération retirée', `${q(p.clientName) || 'Une opération'} n'est plus dans votre liste.`]);
+                if (!c || c.livreurId !== me) out.push(['↩️ Opération retirée', `${String(p.clientName || '').trim() || 'Une opération'} n'est plus dans votre liste.`]);
             }
         });
     }
-
     if (out.length > 12) pushNotification(`🔔 ${out.length} nouveautés`, out.slice(0, 3).map(m => m[1]).join(' • ') + ' …');
     else out.forEach(m => pushNotification(m[0], m[1]));
 }
