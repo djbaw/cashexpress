@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Gestion de Livraison d'Argent v35 - CashExpress</title>
+<title>Gestion de Livraison d'Argent v35b - CashExpress</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -238,6 +238,16 @@
     <button id="app-loading-retry" onclick="location.reload()" class="hidden px-4 py-2 bg-emerald-600 hover:bg-emerald-700 rounded-xl text-xs font-bold">Réessayer</button>
 </div>
 
+<!-- ÉCRAN DE VERROUILLAGE (affiché tant que l'utilisateur n'est pas connecté) -->
+<div id="app-locked" class="fixed inset-0 z-[40] bg-slate-100 flex flex-col items-center justify-center gap-4">
+    <div class="w-16 h-16 bg-slate-200 text-slate-500 rounded-full flex items-center justify-center text-2xl">
+        <i class="fa-solid fa-lock"></i>
+    </div>
+    <button onclick="openAdminLogin()" class="px-5 py-2.5 bg-brand-600 hover:bg-brand-700 text-white font-bold text-sm rounded-xl shadow-md transition">
+        <i class="fa-solid fa-key me-2"></i> Se connecter
+    </button>
+</div>    
+    
 <!-- HEADER -->
 <header class="bg-slate-900 text-white shadow-md sm:sticky sm:top-0 z-30">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 min-h-16 py-2 flex flex-wrap items-center justify-between gap-2">
@@ -248,7 +258,7 @@
                     CashExpress
                     <span id="sync-indicator" class="syncing inline-block w-2.5 h-2.5 rounded-full" title="État de la connexion"></span>
                 </h1>
-                <p class="text-xs text-slate-400 hidden sm:block">Gestion de livraison d'argent en temps réel - <span class="text-emerald-400 font-bold">v35</span></p>
+                <p class="text-xs text-slate-400 hidden sm:block">Gestion de livraison d'argent en temps réel - <span class="text-emerald-400 font-bold">v35b</span></p>
             </div>
         </div>
         <div class="flex items-center gap-1 bg-slate-800 p-1 rounded-xl border border-slate-700 order-2 sm:order-3" title="Taille du texte">
@@ -1186,6 +1196,14 @@ function showFatal(message) {
     document.getElementById('app-loading-text').textContent = message;
     document.getElementById('app-loading-retry').classList.remove('hidden');
 }
+function showLockedScreen() {
+    const el = document.getElementById('app-locked');
+    if (el) el.classList.remove('hidden');
+}
+function hideLockedScreen() {
+    const el = document.getElementById('app-locked');
+    if (el) el.classList.add('hidden');
+}    
 let appBlocked = false;
 function showAccessBlocked() {
     appBlocked = true;
@@ -1543,15 +1561,6 @@ function openAdminLogin() {
     window.__setupFirst = null;
     document.getElementById('admin-pin-error').classList.add('hidden');
     document.getElementById('input-admin-pin').value = '';
-
-    // Masquer le dashboard tant que le PIN n'est pas saisi
-    const viewAdmin = document.getElementById('view-admin');
-    const viewLivreur = document.getElementById('view-livreur');
-    if (viewAdmin) viewAdmin.classList.add('hidden');
-    if (viewLivreur) viewLivreur.classList.add('hidden');
-    const main = document.querySelector('main');
-    if (main) main.style.visibility = 'hidden';
-
     if (mode === 'setup') help.textContent = window.__legacyBlocked
         ? "ATTENTION : les anciennes données ne sont pas accessibles (règles publiées trop tôt). Si vous aviez déjà des données, ne créez pas de PIN maintenant : remettez temporairement les anciennes règles, puis rechargez. Sinon, choisissez votre PIN (4 à 8 caractères)."
         : "Première utilisation : choisissez votre code PIN Admin (4 à 8 caractères), puis confirmez-le.";
@@ -1559,7 +1568,7 @@ function openAdminLogin() {
     else help.textContent = "Veuillez saisir le code PIN confidentiel pour déverrouiller le tableau de bord Admin.";
     toggleAdminAuthModal(true);
 }
-    function switchRole(roleId, isURLCheck = false) {
+function switchRole(roleId, isURLCheck = false) {
     const allowed = isAdminAuthenticated || window.__me === roleId;
     if (!allowed) { openAdminLogin(); return; }
     state.currentRole = roleId;
@@ -1578,27 +1587,10 @@ function openAdminLogin() {
     }
     renderApp();
 }
-
 function toggleAdminAuthModal(show) {
     const modal = document.getElementById('modal-admin-auth');
-    if (show) {
-        modal.classList.remove('hidden');
-    } else {
-        modal.classList.add('hidden');
-        // Si l'admin n'est pas authentifié, on masque complètement le dashboard
-        if (!isAdminAuthenticated) {
-            const viewAdmin = document.getElementById('view-admin');
-            const viewLivreur = document.getElementById('view-livreur');
-            if (viewAdmin) viewAdmin.classList.add('hidden');
-            if (viewLivreur) viewLivreur.classList.add('hidden');
-            // On affiche un écran neutre à la place
-            const main = document.querySelector('main');
-            if (main) {
-                main.style.visibility = 'hidden';
-            }
-        }
-    }
-}    
+    if (show) modal.classList.remove('hidden'); else modal.classList.add('hidden');
+}
 async function verifyAdminPIN(e) {
     e.preventDefault();
     const input = document.getElementById('input-admin-pin');
@@ -1649,8 +1641,6 @@ async function verifyAdminPIN(e) {
         window.__pinFails = 0;
         toggleAdminAuthModal(false);
         saveAdminSession();
-        const mainEl = document.querySelector('main');
-        if (mainEl) mainEl.style.visibility = 'visible';
         await startAdminSession();
         showToast("Accès Admin Autorisé", "Vous êtes connecté en tant qu'Administrateur.");
     } catch (err) {
@@ -2517,8 +2507,7 @@ function startMidnightWatcher() {
 }
 
 async function startAdminSession() {
-    const mainEl = document.querySelector('main');
-    if (mainEl) mainEl.style.visibility = 'visible';
+    hideLockedScreen();
     window.__me = 'admin';
     isAdminAuthenticated = true;
     hideLoading();
@@ -2546,6 +2535,7 @@ async function boot() {
             mergeLivreur(urlRole, v);
             lockRoleSelector(urlRole);
             hideLoading();
+            hideLockedScreen();
             attachConfigListeners(false, urlRole);
             subscribeOps();
             switchRole(urlRole, false);
