@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Gestion de Livraison d'Argent v37 - CashExpress</title>
+<title>Gestion de Livraison d'Argent v38 - CashExpress</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -120,7 +120,7 @@
 <div id="modal-change-admin-pin" class="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
     <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden transform transition-all border border-slate-200">
         <div class="bg-brand-600 px-6 py-4 text-white flex justify-between items-center">
-            <h3 class="font-bold text-base flex items-center gap-2"><i class="fa-solid fa-key text-amber-300"></i> Modifier Code PIN Admin</h3>
+            <h3 class="font-bold text-base flex items-center gap-2"><i class="fa-solid fa-key text-amber-300"></i> <span id="change-pin-title">Modifier Code PIN Admin</span></h3>
             <button onclick="toggleChangeAdminPinModal(false)" class="text-white/80 hover:text-white transition"><i class="fa-solid fa-xmark text-lg"></i></button>
         </div>
         <form id="form-change-admin-pin" onsubmit="handleSaveNewAdminPIN(event)" class="p-6 space-y-4">
@@ -267,7 +267,7 @@
                     CashExpress
                     <span id="sync-indicator" class="syncing inline-block w-2.5 h-2.5 rounded-full" title="État de la connexion"></span>
                 </h1>
-                <p class="text-xs text-slate-400 hidden sm:block">Gestion de livraison d'argent en temps réel - <span class="text-emerald-400 font-bold">v37</span></p>
+                <p class="text-xs text-slate-400 hidden sm:block">Gestion de livraison d'argent en temps réel - <span class="text-emerald-400 font-bold">v38</span></p>
             </div>
         </div>
         <button id="notif-bell" type="button" onclick="openNotifPanel()" title="Toutes les notifications" class="relative w-11 h-11 bg-slate-800 border border-slate-700 rounded-xl text-slate-200 hover:text-white hover:bg-slate-700 transition order-2 sm:order-3">
@@ -285,7 +285,7 @@
                 <button onclick="switchRole('admin')" id="role-btn-admin" class="role-btn px-3 py-1.5 text-xs font-semibold rounded-lg transition-all duration-200 flex items-center space-x-1.5 bg-brand-600 text-white shadow-sm">
                     <i class="fa-solid fa-user-shield text-xs"></i><span>Admin</span>
                 </button>
-                <button id="admin-pin-settings-btn" onclick="openChangeAdminPinModal()" title="Changer le PIN Admin" class="p-1.5 text-slate-300 hover:text-amber-400 hover:bg-slate-800 rounded-lg transition text-xs"><i class="fa-solid fa-key"></i></button>
+                <button id="admin-pin-settings-btn" onclick="openChangeAdminPinModal()" title="Changer le code PIN" class="p-1.5 text-slate-300 hover:text-amber-400 hover:bg-slate-800 rounded-lg transition text-xs"><i class="fa-solid fa-key"></i></button>
             </div>
             <div class="h-4 w-[1px] bg-slate-700 my-auto"></div>
             <button onclick="switchRole('livreur1')" id="role-btn-livreur1" class="role-btn px-3 py-1.5 text-xs font-medium text-slate-300 hover:text-white rounded-lg transition-all duration-200 flex items-center space-x-1"><i class="fa-solid fa-motorcycle text-xs"></i><span class="livreur-name-1">Livreur 1</span></button>
@@ -1140,6 +1140,13 @@ async function hashPin(pin) {
     const buf = await crypto.subtle.digest('SHA-256', data);
     return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
 }
+const DEFAULT_LIV_PIN = '1212';
+async function hashLivPin(id, pin) {
+    if (!(window.crypto && crypto.subtle)) throw new Error("Connexion sécurisée (https) requise.");
+    const data = new TextEncoder().encode('cashexpress|' + id + '|' + pin);
+    const buf = await crypto.subtle.digest('SHA-256', data);
+    return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
 function cleanObj(o) {
     const r = {};
     Object.keys(o).forEach(k => { if (o[k] !== undefined) r[k] = o[k]; });
@@ -1281,6 +1288,7 @@ function attachConfigListeners(isAdmin, myId) {
             const v = s.val();
             if (!v || v.token !== window.__myToken) { showAccessBlocked(); return; }   // lien révoqué : blocage immédiat
             mergeLivreur(myId, v);
+            if (window.__livDefaultHash) window.__livHash = v.pinHash || window.__livDefaultHash;
             renderApp();
         });
     }
@@ -1796,7 +1804,7 @@ function getRoleFromURL() {
 function lockRoleSelector(lockedRole) {
     document.querySelectorAll('.role-btn').forEach(btn => btn.classList.add('hidden'));
     const pinBtn = document.getElementById('admin-pin-settings-btn');
-    if (pinBtn) pinBtn.classList.add('hidden');
+    if (pinBtn) pinBtn.classList.remove('hidden');   // le livreur peut modifier son propre PIN
     const activeBtn = document.getElementById(`role-btn-${lockedRole}`);
     if (activeBtn) { activeBtn.classList.remove('hidden'); activeBtn.classList.add('bg-brand-600', 'text-white'); }
 }
@@ -1836,8 +1844,81 @@ function toggleAdminAuthModal(show) {
     const modal = document.getElementById('modal-admin-auth');
     if (show) modal.classList.remove('hidden'); else modal.classList.add('hidden');
 }
+// ==================== ACCÈS LIVREUR PAR CODE PIN ====================
+function livSessionKey() { return 'cashexpress_liv_session_' + window.__livId; }
+function saveLivreurSession() {
+    try { localStorage.setItem(livSessionKey(), (window.__livHash || '').slice(0, 16) + ':' + (window.__livToken || '').slice(-10) + ':' + (Date.now() + 60 * 60 * 1000)); } catch (e) {}
+}
+function restoreLivreurSession() {
+    try {
+        const parts = (localStorage.getItem(livSessionKey()) || '').split(':');
+        return !!parts[0] && parts[0] === (window.__livHash || '').slice(0, 16)
+            && parts[1] === (window.__livToken || '').slice(-10) && Date.now() < Number(parts[2]);
+    } catch (e) { return false; }
+}
+function openLivreurLogin() {
+    document.getElementById('admin-auth-title').textContent = 'Accès Livreur';
+    document.getElementById('admin-auth-help').textContent = 'Saisissez votre code PIN pour accéder à votre espace.';
+    document.getElementById('admin-pin-error').classList.add('hidden');
+    document.getElementById('input-admin-pin').value = '';
+    toggleAdminAuthModal(true);
+}
+function startLivreurSession() {
+    const id = window.__livId;
+    window.__me = id;
+    window.__myToken = window.__livToken;
+    state.currentRole = id;
+    if (window.__livData) mergeLivreur(id, window.__livData);
+    lockRoleSelector(id);
+    unlockUI();
+    hideLoading();
+    attachConfigListeners(false, id);
+    subscribeOps();
+    switchRole(id, false);
+    checkAndExecuteDailyRollover();
+    startMidnightWatcher();
+}
+async function verifyLivreurPIN(e) {
+    e.preventDefault();
+    const input = document.getElementById('input-admin-pin');
+    const errEl = document.getElementById('admin-pin-error');
+    const btn = document.querySelector('#form-admin-auth button[type="submit"]');
+    const pin = input.value;
+    const showErr = (m) => { errEl.textContent = m; errEl.classList.remove('hidden'); };
+    errEl.classList.add('hidden');
+    if (Date.now() < (window.__pinLockUntil || 0)) { showErr("⏳ Trop d'essais. Patientez 30 secondes."); return; }
+    if (pin.length < 4) { showErr('❌ Le code PIN doit contenir au moins 4 caractères.'); return; }
+    const oldLabel = btn.textContent;
+    btn.disabled = true; btn.textContent = 'Vérification…';
+    try {
+        // On relit le lien et le PIN dans la base (lien révoqué ou PIN modifié entre-temps)
+        const snap = await withTimeout(db.ref(CFG_PATH + '/livreurs/' + window.__livId).once('value'), 15000);
+        const v = snap.val();
+        if (!v || v.token !== window.__livToken) { showAccessBlocked(); return; }
+        window.__livData = v;
+        window.__livHash = v.pinHash || window.__livDefaultHash;
+        const h = await hashLivPin(window.__livId, pin);
+        if (h !== window.__livHash) {
+            window.__pinFails = (window.__pinFails || 0) + 1;
+            if (window.__pinFails >= 5) { window.__pinLockUntil = Date.now() + 30000; window.__pinFails = 0; }
+            showErr('❌ Code PIN incorrect ! Réessayez.');
+            return;
+        }
+        window.__pinFails = 0;
+        toggleAdminAuthModal(false);
+        saveLivreurSession();
+        startLivreurSession();
+    } catch (err) {
+        console.error(err);
+        showErr('⚠️ Erreur de connexion. Réessayez.');
+    } finally {
+        btn.disabled = false; btn.textContent = oldLabel;
+    }
+}
+
 async function verifyAdminPIN(e) {
     e.preventDefault();
+    if (window.__bootRole === 'livreur') { return verifyLivreurPIN(e); }
     const input = document.getElementById('input-admin-pin');
     const errEl = document.getElementById('admin-pin-error');
     const help = document.getElementById('admin-auth-help');
@@ -1897,7 +1978,9 @@ async function verifyAdminPIN(e) {
 }
 
 function openChangeAdminPinModal() {
-    if (!isAdminAuthenticated) { switchRole('admin'); return; }
+    const isLiv = !!window.__me && window.__me !== 'admin';
+    if (!isLiv && !isAdminAuthenticated) { switchRole('admin'); return; }
+    document.getElementById('change-pin-title').textContent = isLiv ? 'Modifier mon code PIN' : 'Modifier Code PIN Admin';
     document.getElementById('form-change-admin-pin').reset();
     document.getElementById('change-pin-error').classList.add('hidden');
     toggleChangeAdminPinModal(true);
@@ -1906,8 +1989,39 @@ function toggleChangeAdminPinModal(show) {
     const modal = document.getElementById('modal-change-admin-pin');
     if (show) modal.classList.remove('hidden'); else modal.classList.add('hidden');
 }
+async function handleSaveLivreurPIN(e) {
+    e.preventDefault();
+    const cur = document.getElementById('input-current-pin').value;
+    const nw = document.getElementById('input-new-pin').value;
+    const cf = document.getElementById('input-confirm-new-pin').value;
+    const errorElement = document.getElementById('change-pin-error');
+    const showErr = (m) => { errorElement.textContent = m; errorElement.classList.remove('hidden'); };
+    errorElement.classList.add('hidden');
+    const id = window.__me;
+    try {
+        // Le PIN actuel est comparé à celui enregistré dans la base (pas à une copie locale)
+        const snap = await withTimeout(db.ref(CFG_PATH + '/livreurs/' + id).once('value'), 15000);
+        const v = snap.val();
+        if (!v || v.token !== window.__myToken) { showAccessBlocked(); return; }
+        const expected = v.pinHash || window.__livDefaultHash;
+        if ((await hashLivPin(id, cur)) !== expected) { showErr("❌ PIN actuel incorrect !"); return; }
+        if (nw.length < 4) { showErr("❌ Le nouveau PIN doit contenir au moins 4 caractères !"); return; }
+        if (nw !== cf) { showErr("❌ Les PIN ne correspondent pas !"); return; }
+        const h = await hashLivPin(id, nw);
+        await db.ref(CFG_PATH + '/livreurs/' + id + '/pinHash').set(h);
+        window.__livHash = h;
+        saveLivreurSession();
+        toggleChangeAdminPinModal(false);
+        showToast("🔒 PIN modifié", "Votre code PIN a été mis à jour.");
+    } catch (err) {
+        console.error(err);
+        showErr("⚠️ Échec de l'enregistrement. Vérifiez la connexion (ou les règles de la base).");
+    }
+}
+
 async function handleSaveNewAdminPIN(e) {
     e.preventDefault();
+    if (window.__me && window.__me !== 'admin') { return handleSaveLivreurPIN(e); }
     const currentInput = document.getElementById('input-current-pin').value;
     const newInput = document.getElementById('input-new-pin').value;
     const confirmInput = document.getElementById('input-confirm-new-pin').value;
@@ -1959,9 +2073,9 @@ function revokeAndRegenerateLink(livreurId) {
     if (!confirm(`Révoquer le lien de ${livreurName} ?\n\nSon ancien lien sera IMMÉDIATEMENT bloqué.`)) return;
     const newToken = generateRandomToken(livreurId);
     state.livreurs[livreurId].token = newToken;
-    dbSet(CFG_PATH + '/livreurs/' + livreurId + '/token', newToken);
+    dbUpdate(CFG_PATH + '/livreurs/' + livreurId, { token: newToken, pinHash: null });   // pinHash supprimé = PIN par défaut 1212
     openDirectLinksModal();
-    showToast("🔴 Lien Révoqué !", `L'ancien lien de ${livreurName} a été désactivé. Nouveau lien généré.`);
+    showToast("🔴 Lien Révoqué !", `L'ancien lien de ${livreurName} a été désactivé. Nouveau lien généré. Son code PIN est remis à 1212.`);
 }
 
 // ==================== CALCULS ====================
@@ -2774,18 +2888,14 @@ async function boot() {
             const v = snap.val();
             if (!v) { showFatal("L'application est en cours de mise à jour par l'administrateur. Réessayez dans quelques minutes."); return; }
             if (!urlToken || v.token !== urlToken) { showAccessBlocked(); return; }
-            window.__me = urlRole;
-            window.__myToken = urlToken;
-            state.currentRole = urlRole;
-            mergeLivreur(urlRole, v);
-            lockRoleSelector(urlRole);
-            unlockUI();
-            hideLoading();
-            attachConfigListeners(false, urlRole);
-            subscribeOps();
-            switchRole(urlRole, false);
-            checkAndExecuteDailyRollover();
-            startMidnightWatcher();
+            window.__bootRole = 'livreur';
+            window.__livId = urlRole;
+            window.__livToken = urlToken;
+            window.__livData = v;
+            window.__livDefaultHash = await hashLivPin(urlRole, DEFAULT_LIV_PIN);
+            window.__livHash = v.pinHash || window.__livDefaultHash;
+            if (restoreLivreurSession()) { startLivreurSession(); }
+            else { hideLoading(); openLivreurLogin(); }
             return;
         }
         // ----- Espace admin -----
