@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Gestion de Livraison d'Argent v35b - CashExpress</title>
+<title>Gestion de Livraison d'Argent v35c - CashExpress</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -47,12 +47,13 @@
             input, select, textarea { font-size: 16px !important; }
         }
 
+        body.locked > header, body.locked > main, body.locked > #audio-unlock-btn, body.locked > #notification-toast { display: none !important; }
         #sync-indicator.online  { background-color: #10b981; }
         #sync-indicator.offline { background-color: #ef4444; }
         #sync-indicator.syncing { background-color: #f59e0b; }
     </style>
 </head>
-<body class="h-full font-sans text-slate-800 flex flex-col bg-slate-100">
+<body class="locked h-full font-sans text-slate-800 flex flex-col bg-slate-100">
 
 <!-- MODAL: BLACKLIST MANAGEMENT -->
 <div id="modal-blacklist" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
@@ -238,16 +239,6 @@
     <button id="app-loading-retry" onclick="location.reload()" class="hidden px-4 py-2 bg-emerald-600 hover:bg-emerald-700 rounded-xl text-xs font-bold">Réessayer</button>
 </div>
 
-<!-- ÉCRAN DE VERROUILLAGE (affiché tant que l'utilisateur n'est pas connecté) -->
-<div id="app-locked" class="fixed inset-0 z-[40] bg-slate-100 flex flex-col items-center justify-center gap-4">
-    <div class="w-16 h-16 bg-slate-200 text-slate-500 rounded-full flex items-center justify-center text-2xl">
-        <i class="fa-solid fa-lock"></i>
-    </div>
-    <button onclick="openAdminLogin()" class="px-5 py-2.5 bg-brand-600 hover:bg-brand-700 text-white font-bold text-sm rounded-xl shadow-md transition">
-        <i class="fa-solid fa-key me-2"></i> Se connecter
-    </button>
-</div>    
-    
 <!-- HEADER -->
 <header class="bg-slate-900 text-white shadow-md sm:sticky sm:top-0 z-30">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 min-h-16 py-2 flex flex-wrap items-center justify-between gap-2">
@@ -258,7 +249,7 @@
                     CashExpress
                     <span id="sync-indicator" class="syncing inline-block w-2.5 h-2.5 rounded-full" title="État de la connexion"></span>
                 </h1>
-                <p class="text-xs text-slate-400 hidden sm:block">Gestion de livraison d'argent en temps réel - <span class="text-emerald-400 font-bold">v35b</span></p>
+                <p class="text-xs text-slate-400 hidden sm:block">Gestion de livraison d'argent en temps réel - <span class="text-emerald-400 font-bold">v35c</span></p>
             </div>
         </div>
         <div class="flex items-center gap-1 bg-slate-800 p-1 rounded-xl border border-slate-700 order-2 sm:order-3" title="Taille du texte">
@@ -1187,6 +1178,7 @@ async function fetchOpsRange(startDate, endDate) {
 }
 
 // ---------- écran de chargement / blocage ----------
+function unlockUI() { document.body.classList.remove('locked'); }
 function hideLoading() { const el = document.getElementById('app-loading'); if (el) el.classList.add('hidden'); }
 function showFatal(message) {
     const el = document.getElementById('app-loading');
@@ -1196,14 +1188,6 @@ function showFatal(message) {
     document.getElementById('app-loading-text').textContent = message;
     document.getElementById('app-loading-retry').classList.remove('hidden');
 }
-function showLockedScreen() {
-    const el = document.getElementById('app-locked');
-    if (el) el.classList.remove('hidden');
-}
-function hideLockedScreen() {
-    const el = document.getElementById('app-locked');
-    if (el) el.classList.add('hidden');
-}    
 let appBlocked = false;
 function showAccessBlocked() {
     appBlocked = true;
@@ -2507,9 +2491,9 @@ function startMidnightWatcher() {
 }
 
 async function startAdminSession() {
-    hideLockedScreen();
     window.__me = 'admin';
     isAdminAuthenticated = true;
+    unlockUI();
     hideLoading();
     attachConfigListeners(true);
     subscribeOps();
@@ -2534,8 +2518,8 @@ async function boot() {
             state.currentRole = urlRole;
             mergeLivreur(urlRole, v);
             lockRoleSelector(urlRole);
+            unlockUI();
             hideLoading();
-            hideLockedScreen();
             attachConfigListeners(false, urlRole);
             subscribeOps();
             switchRole(urlRole, false);
