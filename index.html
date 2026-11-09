@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Gestion de Livraison d'Argent v39w - CashExpress</title>
+<title>Gestion de Livraison d'Argent v39z - CashExpress</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -292,7 +292,7 @@
                     CashExpress
                     <span id="sync-indicator" class="syncing inline-block w-2.5 h-2.5 rounded-full" title="État de la connexion"></span>
                 </h1>
-                <p class="text-xs text-slate-400 hidden sm:block">Gestion de livraison d'argent en temps réel - <span class="text-emerald-400 font-bold">v39w</span></p>
+                <p class="text-xs text-slate-400 hidden sm:block">Gestion de livraison d'argent en temps réel - <span class="text-emerald-400 font-bold">v39z</span></p>
             </div>
         </div>
         <button id="notif-bell" type="button" onclick="openNotifPanel()" title="Toutes les notifications" class="relative w-11 h-11 bg-slate-800 border border-slate-700 rounded-xl text-slate-200 hover:text-white hover:bg-slate-700 transition order-2 sm:order-3">
@@ -2885,14 +2885,29 @@ function handleSaveStartBalance(e) {
     const adminStart = getAdminStartBalance(date);
     const otherSum = LIVREUR_IDS.filter(id => id !== livreurId).reduce((s, id) => s + getStartBalance(id, date), 0);
     if (amount > 0 && otherSum + amount > adminStart) { alert(`Plafond dépassé ! Max : ${adminStart - otherSum} TND`); return; }
+
+    // Capturer l'ancienne valeur AVANT modification
+    const oldAmount = getStartBalance(livreurId, date);
+    const hasChanged = Math.abs(oldAmount - amount) > 0.005;
+
     if (!state.livreurs[livreurId].startBalances) state.livreurs[livreurId].startBalances = {};
     state.livreurs[livreurId].startBalances[date] = amount;
     dbSet(CFG_PATH + '/livreurs/' + livreurId + '/startBalances/' + date, amount);
     toggleStartBalanceModal(false);
     renderApp();
     showToast("Solde Livreur mis à jour", `${amount} TND attribués à ${state.livreurs[livreurId]?.name}.`);
+
+    // Notifier le livreur concerné
+    if (hasChanged && notifMode !== 'local') {
+        const fmt = v => Number(v).toLocaleString('fr-FR');
+        sendNotification(
+            livreurId,
+            '💰 Solde de départ modifié',
+            `Admin a modifié votre solde de départ : ${fmt(oldAmount)} → ${fmt(amount)} TND (${date})`
+        );
+    }
 }
-// ==================== MODALES ====================
+    // ==================== MODALES ====================
 function toggleAddModal(show) {
     const modal = document.getElementById('modal-delivery');
     if (show) {
