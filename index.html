@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Gestion de Livraison d'Argent v39z - CashExpress</title>
+<title>Gestion de Livraison d'Argent v40 - CashExpress</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -292,7 +292,7 @@
                     CashExpress
                     <span id="sync-indicator" class="syncing inline-block w-2.5 h-2.5 rounded-full" title="État de la connexion"></span>
                 </h1>
-                <p class="text-xs text-slate-400 hidden sm:block">Gestion de livraison d'argent en temps réel - <span class="text-emerald-400 font-bold">v39z</span></p>
+                <p class="text-xs text-slate-400 hidden sm:block">Gestion de livraison d'argent en temps réel - <span class="text-emerald-400 font-bold">v40</span></p>
             </div>
         </div>
         <button id="notif-bell" type="button" onclick="openNotifPanel()" title="Toutes les notifications" class="relative w-11 h-11 bg-slate-800 border border-slate-700 rounded-xl text-slate-200 hover:text-white hover:bg-slate-700 transition order-2 sm:order-3">
@@ -1152,7 +1152,29 @@ window.__me = null;          // identité de CET appareil : 'admin' ou 'livreurN
 window.__myToken = null;
 window.__pinHash = null;
 window.__bootMode = 'normal';
+// ==================== NORMALISATION DES NUMÉROS DE TÉLÉPHONE ====================
+// Forme canonique : +XX… (international) ou XXXX… (local, chiffres bruts)
+//   +216 22 111 222   → +21622111222
+//   00216 22 111 222  → +21622111222
+//   0021622111222     → +21622111222
+//   00216-22-111-222  → +21622111222
+//   22 555 555        → 22555555
+function normalizePhone(raw) {
+    if (raw === null || raw === undefined) return '';
+    const s = String(raw).trim();
+    if (!s) return '';
+    const hasPlus = s.startsWith('+');
+    let digits = s.replace(/[^0-9]/g, '');
+    if (!digits) return '';
+    if (digits.startsWith('00')) {
+        digits = digits.substring(2);   // 00XX… → XX…
+        return '+' + digits;
+    }
+    if (hasPlus) return '+' + digits;
+    return digits;
+}
 
+    
 function esc(s) {
     return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
@@ -1190,7 +1212,7 @@ function dbRemove(path) { return db.ref(path).remove().catch(handleWriteError); 
 
 function writeOp(op) {
     const o = cleanObj(Object.assign({}, op, {
-        phoneClean: String(op.phone || '').replace(/\s+/g, ''),
+        phoneClean: normalizePhone(op.phone),
         lastBy: window.__me, lastAt: Date.now()
     }));
     delete o.id;
@@ -1216,7 +1238,7 @@ function normalizeOp(d, id) {
         type: d.type === 'SOLDE_RECU' ? 'SOLDE_RECU' : 'LIVRAISON',
         clientName: String(d.clientName || 'Client').slice(0, 300),
         phone: phone.slice(0, 60),
-        phoneClean: phone.replace(/\s+/g, '').slice(0, 60),
+        phoneClean: normalizePhone(phone).slice(0, 60),
         phone2: String(d.phone2 || '').slice(0, 60),
         address: String(d.address || '').slice(0, 500),
         location: String(d.location || '').slice(0, 500),
@@ -2341,11 +2363,11 @@ function removeBlacklistEntry(id) {
 }
 function handlePhoneLookupAndBlacklist(phone) {
     handlePhoneHistoryLookup(phone);
-    const cleaned = phone.replace(/\s+/g, '');
+    const cleaned = normalizePhone(phone);
     const banner = document.getElementById('blacklist-warning-banner');
     const warningText = document.getElementById('blacklist-warning-text');
     if (cleaned.length >= 8) {
-        const found = (state.blacklist || []).find(b => b.phone.replace(/\s+/g, '') === cleaned);
+        const found = (state.blacklist || []).find(b => normalizePhone(b.phone) === cleaned);
         if (found) { warningText.textContent = `${found.clientName} — Motif : "${found.reason}". Confirmation demandée à la sauvegarde.`; banner.classList.remove('hidden'); return; }
     }
     banner.classList.add('hidden');
@@ -2353,13 +2375,13 @@ function handlePhoneLookupAndBlacklist(phone) {
 let _histTimer = null;
 function handlePhoneHistoryLookup(phone) {
     clearTimeout(_histTimer);
-    const cleaned = phone.replace(/\s+/g, '');
+    const cleaned = normalizePhone(phone);
     const alertBox = document.getElementById('history-alert');
     if (cleaned.length < 8) { alertBox.classList.add('hidden'); return; }
     _histTimer = setTimeout(async () => {
         try {
             const snap = await db.ref(OPS_PATH).orderByChild('phoneClean').equalTo(cleaned).limitToLast(20).once('value');
-            const stillTyped = (document.getElementById('input-phone').value || '').replace(/\s+/g, '');
+            const stillTyped = normalizePhone(document.getElementById('input-phone').value || '');
             if (stillTyped !== cleaned) return;
             const list = [];
             snap.forEach(ch => { const v = ch.val(); if (v && (v.clientName || v.location || v.address)) list.push(v); });
@@ -2803,9 +2825,9 @@ function handleSaveDelivery(e) {
     e.preventDefault();
     const date = state.selectedDate || getTodayStr();
     const phoneInput = document.getElementById('input-phone').value.trim();
-    const cleanedPhone = phoneInput.replace(/\s+/g, '');
+    const cleanedPhone = normalizePhone(phoneInput);
     if (cleanedPhone) {
-        const blacklisted = (state.blacklist || []).find(b => String(b.phone).replace(/\s+/g, '') === cleanedPhone);
+        const blacklisted = (state.blacklist || []).find(b => normalizePhone(b.phone) === cleanedPhone);
         if (blacklisted) {
             const go = confirm(`⚠️ CLIENT BLACKLISTÉ !\n\nNom : ${blacklisted.clientName}\nTéléphone : ${blacklisted.phone}\nMotif : ${blacklisted.reason}\n\nForcer l'enregistrement ?`);
             if (!go) return;
