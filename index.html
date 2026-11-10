@@ -3,11 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Gestion de Livraison d'Argent v40 - CashExpress</title>
+<title>Gestion de Livraison d'Argent v41 - CashExpress</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
 
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
@@ -51,9 +52,24 @@
         #sync-indicator.online  { background-color: #10b981; }
         #sync-indicator.offline { background-color: #ef4444; }
         #sync-indicator.syncing { background-color: #f59e0b; }
+        /* ===== Sélecteur de langue + arabe (droite à gauche) ===== */
+        .lang-btn { min-width: 36px; height: 32px; padding: 0 8px; border-radius: 8px; font-size: 12px; font-weight: 700; color: #cbd5e1; }
+        .lang-btn:hover { background: #334155; color: #fff; }
+        .lang-btn.on { background: #2563eb; color: #fff; }
+        #lang-float { display: none; position: fixed; top: max(8px, env(safe-area-inset-top, 0px)); inset-inline-end: 8px; z-index: 9999; gap: 4px; padding: 4px; border-radius: 12px; background: #1e293b; border: 1px solid #334155; }
+        body.locked #lang-float { display: flex; }
+        html[lang="ar"] body { font-family: 'Noto Sans Arabic', 'Inter', sans-serif !important; }
+        html[dir="rtl"] .text-left { text-align: right; }
+        html[dir="rtl"] .text-right { text-align: left; }
+        html[dir="rtl"] [class*="space-x-"] > :not([hidden]) ~ :not([hidden]) { --tw-space-x-reverse: 1; }
+        html[dir="rtl"] a[href^="tel:"], html[dir="rtl"] input[type="tel"], html[dir="rtl"] input[type="number"], html[dir="rtl"] input[type="password"] { direction: ltr; unicode-bidi: isolate; }
+        html[dir="rtl"] input[type="tel"], html[dir="rtl"] input[type="number"], html[dir="rtl"] input[type="password"] { text-align: right; }
+html[dir="rtl"] .date-nav-arrow i { transform: scaleX(-1); }
     </style>
 </head>
 <body class="locked h-full font-sans text-slate-800 flex flex-col bg-slate-100">
+<div id="lang-float" role="group" aria-label="Langue / Language / اللغة"><button type="button" class="lang-btn" data-lang="fr" onclick="setLang('fr')">FR</button><button type="button" class="lang-btn" data-lang="en" onclick="setLang('en')">EN</button><button type="button" class="lang-btn" data-lang="ar" onclick="setLang('ar')">ع</button></div>
+
 
 <!-- MODAL: BLACKLIST MANAGEMENT -->
 <div id="modal-blacklist" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
@@ -292,7 +308,7 @@
                     CashExpress
                     <span id="sync-indicator" class="syncing inline-block w-2.5 h-2.5 rounded-full" title="État de la connexion"></span>
                 </h1>
-                <p class="text-xs text-slate-400 hidden sm:block">Gestion de livraison d'argent en temps réel - <span class="text-emerald-400 font-bold">v40</span></p>
+                <p class="text-xs text-slate-400 hidden sm:block">Gestion de livraison d'argent en temps réel - <span class="text-emerald-400 font-bold">v41</span></p>
             </div>
         </div>
         <button id="notif-bell" type="button" onclick="openNotifPanel()" title="Toutes les notifications" class="relative w-11 h-11 bg-slate-800 border border-slate-700 rounded-xl text-slate-200 hover:text-white hover:bg-slate-700 transition order-2 sm:order-3">
@@ -304,6 +320,7 @@
             <button type="button" onclick="resetUiZoom()" id="ui-zoom-label" class="min-w-[3rem] h-9 text-xs font-semibold text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg">100%</button>
             <button type="button" onclick="changeUiZoom(0.1)" class="w-9 h-9 text-base font-bold text-slate-200 hover:text-white hover:bg-slate-700 rounded-lg">A+</button>
         </div>
+        <div id="lang-switch" class="flex items-center gap-1 bg-slate-800 p-1 rounded-xl border border-slate-700 order-2 sm:order-3" role="group" aria-label="Langue / Language / اللغة"><button type="button" class="lang-btn" data-lang="fr" onclick="setLang('fr')">FR</button><button type="button" class="lang-btn" data-lang="en" onclick="setLang('en')">EN</button><button type="button" class="lang-btn" data-lang="ar" onclick="setLang('ar')">ع</button></div>
         <div class="flex items-center space-x-1 sm:space-x-2 bg-slate-800 p-1.5 rounded-xl border border-slate-700 order-3 sm:order-2 max-w-full overflow-x-auto">
             <span class="text-xs text-slate-400 font-medium px-2 hidden md:inline">Mode Vue :</span>
             <div class="flex items-center space-x-1">
@@ -340,10 +357,16 @@
 <!-- MAIN -->
 <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 space-y-6">
     <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-col sm:flex-row justify-between items-center gap-4">
-        <div class="flex items-center space-x-3 w-full sm:w-auto">
-            <i class="fa-solid fa-calendar-days text-brand-600 text-lg"></i>
-            <span class="text-sm font-bold text-slate-700">Journée :</span>
-            <input type="date" id="global-date-picker" onchange="handleDateChange()" class="px-3 py-1.5 border border-slate-300 rounded-xl text-sm font-semibold text-slate-800 focus:ring-2 focus:ring-brand-500 focus:outline-none">
+                <div class="flex items-center space-x-2 w-full sm:w-auto">
+            <i class="fa-solid fa-calendar-days text-brand-600 text-lg hidden sm:block"></i>
+            <span class="text-xs sm:text-sm font-bold text-slate-700 shrink-0">Journée :</span>
+            <button type="button" onclick="shiftDate(-1)" title="Jour précédent" aria-label="Jour précédent" class="date-nav-arrow w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-700 rounded-xl transition shrink-0">
+                <i class="fa-solid fa-chevron-left text-[10px] sm:text-xs"></i>
+            </button>
+            <input type="date" id="global-date-picker" onchange="handleDateChange()" class="flex-1 sm:flex-initial min-w-0 px-2 sm:px-3 py-1.5 border border-slate-300 rounded-xl text-sm font-semibold text-slate-800 focus:ring-2 focus:ring-brand-500 focus:outline-none">
+            <button type="button" onclick="shiftDate(1)" title="Jour suivant" aria-label="Jour suivant" class="date-nav-arrow w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-700 rounded-xl transition shrink-0">
+                <i class="fa-solid fa-chevron-right text-[10px] sm:text-xs"></i>
+            </button>
         </div>
         <div class="relative w-full sm:w-72">
             <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-slate-400 text-xs"></i>
@@ -1798,19 +1821,35 @@ async function checkAndExecuteDailyRollover() {
     try {
         const today = getTodayStr();
         const snap = await db.ref(OPS_PATH).orderByChild('status').equalTo('pending').once('value');
-        const updates = {};
-        let n = 0;
+        const todo = [];
         snap.forEach(ch => {
             const d = ch.val();
             if (!d || !VALID_ID.test(ch.key) || !d.date || d.date >= today) return;
-            if (window.__me !== 'admin' && d.livreurId !== window.__me) return;
-            const ra = d.remarkAdmin || '';
-            updates[OPS_PATH + '/' + ch.key + '/date'] = today;
-            if (!ra.includes('[Reporté')) updates[OPS_PATH + '/' + ch.key + '/remarkAdmin'] = `[Reporté du ${d.date}] ${ra}`.trim();
-            updates[OPS_PATH + '/' + ch.key + '/lastBy'] = 'system';
-            n++;
+            if (d.carriedTo) return;                                              // déjà reportée : on ne la copie pas une 2e fois
+            if (window.__me !== 'admin' && d.livreurId !== window.__me) return;   // livreur : seulement ses opérations
+            todo.push([ch.key, d]);
         });
-        if (n > 0) await db.ref().update(updates);
+        for (const [key, d] of todo.slice(0, 200)) {
+            const root = String(d.origId || key).slice(0, 60);
+            const copyId = ('rep-' + root + '-' + today).replace(/[^A-Za-z0-9_-]/g, '_');
+            const ra = d.remarkAdmin || '';
+            const copy = cleanObj(Object.assign({}, d, {
+                date: today,
+                status: 'pending',
+                actionTime: undefined,
+                carriedTo: undefined,
+                remarkAdmin: ra.includes('[Reporté') ? ra : `[Reporté du ${d.date}] ${ra}`.trim(),
+                origId: d.origId || key,
+                reportedFrom: d.date,
+                timestamp: Date.now(),
+                lastBy: 'system',
+                lastAt: Date.now()
+            }));
+            // La copie n'est créée que si elle n'existe pas déjà (plusieurs appareils peuvent s'ouvrir en même temps)
+            await db.ref(OPS_PATH + '/' + copyId).transaction(cur => (cur === null || cur === undefined) ? copy : undefined);
+            // L'original reste dans sa journée (toujours « En cours »), simplement marqué comme déjà reporté
+            await db.ref(OPS_PATH + '/' + key).update({ carriedTo: copyId });
+        }
     } catch (e) {
         console.warn('Report quotidien impossible :', e);
     }
@@ -2241,19 +2280,29 @@ async function carryOverStartBalances() {
         const livs = cfg.livreurs || {};
         const has = (o, k) => !!o && o[k] !== undefined && o[k] !== null;
 
-        // Dernier jour précédent pour lequel un solde de départ Admin existe
-        let prevDate = null;
-        for (let k = 1; k <= 30 && !prevDate; k++) {
-            const dt = new Date(); dt.setHours(12, 0, 0, 0); dt.setDate(dt.getDate() - k);
-            const ds = toLocalDateStr(dt);
-            if (has(adm, ds)) prevDate = ds;
-        }
-        if (!prevDate) return;
-
+        // Un solde déjà saisi pour aujourd'hui n'est JAMAIS écrasé
         const needAdmin = !has(adm, today);
         const needLiv = LIVREUR_IDS.filter(id => !has(livs[id] && livs[id].startBalances, today));
         if (!needAdmin && needLiv.length === 0) return;
 
+        // Dernier jour d'activité avant aujourd'hui : un solde de départ (admin ou livreur) OU une opération
+        const lastKey = (o) => Object.keys(o || {}).filter(k => k < today).sort().pop() || null;
+        let prevDate = lastKey(adm);
+        LIVREUR_IDS.forEach(id => {
+            const k = lastKey(livs[id] && livs[id].startBalances);
+            if (k && (!prevDate || k > prevDate)) prevDate = k;
+        });
+        try {
+            const dt = new Date(); dt.setHours(12, 0, 0, 0); dt.setDate(dt.getDate() - 1);
+            const lastOp = await db.ref(OPS_PATH).orderByChild('date').endAt(toLocalDateStr(dt)).limitToLast(1).once('value');
+            lastOp.forEach(ch => {
+                const dd = ch.val() && ch.val().date;
+                if (dd && (!prevDate || dd > prevDate)) prevDate = dd;
+            });
+        } catch (e) { console.warn('Dernière opération introuvable :', e); }
+        if (!prevDate) return;      // aucune activité avant aujourd'hui : rien à reporter
+
+        // Solde réel de fin de journée = départ + alimentations validées - livraisons validées
         const ops = await fetchOpsRange(prevDate, prevDate);
         const sumOf = (list, type) => list.filter(d => d.type === type && d.status === 'delivered').reduce((t, d) => t + (Number(d.amount) || 0), 0);
         const r2 = v => Math.round(v * 100) / 100;
@@ -3023,7 +3072,15 @@ function executeDeleteDelivery() {
     }
     toggleConfirmDeleteModal(false);
 }
-
+// Flèches jour précédent / jour suivant
+function shiftDate(delta) {
+    const base = state.selectedDate || getTodayStr();
+    const d = new Date(base + 'T12:00:00');
+    d.setDate(d.getDate() + delta);
+    const picker = document.getElementById('global-date-picker');
+    if (picker) picker.value = toLocalDateStr(d);
+    handleDateChange();
+}
 // ==================== DATE ====================
 // La journée affichée est propre à chaque appareil (elle n'est plus partagée).
 function handleDateChange() {
@@ -3039,19 +3096,27 @@ function startMidnightWatcher() {
     if (midnightWatcherStarted) return;
     midnightWatcherStarted = true;
     window.__lastToday = getTodayStr();
-    setInterval(() => {
+    const checkDayChange = () => {
         const t = getTodayStr();
-        if (window.__lastToday && window.__lastToday !== t && state.selectedDate === window.__lastToday) {
-            state.selectedDate = t;
-            document.getElementById('global-date-picker').value = t;
-            state.deliveries = [];
-            subscribeOps();
-            checkAndExecuteDailyRollover();
-            carryOverStartBalances();
+        if (window.__lastToday && window.__lastToday !== t) {
+            const wasViewingToday = state.selectedDate === window.__lastToday;
+            window.__lastToday = t;
+            if (wasViewingToday) {
+                state.selectedDate = t;
+                const dp = document.getElementById('global-date-picker');
+                if (dp) dp.value = t;
+                state.deliveries = [];
+                subscribeOps();
+            }
+            checkAndExecuteDailyRollover();   // copie des opérations « En cours » vers la nouvelle journée
+            carryOverStartBalances();         // soldes de départ = soldes réels de la veille (sans écraser)
             renderApp();
         }
         window.__lastToday = t;
-    }, 60000);
+    };
+    setInterval(checkDayChange, 30000);
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) checkDayChange(); });
+    window.addEventListener('focus', checkDayChange);
 }
 
 async function startAdminSession() {
@@ -3120,6 +3185,607 @@ async function boot() {
     }
 }
 window.addEventListener('DOMContentLoaded', boot);
+</script>
+<script>
+/* ===================================================================
+   TRADUCTION DE L'INTERFACE (Français / English / العربية)
+   - Seuls les textes de l'interface sont traduits.
+   - Jamais traduits : noms des livreurs, noms de clients, adresses, téléphones,
+     remarques saisies, montants, dates, ni le contenu envoyé à Firebase.
+   - L'application d'origine n'est pas modifiée : ce script remplace les textes
+     affichés (français) par leur traduction, et revient au français à la demande.
+   =================================================================== */
+(function () {
+    'use strict';
+    var KEY = 'cashexpress_lang';
+    var LANGS = ['fr', 'en', 'ar'];
+    var IDX = { en: 1, ar: 2 };
+    var lang = 'fr';
+    try { var saved = localStorage.getItem(KEY); if (LANGS.indexOf(saved) >= 0) lang = saved; } catch (e) {}
+
+    /* ---------- Textes exacts : [français, anglais, arabe] ---------- */
+    var E = [
+        [`Gestion de Livraison d'Argent v40 - CashExpress`, `Cash Delivery Management v40 - CashExpress`, `إدارة توصيل الأموال v40 - CashExpress`],
+        [`Gestion de la Liste Noire (Clients Bloqués)`, `Blacklist Management (Blocked Clients)`, `إدارة القائمة السوداء (العملاء المحظورون)`],
+        [`Ajouter / Modifier un Client Bloqué`, `Add / Edit a Blocked Client`, `إضافة / تعديل عميل محظور`],
+        [`Téléphone *`, `Phone *`, `الهاتف *`],
+        [`Nom & Prénom *`, `Full Name *`, `الاسم واللقب *`],
+        [`Motif du blocage *`, `Reason for blocking *`, `سبب الحظر *`],
+        [`Annuler`, `Cancel`, `إلغاء`],
+        [`Ajouter à la Liste Noire`, `Add to Blacklist`, `إضافة إلى القائمة السوداء`],
+        [`Enregistrer les modifications`, `Save changes`, `حفظ التعديلات`],
+        [`Liste des numéros enregistrés`, `Registered numbers list`, `قائمة الأرقام المسجّلة`],
+        [`Téléphone`, `Phone`, `الهاتف`],
+        [`Nom`, `Name`, `الاسم`],
+        [`Motif`, `Reason`, `السبب`],
+        [`Actions`, `Actions`, `الإجراءات`],
+        [`Fermer`, `Close`, `إغلاق`],
+        [`Modifier Code PIN Admin`, `Change Admin PIN`, `تغيير رمز PIN للمسؤول`],
+        [`Modifier mon code PIN`, `Change my PIN`, `تغيير رمز PIN الخاص بي`],
+        [`Code PIN Actuel *`, `Current PIN *`, `رمز PIN الحالي *`],
+        [`Nouveau Code PIN *`, `New PIN *`, `رمز PIN الجديد *`],
+        [`Confirmer Nouveau Code PIN *`, `Confirm New PIN *`, `تأكيد رمز PIN الجديد *`],
+        [`❌ Erreur lors du changement de code PIN !`, `❌ Error while changing the PIN!`, `❌ خطأ أثناء تغيير رمز PIN!`],
+        [`Changer le PIN`, `Change PIN`, `تغيير الرمز`],
+        [`Accès Refusé / Lien Invalide`, `Access Denied / Invalid Link`, `الوصول مرفوض / رابط غير صالح`],
+        [`Ce lien d'accès n'est plus valide ou a été`, `This access link is no longer valid or has been`, `رابط الدخول هذا لم يعد صالحاً أو تم`],
+        [`révoqué par l'administrateur`, `revoked by the administrator`, `إلغاؤه من طرف المسؤول`],
+        [`. Veuillez contacter votre responsable pour obtenir un nouveau lien.`, `. Please contact your manager to get a new link.`, `. يرجى الاتصال بمسؤولك للحصول على رابط جديد.`],
+        [`Code d'accès non autorisé`, `Unauthorized access code`, `رمز الدخول غير مصرّح به`],
+        [`Accès Réservé Admin`, `Admin Access Only`, `دخول مخصّص للمسؤول`],
+        [`Accès Livreur`, `Courier Access`, `دخول الموزّع`],
+        [`Veuillez saisir le code PIN confidentiel pour déverrouiller le tableau de bord Admin.`, `Please enter the confidential PIN to unlock the Admin dashboard.`, `يرجى إدخال رمز PIN السري لفتح لوحة تحكم المسؤول.`],
+        [`Saisissez votre code PIN pour accéder à votre espace.`, `Enter your PIN to access your space.`, `أدخل رمز PIN الخاص بك للدخول إلى فضائك.`],
+        [`Première utilisation : choisissez votre code PIN Admin (4 à 8 caractères), puis confirmez-le.`, `First use: choose your Admin PIN (4 to 8 characters), then confirm it.`, `الاستعمال الأول: اختر رمز PIN للمسؤول (من 4 إلى 8 أحرف) ثم أكّده.`],
+        [`Mise à niveau : saisissez votre code PIN actuel. Vos données seront converties automatiquement (quelques secondes).`, `Upgrade: enter your current PIN. Your data will be converted automatically (a few seconds).`, `ترقية: أدخل رمز PIN الحالي. سيتم تحويل بياناتك تلقائياً (بضع ثوانٍ).`],
+        [`ATTENTION : les anciennes données ne sont pas accessibles (règles publiées trop tôt). Si vous aviez déjà des données, ne créez pas de PIN maintenant : remettez temporairement les anciennes règles, puis rechargez. Sinon, choisissez votre PIN (4 à 8 caractères).`, `WARNING: the old data is not accessible (rules published too early). If you already had data, do not create a PIN now: temporarily restore the old rules, then reload. Otherwise, choose your PIN (4 to 8 characters).`, `تنبيه: لا يمكن الوصول إلى البيانات القديمة (تم نشر القواعد مبكراً). إذا كانت لديك بيانات سابقة فلا تنشئ رمز PIN الآن: أعد القواعد القديمة مؤقتاً ثم أعد تحميل الصفحة. وإلا فاختر رمز PIN (من 4 إلى 8 أحرف).`],
+        [`Confirmez le code PIN en le saisissant une seconde fois.`, `Confirm the PIN by entering it a second time.`, `أكّد رمز PIN بإدخاله مرة ثانية.`],
+        [`Conversion des données en cours… ne fermez pas la page.`, `Converting data… do not close the page.`, `جارٍ تحويل البيانات… لا تغلق الصفحة.`],
+        [`Code PIN Secret *`, `Secret PIN *`, `رمز PIN السري *`],
+        [`❌ Code PIN incorrect ! Réessayez.`, `❌ Incorrect PIN! Try again.`, `❌ رمز PIN غير صحيح! أعد المحاولة.`],
+        [`⏳ Trop d'essais. Patientez 30 secondes.`, `⏳ Too many attempts. Wait 30 seconds.`, `⏳ محاولات كثيرة. انتظر 30 ثانية.`],
+        [`❌ Le code PIN doit contenir au moins 4 caractères.`, `❌ The PIN must contain at least 4 characters.`, `❌ يجب أن يحتوي رمز PIN على 4 أحرف على الأقل.`],
+        [`⚠️ Erreur de connexion. Réessayez.`, `⚠️ Connection error. Try again.`, `⚠️ خطأ في الاتصال. أعد المحاولة.`],
+        [`❌ Les deux codes ne correspondent pas. Recommencez.`, `❌ The two codes do not match. Start again.`, `❌ الرمزان غير متطابقين. أعد من البداية.`],
+        [`⚠️ Accès refusé par les règles de la base.`, `⚠️ Access denied by the database rules.`, `⚠️ تم رفض الوصول من طرف قواعد قاعدة البيانات.`],
+        [`❌ PIN actuel incorrect !`, `❌ Current PIN is incorrect!`, `❌ رمز PIN الحالي غير صحيح!`],
+        [`❌ Le nouveau PIN doit contenir au moins 4 caractères !`, `❌ The new PIN must contain at least 4 characters!`, `❌ يجب أن يحتوي رمز PIN الجديد على 4 أحرف على الأقل!`],
+        [`❌ Les PIN ne correspondent pas !`, `❌ The PINs do not match!`, `❌ رموز PIN غير متطابقة!`],
+        [`⚠️ Échec de l'enregistrement. Vérifiez la connexion (ou les règles de la base).`, `⚠️ Save failed. Check the connection (or the database rules).`, `⚠️ فشل الحفظ. تحقق من الاتصال (أو من قواعد قاعدة البيانات).`],
+        [`⚠️ Échec de l'enregistrement. Vérifiez la connexion.`, `⚠️ Save failed. Check the connection.`, `⚠️ فشل الحفظ. تحقق من الاتصال.`],
+        [`Vérification…`, `Verifying…`, `جارٍ التحقق…`],
+        [`Déverrouiller`, `Unlock`, `فتح`],
+        [`Liens Accès Directs`, `Direct Access Links`, `روابط الدخول المباشر`],
+        [`Copiez et envoyez ces liens uniques à chaque utilisateur. En ouvrant leur lien respectif, ils accèderont`, `Copy and send these unique links to each user. By opening their own link, they will access`, `انسخ هذه الروابط الفريدة وأرسلها إلى كل مستخدم. عند فتح رابطه الخاص، سيدخل`],
+        [`directement à leur propre espace sans pouvoir changer de rôle`, `their own space directly without being able to switch roles`, `مباشرةً إلى فضائه الخاص دون إمكانية تغيير الدور`],
+        [`👑 Lien Unique Administrateur :`, `👑 Administrator Unique Link:`, `👑 الرابط الفريد للمسؤول:`],
+        [`Copier`, `Copy`, `نسخ`],
+        [`🛵 Lien Livreur 1 (`, `🛵 Courier 1 Link (`, `🛵 رابط الموزّع 1 (`],
+        [`🛵 Lien Livreur 2 (`, `🛵 Courier 2 Link (`, `🛵 رابط الموزّع 2 (`],
+        [`🛵 Lien Livreur 3 (`, `🛵 Courier 3 Link (`, `🛵 رابط الموزّع 3 (`],
+        [`Révoquer & Changer Lien`, `Revoke & Change Link`, `إلغاء وتغيير الرابط`],
+        [`Notifications`, `Notifications`, `الإشعارات`],
+        [`Effacer tout`, `Clear all`, `مسح الكل`],
+        [`Aucune notification.`, `No notifications.`, `لا توجد إشعارات.`],
+        [`Solde possédé`, `Balance held`, `الرصيد بحوزتي`],
+        [`Indiquez le montant que vous avez réellement`, `Enter the amount you actually have`, `أدخل المبلغ الذي لديك فعلياً`],
+        [`avec vous`, `with you`, `معك`],
+        [`aujourd'hui. Vos soldes réel et théorique sont alors aussi affichés en fonction de ce montant. Le solde de départ reste fixé par l'Admin.`, `today. Your actual and theoretical balances are then also shown based on this amount. The opening balance remains set by the Admin.`, `اليوم. سيتم أيضاً عرض رصيدك الفعلي والنظري بناءً على هذا المبلغ. يبقى رصيد البداية محدداً من طرف المسؤول.`],
+        [`Montant possédé (TND) *`, `Amount held (TND) *`, `المبلغ بحوزتي (TND) *`],
+        [`Égal au départ`, `Same as opening`, `مساوٍ للبداية`],
+        [`Enregistrer`, `Save`, `حفظ`],
+        [`Connexion au serveur…`, `Connecting to the server…`, `جارٍ الاتصال بالخادم…`],
+        [`Réessayer`, `Retry`, `إعادة المحاولة`],
+        [`Gestion de livraison d'argent en temps réel -`, `Real-time cash delivery management -`, `إدارة توصيل الأموال في الوقت الفعلي -`],
+        [`Mode Vue :`, `View mode:`, `وضع العرض:`],
+        [`Admin`, `Admin`, `المسؤول`],
+        [`Activer le son`, `Enable sound`, `تفعيل الصوت`],
+        [`Nouvelle Notification`, `New Notification`, `إشعار جديد`],
+        [`Message de notification`, `Notification message`, `نص الإشعار`],
+        [`Journée :`, `Day:`, `اليوم:`],
+        [`Solde Global Entreprise`, `Company Global Balance`, `الرصيد الإجمالي للمؤسسة`],
+        [`Suivi du coffre central et répartition entre livreurs`, `Central safe tracking and distribution among couriers`, `متابعة الخزينة المركزية والتوزيع بين الموزّعين`],
+        [`Aujourd'hui`, `Today`, `اليوم`],
+        [`Départ Admin`, `Admin Opening`, `بداية المسؤول`],
+        [`Départ Admin Global (Hier)`, `Global Admin Opening (Yesterday)`, `بداية المسؤول الإجمالية (أمس)`],
+        [`Distribué:`, `Distributed:`, `الموزَّع:`],
+        [`Disponible:`, `Available:`, `المتاح:`],
+        [`Solde Total Réel (En Poche)`, `Total Actual Balance (In Hand)`, `إجمالي الرصيد الفعلي (في الجيب)`],
+        [`Départ Admin + Alimentations validées - Livraisons effectuées.`, `Admin opening + validated top-ups - completed deliveries.`, `بداية المسؤول + التغذيات المؤكدة - التوصيلات المنجزة.`],
+        [`Solde Total Théorique (À Venir)`, `Total Theoretical Balance (Upcoming)`, `إجمالي الرصيد النظري (القادم)`],
+        [`Solde projeté si toutes les opérations en cours sont validées.`, `Projected balance if all pending operations are validated.`, `الرصيد المتوقع إذا تم تأكيد جميع العمليات الجارية.`],
+        [`Solde Livreur`, `Courier Balance`, `رصيد الموزّع`],
+        [`Départ`, `Opening`, `البداية`],
+        [`Solde Théorique`, `Theoretical Balance`, `الرصيد النظري`],
+        [`Solde Réel`, `Actual Balance`, `الرصيد الفعلي`],
+        [`Solde Départ:`, `Opening Balance:`, `رصيد البداية:`],
+        [`Alimentations Validées:`, `Validated Top-ups:`, `التغذيات المؤكدة:`],
+        [`En cours`, `Pending`, `قيد التنفيذ`],
+        [`Envoyés / Validés`, `Sent / Validated`, `المُرسَلة / المؤكَّدة`],
+        [`Annulés`, `Cancelled`, `الملغاة`],
+        [`Alimentations`, `Top-ups`, `التغذيات`],
+        [`Nouvelle Livraison / Alimentation`, `New Delivery / Top-up`, `توصيل / تغذية جديدة`],
+        [`Gérez les livraisons et alimentations de caisse de la journée.`, `Manage the day's deliveries and cash top-ups.`, `أدِر توصيلات اليوم وتغذيات الصندوق.`],
+        [`Liste Noire (`, `Blacklist (`, `القائمة السوداء (`],
+        [`Liens d'Accès Uniques`, `Unique Access Links`, `روابط الدخول الفريدة`],
+        [`Importer Excel`, `Import Excel`, `استيراد Excel`],
+        [`Extraction Excel`, `Excel Export`, `تصدير Excel`],
+        [`Ajouter une Opération`, `Add an Operation`, `إضافة عملية`],
+        [`Toutes les Livraisons & Alimentations (Tri : En cours en haut)`, `All Deliveries & Top-ups (Sorted: Pending first)`, `جميع التوصيلات والتغذيات (الترتيب: الجارية في الأعلى)`],
+        [`Filtrer par type / statut:`, `Filter by type / status:`, `تصفية حسب النوع / الحالة:`],
+        [`Toutes les opérations`, `All operations`, `كل العمليات`],
+        [`En cours uniquement`, `Pending only`, `الجارية فقط`],
+        [`Envoyés / Validés uniquement`, `Sent / Validated only`, `المُرسَلة / المؤكَّدة فقط`],
+        [`Annulés uniquement`, `Cancelled only`, `الملغاة فقط`],
+        [`Livraisons uniquement`, `Deliveries only`, `التوصيلات فقط`],
+        [`Alimentations uniquement`, `Top-ups only`, `التغذيات فقط`],
+        [`Type & Client / Remettant`, `Type & Client / Sender`, `النوع والعميل / المودِع`],
+        [`Adresse / Localisation`, `Address / Location`, `العنوان / الموقع`],
+        [`Montant`, `Amount`, `المبلغ`],
+        [`Livreur Assigné`, `Assigned Courier`, `الموزّع المعيَّن`],
+        [`Horodatage`, `Timestamp`, `التوقيت`],
+        [`Statut & Remarques`, `Status & Remarks`, `الحالة والملاحظات`],
+        [`Actions Admin`, `Admin Actions`, `إجراءات المسؤول`],
+        [`Espace Livreur`, `Courier Space`, `فضاء الموزّع`],
+        [`Gérez vos livraisons et enregistrez vos alimentations de caisse.`, `Manage your deliveries and record your cash top-ups.`, `أدِر توصيلاتك وسجّل تغذيات الصندوق.`],
+        [`+ Ajouter Alimentation`, `+ Add Top-up`, `+ إضافة تغذية`],
+        [`Solde d'hier (Départ)`, `Yesterday's balance (Opening)`, `رصيد أمس (البداية)`],
+        [`✋ Possédé`, `✋ Held`, `✋ بحوزتي`],
+        [`Solde Réel (En Poche)`, `Actual Balance (In Hand)`, `الرصيد الفعلي (في الجيب)`],
+        [`Calculé (Alim. Validées - Livraisons Effectuées)`, `Calculated (Validated top-ups - Completed deliveries)`, `محسوب (التغذيات المؤكدة - التوصيلات المنجزة)`],
+        [`Solde Théorique (À venir)`, `Theoretical Balance (Upcoming)`, `الرصيد النظري (القادم)`],
+        [`Si toutes les opérations en cours sont validées`, `If all pending operations are validated`, `إذا تم تأكيد جميع العمليات الجارية`],
+        [`⏳ En cours`, `⏳ Pending`, `⏳ قيد التنفيذ`],
+        [`🟢 Envoyés`, `🟢 Sent`, `🟢 المُرسَلة`],
+        [`🔴 Annulés`, `🔴 Cancelled`, `🔴 الملغاة`],
+        [`➕ Alim.`, `➕ Top-up`, `➕ تغذية`],
+        [`Mes Opérations (Livraisons & Alimentations)`, `My Operations (Deliveries & Top-ups)`, `عملياتي (التوصيلات والتغذيات)`],
+        [`Filtrer :`, `Filter:`, `تصفية:`],
+        [`Confirmation de Validation`, `Validation Confirmation`, `تأكيد المصادقة`],
+        [`Voulez-vous vraiment valider cette opération ?`, `Do you really want to validate this operation?`, `هل تريد فعلاً تأكيد هذه العملية؟`],
+        [`Remarque (Optionnelle)`, `Remark (Optional)`, `ملاحظة (اختيارية)`],
+        [`💡 Cette remarque s'enregistre directement dans la fiche de l'opération.`, `💡 This remark is saved directly in the operation record.`, `💡 تُحفظ هذه الملاحظة مباشرة في بطاقة العملية.`],
+        [`Oui, Valider l'opération`, `Yes, Validate the operation`, `نعم، تأكيد العملية`],
+        [`Annulation de l'Opération`, `Operation Cancellation`, `إلغاء العملية`],
+        [`Voulez-vous vraiment annuler cette opération ?`, `Do you really want to cancel this operation?`, `هل تريد فعلاً إلغاء هذه العملية؟`],
+        [`Motif / Remarque (Facultatif)`, `Reason / Remark (Optional)`, `السبب / الملاحظة (اختياري)`],
+        [`Retour`, `Back`, `رجوع`],
+        [`Confirmer l'annulation`, `Confirm cancellation`, `تأكيد الإلغاء`],
+        [`Solde de Départ Admin (Hier)`, `Admin Opening Balance (Yesterday)`, `رصيد بداية المسؤول (أمس)`],
+        [`Fixez le`, `Set the`, `حدّد`],
+        [`Solde de Départ Réel d'Hier`, `Actual Opening Balance of Yesterday`, `رصيد البداية الفعلي لأمس`],
+        [`global de l'entreprise. Le total des soldes de départ attribués aux livreurs ne pourra pas dépasser ce montant.`, `of the company. The total of opening balances assigned to couriers cannot exceed this amount.`, `الإجمالي للمؤسسة. لا يمكن أن يتجاوز مجموع أرصدة البداية الموزّعة على الموزّعين هذا المبلغ.`],
+        [`Montant Solde Départ Global (TND) *`, `Global Opening Balance Amount (TND) *`, `مبلغ رصيد البداية الإجمالي (TND) *`],
+        [`Enregistrer Solde Admin`, `Save Admin Balance`, `حفظ رصيد المسؤول`],
+        [`Extraction du Rapport Excel`, `Excel Report Export`, `تصدير تقرير Excel`],
+        [`Choisissez la période d'extraction des opérations :`, `Choose the export period for operations:`, `اختر فترة تصدير العمليات:`],
+        [`Extraire la journée en cours uniquement`, `Export current day only`, `تصدير اليوم الحالي فقط`],
+        [`Extraire une période personnalisée (Du / Au)`, `Export a custom period (From / To)`, `تصدير فترة مخصصة (من / إلى)`],
+        [`Du *`, `From *`, `من *`],
+        [`Au *`, `To *`, `إلى *`],
+        [`Télécharger Excel (.xlsx)`, `Download Excel (.xlsx)`, `تحميل Excel (.xlsx)`],
+        [`Modifier le nom du Livreur`, `Edit Courier Name`, `تعديل اسم الموزّع`],
+        [`Nouveau nom affiché *`, `New display name *`, `الاسم الجديد المعروض *`],
+        [`Réaffecter à un autre livreur`, `Reassign to another courier`, `إعادة التعيين إلى موزّع آخر`],
+        [`Sélectionnez le nouveau livreur pour cette opération :`, `Select the new courier for this operation:`, `اختر الموزّع الجديد لهذه العملية:`],
+        [`Nouveau Livreur *`, `New Courier *`, `الموزّع الجديد *`],
+        [`Réaffecter`, `Reassign`, `إعادة التعيين`],
+        [`Confirmation de Suppression`, `Deletion Confirmation`, `تأكيد الحذف`],
+        [`Êtes-vous sûr de vouloir`, `Are you sure you want to`, `هل أنت متأكد أنك تريد`],
+        [`SUPPRIMER DÉFINITIVEMENT`, `PERMANENTLY DELETE`, `الحذف نهائياً`],
+        [`cette ligne d'opération ?`, `this operation line?`, `سطر العملية هذا؟`],
+        [`Cette action est irréversible et retirera immédiatement cette ligne du solde.`, `This action is irreversible and will immediately remove this line from the balance.`, `هذا الإجراء لا رجعة فيه وسيسحب هذا السطر فوراً من الرصيد.`],
+        [`Oui, Supprimer définitivement`, `Yes, Delete permanently`, `نعم، احذف نهائياً`],
+        [`Confirmation de Remise en Cours`, `Return-to-Pending Confirmation`, `تأكيد إعادتها إلى قيد التنفيذ`],
+        [`Êtes-vous sûr de vouloir remettre cette opération en statut`, `Are you sure you want to put this operation back to status`, `هل أنت متأكد أنك تريد إعادة هذه العملية إلى حالة`],
+        [`"EN COURS"`, `"PENDING"`, `"قيد التنفيذ"`],
+        [`L'opération repassera en cours de traitement.`, `The operation will go back to being processed.`, `ستعود العملية إلى قيد المعالجة.`],
+        [`Oui, Remettre en cours`, `Yes, Put back to pending`, `نعم، إعادتها إلى قيد التنفيذ`],
+        [`Nouvelle Opération`, `New Operation`, `عملية جديدة`],
+        [`📦 LIVRAISON D'ARGENT`, `📦 CASH DELIVERY`, `📦 توصيل أموال`],
+        [`➕ ALIMENTATION`, `➕ TOP-UP`, `➕ تغذية`],
+        [`1. Assigner au Livreur *`, `1. Assign to Courier *`, `1. تعيين إلى الموزّع *`],
+        [`⚠️ ATTENTION : Client Blacklisté !`, `⚠️ WARNING: Blacklisted Client!`, `⚠️ تنبيه: عميل في القائمة السوداء!`],
+        [`2. Téléphone Principal *`, `2. Main Phone *`, `2. الهاتف الرئيسي *`],
+        [`Téléphone 2 (Optionnel)`, `Phone 2 (Optional)`, `الهاتف 2 (اختياري)`],
+        [`Informations pré-remplies depuis l'historique client !`, `Information pre-filled from client history!`, `معلومات مملوءة مسبقاً من سجل العميل!`],
+        [`3. Nom et Prénom du Client / Remettant *`, `3. Client / Sender Full Name *`, `3. الاسم واللقب للعميل / المودِع *`],
+        [`4. Montant (TND) *`, `4. Amount (TND) *`, `4. المبلغ (TND) *`],
+        [`5. Adresse physique`, `5. Physical address`, `5. العنوان الفعلي`],
+        [`6. Localisation GPS / Maps`, `6. GPS Location / Maps`, `6. الموقع GPS / الخرائط`],
+        [`7. Remarque de l'Admin (Facultatif)`, `7. Admin Remark (Optional)`, `7. ملاحظة المسؤول (اختياري)`],
+        [`Enregistrer (Ajouter En cours)`, `Save (Add as Pending)`, `حفظ (إضافة كجارية)`],
+        [`2. Téléphone Remettant / Contact (Facultatif)`, `2. Sender Phone / Contact (Optional)`, `2. هاتف المودِع / الاتصال (اختياري)`],
+        [`3. Nom / Origine des fonds *`, `3. Name / Source of funds *`, `3. الاسم / مصدر الأموال *`],
+        [`2. Téléphone Client *`, `2. Client Phone *`, `2. هاتف العميل *`],
+        [`3. Nom et Prénom du Client *`, `3. Client Full Name *`, `3. الاسم واللقب للعميل *`],
+        [`Remarque de Suivi`, `Follow-up Remark`, `ملاحظة المتابعة`],
+        [`Saisir votre Remarque *`, `Enter your Remark *`, `أدخل ملاحظتك *`],
+        [`Note / Remarque réservée Admin *`, `Admin-only Note / Remark *`, `ملاحظة خاصة بالمسؤول *`],
+        [`Remarque du Livreur *`, `Courier Remark *`, `ملاحظة الموزّع *`],
+        [`Enregistrer Remarque`, `Save Remark`, `حفظ الملاحظة`],
+        [`Nouvelle Alimentation`, `New Top-up`, `تغذية جديدة`],
+        [`L'alimentation sera créée en statut`, `The top-up will be created with status`, `سيتم إنشاء التغذية بحالة`],
+        [`comme une livraison.`, `like a delivery.`, `مثل التوصيل.`],
+        [`1. Montant (TND) *`, `1. Amount (TND) *`, `1. المبلغ (TND) *`],
+        [`2. Nom / Origine des fonds *`, `2. Name / Source of funds *`, `2. الاسم / مصدر الأموال *`],
+        [`3. Téléphone Contact (Facultatif)`, `3. Contact Phone (Optional)`, `3. هاتف الاتصال (اختياري)`],
+        [`4. Adresse (Facultatif)`, `4. Address (Optional)`, `4. العنوان (اختياري)`],
+        [`5. Lieu / Localisation GPS (Facultatif)`, `5. Place / GPS Location (Optional)`, `5. المكان / الموقع GPS (اختياري)`],
+        [`6. Remarque / Note`, `6. Remark / Note`, `6. ملاحظة`],
+        [`Enregistrer (En cours)`, `Save (Pending)`, `حفظ (قيد التنفيذ)`],
+        [`Solde de Départ Livreur (Hier)`, `Courier Opening Balance (Yesterday)`, `رصيد بداية الموزّع (أمس)`],
+        [`Solde de Départ Attribué (TND) *`, `Assigned Opening Balance (TND) *`, `رصيد البداية المخصّص (TND) *`],
+        [`Le total des soldes de départ des livreurs ne peut pas dépasser le solde de départ global fixé par l'Admin.`, `The total of couriers' opening balances cannot exceed the global opening balance set by the Admin.`, `لا يمكن أن يتجاوز مجموع أرصدة بداية الموزّعين رصيد البداية الإجمالي الذي حدّده المسؤول.`],
+        [`Solde Départ Admin:`, `Admin Opening Balance:`, `رصيد بداية المسؤول:`],
+        [`Déjà attribué:`, `Already assigned:`, `المخصّص مسبقاً:`],
+        [`Maximum:`, `Maximum:`, `الحد الأقصى:`],
+        [`Aucun client sur la liste noire.`, `No clients on the blacklist.`, `لا يوجد عملاء في القائمة السوداء.`],
+        [`Aucune opération pour cette journée.`, `No operations for this day.`, `لا توجد عمليات في هذا اليوم.`],
+        [`Aucune opération correspondant aux filtres.`, `No operations matching the filters.`, `لا توجد عمليات مطابقة للتصفية.`],
+        [`🟣 Validé (Crédité)`, `🟣 Validated (Credited)`, `🟣 مؤكَّد (مُضاف)`],
+        [`🔴 Annulé`, `🔴 Cancelled`, `🔴 ملغى`],
+        [`🟡 En cours`, `🟡 Pending`, `🟡 قيد التنفيذ`],
+        [`🟢 Envoyé`, `🟢 Sent`, `🟢 مُرسَل`],
+        [`🟡 EN COURS`, `🟡 PENDING`, `🟡 قيد التنفيذ`],
+        [`🟣 VALIDÉ`, `🟣 VALIDATED`, `🟣 مؤكَّد`],
+        [`🔴 ANNULÉ`, `🔴 CANCELLED`, `🔴 ملغى`],
+        [`🟢 ENVOYÉ`, `🟢 SENT`, `🟢 مُرسَل`],
+        [`➕ ALIM`, `➕ TOP-UP`, `➕ تغذية`],
+        [`📦 LIVR`, `📦 DELIV.`, `📦 توصيل`],
+        [`📦 LIVRAISON`, `📦 DELIVERY`, `📦 توصيل`],
+        [`VALIDER`, `VALIDATE`, `تأكيد`],
+        [`ENVOYER`, `SEND`, `إرسال`],
+        [`Pas d'adresse`, `No address`, `بدون عنوان`],
+        [`Pas de GPS`, `No GPS`, `بدون GPS`],
+        [`Admin:`, `Admin:`, `المسؤول:`],
+        [`Livreur:`, `Courier:`, `الموزّع:`],
+        [`Remarque:`, `Remark:`, `ملاحظة:`],
+        [`Une opération`, `An operation`, `عملية`],
+        /* messages courts (toasts, boîtes de dialogue) */
+        [`❌ Le fichier Excel est vide ou invalide !`, `❌ The Excel file is empty or invalid!`, `❌ ملف Excel فارغ أو غير صالح!`],
+        [`📥 Importation`, `📥 Import`, `📥 استيراد`],
+        [`Rien de nouveau : tout existe déjà.`, `Nothing new: everything already exists.`, `لا جديد: كل شيء موجود مسبقاً.`],
+        [`📥 Importation Réussie`, `📥 Import Successful`, `📥 تم الاستيراد بنجاح`],
+        [`Accès Admin Autorisé`, `Admin Access Granted`, `تم السماح بدخول المسؤول`],
+        [`Vous êtes connecté en tant qu'Administrateur.`, `You are logged in as Administrator.`, `أنت متصل بصفة مسؤول.`],
+        [`🔒 PIN modifié`, `🔒 PIN changed`, `🔒 تم تغيير الرمز`],
+        [`Votre code PIN a été mis à jour.`, `Your PIN has been updated.`, `تم تحديث رمز PIN الخاص بك.`],
+        [`🔒 PIN Admin Modifié`, `🔒 Admin PIN Changed`, `🔒 تم تغيير رمز PIN للمسؤول`],
+        [`Le PIN a été mis à jour.`, `The PIN has been updated.`, `تم تحديث الرمز.`],
+        [`Lien copié !`, `Link copied!`, `تم نسخ الرابط!`],
+        [`Le lien direct a été copié.`, `The direct link has been copied.`, `تم نسخ الرابط المباشر.`],
+        [`🔴 Lien Révoqué !`, `🔴 Link Revoked!`, `🔴 تم إلغاء الرابط!`],
+        [`Impossible : on ne modifie pas le solde possédé d'une journée passée.`, `Not possible: the held balance of a past day cannot be changed.`, `غير ممكن: لا يمكن تعديل الرصيد الذي بحوزتك ليوم سابق.`],
+        [`Montant invalide.`, `Invalid amount.`, `مبلغ غير صالح.`],
+        [`Solde possédé enregistré`, `Held balance saved`, `تم حفظ الرصيد الذي بحوزتك`],
+        [`Impossible pour une journée passée.`, `Not possible for a past day.`, `غير ممكن ليوم سابق.`],
+        [`Le solde possédé est de nouveau égal au solde de départ.`, `The held balance is again equal to the opening balance.`, `أصبح الرصيد الذي بحوزتك مساوياً لرصيد البداية من جديد.`],
+        [`🔁 Soldes reportés`, `🔁 Balances carried over`, `🔁 تم ترحيل الأرصدة`],
+        [`Liste Noire mise à jour`, `Blacklist updated`, `تم تحديث القائمة السوداء`],
+        [`🔴 Client Blacklisté`, `🔴 Client Blacklisted`, `🔴 تمت إضافة عميل إلى القائمة السوداء`],
+        [`Retirer ce client de la liste noire ?`, `Remove this client from the blacklist?`, `هل تريد حذف هذا العميل من القائمة السوداء؟`],
+        [`Client retiré`, `Client removed`, `تم حذف العميل`],
+        [`Le client a été supprimé de la liste noire.`, `The client has been removed from the blacklist.`, `تم حذف العميل من القائمة السوداء.`],
+        [`Sélectionnez les dates !`, `Select the dates!`, `اختر التواريخ!`],
+        [`Date début > date fin !`, `Start date > end date!`, `تاريخ البداية بعد تاريخ النهاية!`],
+        [`❌ Impossible de lire les données du serveur. Vérifiez la connexion.`, `❌ Unable to read data from the server. Check the connection.`, `❌ تعذّرت قراءة البيانات من الخادم. تحقق من الاتصال.`],
+        [`Aucune opération trouvée.`, `No operations found.`, `لم يتم العثور على أي عملية.`],
+        [`Extraction Réussie`, `Export Successful`, `تم التصدير بنجاح`],
+        [`🟢 Confirmation`, `🟢 Confirmation`, `🟢 تأكيد`],
+        [`🔴 Annulation`, `🔴 Cancellation`, `🔴 إلغاء`],
+        [`✅ Validation`, `✅ Validation`, `✅ تأكيد`],
+        [`🔄 Remise en cours`, `🔄 Back to pending`, `🔄 إعادة إلى قيد التنفيذ`],
+        [`Remise en cours`, `Back to pending`, `إعادة إلى قيد التنفيذ`],
+        [`Téléphone principal :`, `Main phone:`, `الهاتف الرئيسي:`],
+        [`Téléphone secondaire (optionnel) :`, `Secondary phone (optional):`, `الهاتف الثانوي (اختياري):`],
+        [`Téléphone(s) mis à jour`, `Phone number(s) updated`, `تم تحديث رقم (أرقام) الهاتف`],
+        [`Adresse physique :`, `Physical address:`, `العنوان الفعلي:`],
+        [`Adresse modifiée`, `Address updated`, `تم تعديل العنوان`],
+        [`Localisation / GPS :`, `Location / GPS:`, `الموقع / GPS:`],
+        [`Localisation modifiée`, `Location updated`, `تم تعديل الموقع`],
+        [`L'Admin ne peut modifier un montant qu'en cours !`, `The Admin can only change an amount while pending!`, `لا يمكن للمسؤول تعديل المبلغ إلا إذا كانت العملية قيد التنفيذ!`],
+        [`Nouveau montant (TND) :`, `New amount (TND):`, `المبلغ الجديد (TND):`],
+        [`Montant modifié`, `Amount updated`, `تم تعديل المبلغ`],
+        [`Impossible : date passée.`, `Not possible: past date.`, `غير ممكن: تاريخ سابق.`],
+        [`🔔 Nouvelle Opération`, `🔔 New Operation`, `🔔 عملية جديدة`],
+        [`Remarque Admin`, `Admin Remark`, `ملاحظة المسؤول`],
+        [`Mise à jour.`, `Updated.`, `تم التحديث.`],
+        [`Remarque Livreur`, `Courier Remark`, `ملاحظة الموزّع`],
+        [`Enregistrée.`, `Saved.`, `تم الحفظ.`],
+        [`Alimentation ajoutée`, `Top-up added`, `تمت إضافة التغذية`],
+        [`Solde Livreur mis à jour`, `Courier Balance updated`, `تم تحديث رصيد الموزّع`],
+        [`Solde Admin Enregistré`, `Admin Balance Saved`, `تم حفظ رصيد المسؤول`],
+        [`Nom modifié`, `Name updated`, `تم تعديل الاسم`],
+        [`Le nom du livreur a été mis à jour.`, `The courier's name has been updated.`, `تم تحديث اسم الموزّع.`],
+        [`Réaffectation impossible : déjà validée !`, `Reassignment not possible: already validated!`, `إعادة التعيين غير ممكنة: العملية مؤكَّدة مسبقاً!`],
+        [`Déjà validée.`, `Already validated.`, `مؤكَّدة مسبقاً.`],
+        [`🔔 Notification`, `🔔 Notification`, `🔔 إشعار`],
+        [`Ligne supprimée`, `Line deleted`, `تم حذف السطر`],
+        [`Opération retirée.`, `Operation removed.`, `تم سحب العملية.`],
+        /* notifications échangées entre admin et livreurs */
+        [`🔔 Nouvelle alimentation`, `🔔 New top-up`, `🔔 تغذية جديدة`],
+        [`🔔 Nouvelle livraison`, `🔔 New delivery`, `🔔 توصيل جديد`],
+        [`💬 Remarque`, `💬 Remark`, `💬 ملاحظة`],
+        [`📞 Téléphone`, `📞 Phone`, `📞 الهاتف`],
+        [`🏠 Adresse`, `🏠 Address`, `🏠 العنوان`],
+        [`📍 Localisation`, `📍 Location`, `📍 الموقع`],
+        [`✏️ Montant`, `✏️ Amount`, `✏️ المبلغ`],
+        [`↩️ Opération retirée`, `↩️ Operation removed`, `↩️ تم سحب العملية`],
+        [`💰 Solde de départ modifié`, `💰 Opening balance changed`, `💰 تم تعديل رصيد البداية`],
+        /* messages de la page de chargement */
+        [`L'application est en cours de mise à jour par l'administrateur. Réessayez dans quelques minutes.`, `The application is being updated by the administrator. Try again in a few minutes.`, `يقوم المسؤول بتحديث التطبيق حالياً. أعد المحاولة بعد بضع دقائق.`],
+        [`Impossible de joindre le serveur. Vérifiez votre connexion Internet.`, `Unable to reach the server. Check your Internet connection.`, `تعذّر الوصول إلى الخادم. تحقق من اتصالك بالإنترنت.`],
+        [`Accès refusé par les règles de la base de données. Vérifiez les règles publiées dans Firebase.`, `Access denied by the database rules. Check the rules published in Firebase.`, `تم رفض الوصول من طرف قواعد قاعدة البيانات. تحقق من القواعد المنشورة في Firebase.`],
+        [`Accès refusé par les règles de la base de données. Contactez l'administrateur.`, `Access denied by the database rules. Contact the administrator.`, `تم رفض الوصول من طرف قواعد قاعدة البيانات. اتصل بالمسؤول.`],
+        [`Connexion sécurisée (https) requise.`, `Secure connection (https) required.`, `الاتصال الآمن (https) مطلوب.`],
+        [`Synchronisé avec Firebase`, `Synced with Firebase`, `تمت المزامنة مع Firebase`],
+        [`Hors ligne — les changements seront synchronisés au retour`, `Offline: changes will be synced when back online`, `غير متصل: ستتم مزامنة التغييرات عند عودة الاتصال`],
+        [`Synchronisation en cours...`, `Syncing...`, `جارٍ المزامنة...`],
+        /* attributs : placeholder, title, aria-label */
+        [`ex: 99 999 999`, `e.g. 99 999 999`, `مثال: 99 999 999`],
+        [`ex: 21 345 678`, `e.g. 21 345 678`, `مثال: 21 345 678`],
+        [`ex: 98 765 432`, `e.g. 98 765 432`, `مثال: 98 765 432`],
+        [`ex: Nom Client`, `e.g. Client Name`, `مثال: اسم العميل`],
+        [`ex: Mohamed Trabelsi`, `e.g. Mohamed Trabelsi`, `مثال: Mohamed Trabelsi`],
+        [`ex: Litige, impayé, comportement inapproprié...`, `e.g. Dispute, unpaid, inappropriate behavior...`, `مثال: نزاع، عدم الدفع، سلوك غير لائق...`],
+        [`ex: 500`, `e.g. 500`, `مثال: 500`],
+        [`ex: 1000`, `e.g. 1000`, `مثال: 1000`],
+        [`ex: 1500`, `e.g. 1500`, `مثال: 1500`],
+        [`ex: 3000`, `e.g. 3000`, `مثال: 3000`],
+        [`ex: 5000`, `e.g. 5000`, `مثال: 5000`],
+        [`ex: Sami (Livreur 1)`, `e.g. Sami (Courier 1)`, `مثال: Sami (الموزّع 1)`],
+        [`ex: Rue Habib Bourguiba, N° 12`, `e.g. Habib Bourguiba St, No. 12`, `مثال: شارع الحبيب بورقيبة، عدد 12`],
+        [`ex: Lac 2, Tunis ou Lien Google Maps`, `e.g. Lac 2, Tunis or Google Maps link`, `مثال: البحيرة 2، تونس أو رابط Google Maps`],
+        [`ex: Alimentation caisse centrale...`, `e.g. Central cash top-up...`, `مثال: تغذية الصندوق المركزي...`],
+        [`ex: Caisse Principale, Banque...`, `e.g. Main Cash Desk, Bank...`, `مثال: الصندوق الرئيسي، البنك...`],
+        [`ex: Rue de la Banque N°5`, `e.g. Bank Street No. 5`, `مثال: شارع البنك عدد 5`],
+        [`ex: Bureau central`, `e.g. Central office`, `مثال: المكتب المركزي`],
+        [`ex: Avance carburant, versement...`, `e.g. Fuel advance, deposit...`, `مثال: تسبقة وقود، إيداع...`],
+        [`ex: Erreur de saisie, versement annulé...`, `e.g. Entry error, payment cancelled...`, `مثال: خطأ في الإدخال، دفعة ملغاة...`],
+        [`Rechercher nom, tél, adresse...`, `Search name, phone, address...`, `ابحث بالاسم أو الهاتف أو العنوان...`],
+        [`Saisir une remarque si nécessaire...`, `Enter a remark if needed...`, `أدخل ملاحظة عند الحاجة...`],
+        [`Saisissez la remarque...`, `Enter the remark...`, `أدخل الملاحظة...`],
+        [`État de la connexion`, `Connection status`, `حالة الاتصال`],
+        [`Toutes les notifications`, `All notifications`, `كل الإشعارات`],
+        [`Taille du texte`, `Text size`, `حجم النص`],
+        [`Changer le code PIN`, `Change PIN`, `تغيير رمز PIN`],
+        [`Heure d'insertion`, `Insertion time`, `وقت الإضافة`],
+        [`Heure d'action`, `Action time`, `وقت الإجراء`]
+    ];
+
+    /* ---------- Textes contenant des données (nom, montant...) : {1}, {2}... ---------- */
+    var P = [
+        [`❌ L'enregistrement a échoué ({1}). Vérifiez votre connexion puis réessayez.`, `❌ Saving failed ({1}). Check your connection and try again.`, `❌ فشل الحفظ ({1}). تحقق من اتصالك ثم أعد المحاولة.`],
+        [`{1} notification(s) n'ont pas encore été validées (OK). Tout effacer quand même ?`, `{1} notification(s) have not been acknowledged yet (OK). Clear everything anyway?`, `{1} إشعار (إشعارات) لم يتم تأكيدها بعد (OK). هل تريد مسح الكل رغم ذلك؟`],
+        [`L'importation va fusionner les données ({1} lignes). Continuer ?`, `The import will merge the data ({1} rows). Continue?`, `سيقوم الاستيراد بدمج البيانات ({1} سطراً). هل تريد المتابعة؟`],
+        [`{1} opérations et {2} client(s) bloqué(s) importés ({3} déjà présentes ignorées).`, `{1} operations and {2} blocked client(s) imported ({3} already present ignored).`, `تم استيراد {1} عملية و{2} عميل (عملاء) محظور (تم تجاهل {3} موجودة مسبقاً).`],
+        [`❌ Erreur : {1}`, `❌ Error: {1}`, `❌ خطأ: {1}`],
+        [`Démarrage impossible : {1}`, `Unable to start: {1}`, `تعذّر التشغيل: {1}`],
+        [`Révoquer le lien de {1} ?\n\nSon ancien lien sera IMMÉDIATEMENT bloqué.`, `Revoke {1}'s link?\n\nTheir old link will be blocked IMMEDIATELY.`, `هل تريد إلغاء رابط {1}؟\n\nسيتم حظر رابطه القديم فوراً.`],
+        [`L'ancien lien de {1} a été désactivé. Nouveau lien généré. Son code PIN est remis à 1212.`, `{1}'s old link has been disabled. A new link was generated. Their PIN is reset to 1212.`, `تم تعطيل الرابط القديم لـ {1}. تم إنشاء رابط جديد. تمت إعادة رمز PIN الخاص به إلى 1212.`],
+        [`Vous possédez {1} aujourd'hui.`, `You hold {1} today.`, `لديك {1} اليوم.`],
+        [`Les soldes de départ d'aujourd'hui reprennent les soldes réels du {1}.`, `Today's opening balances take over the actual balances of {1}.`, `أرصدة بداية اليوم هي الأرصدة الفعلية ليوم {1}.`],
+        [`{1} modifié.`, `{1} updated.`, `تم تعديل {1}.`],
+        [`{1} ajouté à la liste noire.`, `{1} added to the blacklist.`, `تمت إضافة {1} إلى القائمة السوداء.`],
+        [`Fichier "{1}" généré.`, `File "{1}" generated.`, `تم إنشاء الملف "{1}".`],
+        [`Alimentation validée pour {1}.`, `Top-up validated for {1}.`, `تم تأكيد التغذية الخاصة بـ {1}.`],
+        [`Livraison validée pour {1}.`, `Delivery validated for {1}.`, `تم تأكيد التوصيل الخاص بـ {1}.`],
+        [`Opération pour {1} annulée.`, `Operation for {1} cancelled.`, `تم إلغاء العملية الخاصة بـ {1}.`],
+        [`{1} est à nouveau EN COURS.`, `{1} is PENDING again.`, `{1} عادت إلى قيد التنفيذ.`],
+        [`Contact(s) modifié(s) pour {1}.`, `Contact(s) updated for {1}.`, `تم تعديل بيانات الاتصال الخاصة بـ {1}.`],
+        [`Nouvelle adresse pour {1}.`, `New address for {1}.`, `عنوان جديد لـ {1}.`],
+        [`Nouvelle localisation pour {1}.`, `New location for {1}.`, `موقع جديد لـ {1}.`],
+        [`Nouveau montant {1} TND.`, `New amount {1} TND.`, `المبلغ الجديد {1} TND.`],
+        [`⚠️ CLIENT BLACKLISTÉ !\n\nNom : {1}\nTéléphone : {2}\nMotif : {3}\n\nForcer l'enregistrement ?`, `⚠️ BLACKLISTED CLIENT!\n\nName: {1}\nPhone: {2}\nReason: {3}\n\nForce the registration?`, `⚠️ عميل في القائمة السوداء!\n\nالاسم: {1}\nالهاتف: {2}\nالسبب: {3}\n\nهل تريد فرض التسجيل؟`],
+        [`Alimentation de {1} TND assignée à {2}.`, `Top-up of {1} TND assigned to {2}.`, `تم تعيين تغذية بقيمة {1} TND إلى {2}.`],
+        [`Livraison de {1} TND assignée à {2}.`, `Delivery of {1} TND assigned to {2}.`, `تم تعيين توصيل بقيمة {1} TND إلى {2}.`],
+        [`+{1} TND en cours de validation.`, `+{1} TND pending validation.`, `+{1} TND قيد التأكيد.`],
+        [`Plafond dépassé ! Max : {1} TND`, `Limit exceeded! Max: {1} TND`, `تم تجاوز السقف! الحد الأقصى: {1} TND`],
+        [`{1} TND attribués à {2}.`, `{1} TND assigned to {2}.`, `تم تخصيص {1} TND لـ {2}.`],
+        [`Impossible : déjà attribué {1} TND aux livreurs.`, `Not possible: {1} TND already assigned to couriers.`, `غير ممكن: تم تخصيص {1} TND للموزّعين مسبقاً.`],
+        [`{1} TND pour le {2}.`, `{1} TND for {2}.`, `{1} TND ليوم {2}.`],
+        [`Opération réaffectée à {1}.`, `Operation reassigned to {1}.`, `تمت إعادة تعيين العملية إلى {1}.`],
+        [`Espace : {1}`, `Space: {1}`, `فضاء: {1}`],
+        [`Solde Départ - {1}`, `Opening Balance - {1}`, `رصيد البداية - {1}`],
+        [`Confirmer la validation de "{1}" ({2} TND) ?`, `Confirm the validation of "{1}" ({2} TND)?`, `هل تؤكد المصادقة على "{1}" ({2} TND)؟`],
+        [`Réaffectation de "{1}" ({2} TND) :`, `Reassignment of "{1}" ({2} TND):`, `إعادة تعيين "{1}" ({2} TND):`],
+        [`Solde possédé : {1}`, `Balance held: {1}`, `الرصيد بحوزتي: {1}`],
+        [`possédé : {1}`, `held: {1}`, `بحوزتي: {1}`],
+        [`(possédé : {1})`, `(held: {1})`, `(بحوزتي: {1})`],
+        [`Solde de départ fixé par l'Admin : {1}`, `Opening balance set by the Admin: {1}`, `رصيد البداية المحدد من طرف المسؤول: {1}`],
+        [`{1} — Motif : "{2}". Confirmation demandée à la sauvegarde.`, `{1} — Reason: "{2}". Confirmation will be requested on save.`, `{1} — السبب: "{2}". سيُطلب التأكيد عند الحفظ.`],
+        [`{1} • non validée`, `{1} • not acknowledged`, `{1} • غير مؤكَّدة`],
+        [`🔔 {1} nouveautés`, `🔔 {1} updates`, `🔔 {1} مستجدات`],
+        [`{1} n'est plus dans votre liste.`, `{1} is no longer in your list.`, `{1} لم تعد في قائمتك.`],
+        [`Admin a modifié votre solde de départ : {1} → {2} TND ({3})`, `Admin changed your opening balance: {1} → {2} TND ({3})`, `قام المسؤول بتعديل رصيد البداية الخاص بك: {1} ← {2} TND ({3})`],
+        /* notifications : suppression / modification de champs */
+        [`{1} a supprimé la remarque de {2}`, `{1} deleted the remark of {2}`, `قام {1} بحذف الملاحظة الخاصة بـ {2}`],
+        [`{1} a laissé une remarque pour {2} ({3})`, `{1} left a remark for {2} ({3})`, `قام {1} بترك ملاحظة لـ {2} ({3})`],
+        [`{1} a modifié une remarque pour {2} ({3})`, `{1} edited a remark for {2} ({3})`, `قام {1} بتعديل ملاحظة لـ {2} ({3})`],
+        [`{1} a modifié le numéro de téléphone de {2} {3}`, `{1} changed the phone number of {2} {3}`, `قام {1} بتعديل رقم هاتف {2} {3}`],
+        [`{1} a supprimé le numéro de téléphone de {2}`, `{1} deleted the phone number of {2}`, `قام {1} بحذف رقم هاتف {2}`],
+        [`{1} a modifié le second numéro de téléphone de {2} {3}`, `{1} changed the second phone number of {2} {3}`, `قام {1} بتعديل رقم الهاتف الثاني لـ {2} {3}`],
+        [`{1} a supprimé le second numéro de téléphone de {2}`, `{1} deleted the second phone number of {2}`, `قام {1} بحذف رقم الهاتف الثاني لـ {2}`],
+        [`{1} a supprimé l'adresse de {2}`, `{1} deleted the address of {2}`, `قام {1} بحذف عنوان {2}`],
+        [`{1} a ajouté une adresse pour {2} ({3})`, `{1} added an address for {2} ({3})`, `قام {1} بإضافة عنوان لـ {2} ({3})`],
+        [`{1} a modifié l'adresse de {2} ({3})`, `{1} changed the address of {2} ({3})`, `قام {1} بتعديل عنوان {2} ({3})`],
+        [`{1} a supprimé la localisation de {2}`, `{1} deleted the location of {2}`, `قام {1} بحذف موقع {2}`],
+        [`{1} a ajouté une localisation de {2}`, `{1} added a location for {2}`, `قام {1} بإضافة موقع لـ {2}`],
+        [`{1} a modifié la localisation de {2}`, `{1} changed the location of {2}`, `قام {1} بتعديل موقع {2}`],
+        [`{1} a modifié le montant de {2} : {3} TND`, `{1} changed the amount of {2}: {3} TND`, `قام {1} بتعديل مبلغ {2}: {3} TND`]
+    ];
+
+    /* Notifications : ajout, validation, annulation, remise en cours (livraison / alimentation) */
+    [
+        { fr: 'alimentation', art: "l'", en: 'top-up', add: 'تغذية', def: 'التغذية الخاصة بـ' },
+        { fr: 'livraison', art: 'la ', en: 'delivery', add: 'توصيل', def: 'التوصيل الخاص بـ' }
+    ].forEach(function (k) {
+        P.push([`{1} a ajouté une ${k.fr} pour {2} — {3} TND → {4}`, `{1} added a ${k.en} for {2} — {3} TND → {4}`, `قام {1} بإضافة ${k.add} لـ {2} — {3} TND → {4}`]);
+        P.push([`{1} a ajouté une ${k.fr} pour {2} — {3} TND`, `{1} added a ${k.en} for {2} — {3} TND`, `قام {1} بإضافة ${k.add} لـ {2} — {3} TND`]);
+        [
+            { fr: 'validé', en: 'validated the', ar: 'بتأكيد', tail: '' },
+            { fr: 'annulé', en: 'cancelled the', ar: 'بإلغاء', tail: '' },
+            { fr: 'remis en cours', en: 'put the', ar: 'بإعادة', tail: 1 }
+        ].forEach(function (v) {
+            var frBase = `{1} a ${v.fr} ${k.art}${k.fr} de {2} ({3} TND)`;
+            var enBase = v.tail ? `{1} put the ${k.en} of {2} ({3} TND) back to pending` : `{1} ${v.en} ${k.en} of {2} ({3} TND)`;
+            var arBase = v.tail ? `قام {1} بإعادة ${k.def} {2} ({3} TND) إلى قيد التنفيذ` : `قام {1} ${v.ar} ${k.def} {2} ({3} TND)`;
+            P.push([frBase + ` — remarque : « {4} »`, enBase + ` — remark: "{4}"`, arBase + ` — ملاحظة: «{4}»`]);
+            P.push([frBase, enBase, arBase]);
+        });
+    });
+
+    /* Mots seuls qu'on traduit quand ils servent de valeur dans un message (ex. « Admin », « client ») */
+    var GROUP = [
+        [`Admin`, `Admin`, `المسؤول`],
+        [`client`, `client`, `العميل`],
+        [`Une opération`, `An operation`, `عملية`]
+    ];
+
+    /* ---------- Moteur ---------- */
+    var key = function (s) { return String(s).replace(/\u2019/g, "'").replace(/\s+/g, ' ').trim(); };
+    var EXACT = new Map(), BACK = new Map(), GEXACT = new Map(), PATS = [];
+    E.forEach(function (r) { EXACT.set(key(r[0]), r); });
+    E.forEach(function (r) {
+        [r[1], r[2]].forEach(function (x) {
+            var k = key(x);
+            if (k !== key(r[0]) && !EXACT.has(k) && !BACK.has(k)) BACK.set(k, r[0]);
+        });
+    });
+    GROUP.forEach(function (r) { GEXACT.set(key(r[0]), r); });
+    P.forEach(function (r) {
+        var parts = r[0].split(/\{(\d+)\}/), src = '^';
+        for (var i = 0; i < parts.length; i++) {
+            if (i % 2 === 0) {
+                src += parts[i].replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/'/g, "['\u2019]").replace(/\s+/g, '\\s+');
+            } else { src += '([\\s\\S]*?)'; }
+        }
+        PATS.push({ re: new RegExp(src + '$'), en: r[1], ar: r[2] });
+    });
+
+    function split(raw) {
+        var t = raw.trim();
+        if (!t) return null;
+        var i = raw.indexOf(t);
+        return { lead: raw.slice(0, i), core: t, trail: raw.slice(i + t.length) };
+    }
+    function translate(raw, l) {
+        var s = split(raw);
+        if (!s) return null;
+        var e = EXACT.get(key(s.core));
+        if (e) return s.lead + e[IDX[l]] + s.trail;
+        for (var i = 0; i < PATS.length; i++) {
+            var m = PATS[i].re.exec(s.core);
+            if (m) {
+                var tpl = PATS[i][l];
+                return s.lead + tpl.replace(/\{(\d+)\}/g, function (_, n) {
+                    var g = m[+n] || '', ge = GEXACT.get(key(g));
+                    return ge ? ge[IDX[l]] : g;
+                }) + s.trail;
+            }
+        }
+        return null;
+    }
+    function canonical(raw) {
+        var s = split(raw);
+        if (!s) return raw;
+        var k = key(s.core);
+        if (EXACT.has(k)) return raw;
+        var b = BACK.get(k);
+        return b ? s.lead + b + s.trail : raw;
+    }
+
+    var SKIP = 'script,style,textarea,.livreur-name-1,.livreur-name-2,.livreur-name-3,[data-no-i18n]';
+    var info = new WeakMap();
+
+    function applyText(node) {
+        var p = node.parentElement;
+        if (!p || (p.closest && p.closest(SKIP))) return;
+        var cur = node.nodeValue;
+        if (!cur || !cur.trim()) return;
+        var inf = info.get(node);
+        if (!inf || inf.out !== cur) { inf = { fr: canonical(cur), out: cur }; info.set(node, inf); }
+        var res = inf.fr;
+        if (lang !== 'fr') { var t = translate(inf.fr, lang); if (t !== null) res = t; }
+        if (res !== cur) node.nodeValue = res;
+        inf.out = res;
+    }
+    var ATTRS = ['placeholder', 'title', 'aria-label'];
+    function applyAttrs(el) {
+        if (!el.getAttribute || (el.closest && el.closest(SKIP))) return;
+        var store = el.__i18n || (el.__i18n = {});
+        ATTRS.forEach(function (a) {
+            var cur = el.getAttribute(a);
+            if (!cur || !cur.trim()) return;
+            var inf = store[a];
+            if (!inf || inf.out !== cur) { inf = { fr: canonical(cur), out: cur }; store[a] = inf; }
+            var res = inf.fr;
+            if (lang !== 'fr') { var t = translate(inf.fr, lang); if (t !== null) res = t; }
+            if (res !== cur) el.setAttribute(a, res);
+            inf.out = res;
+        });
+    }
+    function walk(root) {
+        if (!root) return;
+        if (root.nodeType === 3) { applyText(root); return; }
+        if (root.nodeType !== 1) return;
+        applyAttrs(root);
+        root.querySelectorAll('[placeholder],[title],[aria-label]').forEach(applyAttrs);
+        var tw = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null), n, list = [];
+        while ((n = tw.nextNode())) list.push(n);
+        list.forEach(applyText);
+    }
+
+    /* Boîtes de dialogue du navigateur */
+    var nativeAlert = window.alert.bind(window), nativeConfirm = window.confirm.bind(window), nativePrompt = window.prompt.bind(window);
+    function dlg(m) {
+        if (lang === 'fr' || typeof m !== 'string') return m;
+        var t = translate(m, lang);
+        return t === null ? m : t;
+    }
+    window.alert = function (m) { return nativeAlert(dlg(m)); };
+    window.confirm = function (m) { return nativeConfirm(dlg(m)); };
+    window.prompt = function (m, d) { return nativePrompt(dlg(m), d); };
+
+    var frTitle = null;
+    function refreshButtons() {
+        document.querySelectorAll('[data-lang]').forEach(function (b) {
+            var on = b.getAttribute('data-lang') === lang;
+            b.classList.toggle('on', on);
+            b.setAttribute('aria-pressed', on ? 'true' : 'false');
+        });
+    }
+    function setLang(l) {
+        if (LANGS.indexOf(l) < 0) return;
+        lang = l;
+        try { localStorage.setItem(KEY, l); } catch (e) {}
+        var h = document.documentElement;
+        h.setAttribute('lang', l);
+        h.setAttribute('dir', l === 'ar' ? 'rtl' : 'ltr');
+        if (frTitle === null) frTitle = canonical(document.title);
+        var tt = l === 'fr' ? null : translate(frTitle, l);
+        document.title = tt !== null ? tt : frTitle;
+        walk(document.body);
+        refreshButtons();
+    }
+    window.setLang = setLang;
+
+    var mo = new MutationObserver(function (muts) {
+        if (lang === 'fr') return;
+        muts.forEach(function (m) {
+            if (m.type === 'childList') { m.addedNodes.forEach(walk); }
+            else if (m.type === 'characterData') { if (m.target.nodeType === 3) applyText(m.target); }
+            else if (m.type === 'attributes') { applyAttrs(m.target); }
+        });
+    });
+    function start() {
+        mo.observe(document.body, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ATTRS });
+        setLang(lang);
+    }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
+})();
+
 </script>
 </body>
 </html>
