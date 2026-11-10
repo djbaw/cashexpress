@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Warda v43 - Gestion de Warda</title>
+<title>Warda v44 - Gestion de Warda</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -308,7 +308,7 @@ html[dir="rtl"] .date-nav-arrow i { transform: scaleX(-1); }
                     Warda
                     <span id="sync-indicator" class="syncing inline-block w-2.5 h-2.5 rounded-full" title="État de la connexion"></span>
                 </h1>
-                <p class="text-xs text-slate-400 hidden sm:block">Gestion de Warda - <span class="text-emerald-400 font-bold">v43</span></p>
+                <p class="text-xs text-slate-400 hidden sm:block">Gestion de Warda - <span class="text-emerald-400 font-bold">v44</span></p>
             </div>
         </div>
         <button id="notif-bell" type="button" onclick="openNotifPanel()" title="Toutes les notifications" class="relative w-11 h-11 bg-slate-800 border border-slate-700 rounded-xl text-slate-200 hover:text-white hover:bg-slate-700 transition order-2 sm:order-3">
@@ -850,6 +850,51 @@ html[dir="rtl"] .date-nav-arrow i { transform: scaleX(-1); }
 </div>
 
 <!-- MODAL: REMARK -->
+<div id="modal-edit-op" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden transform transition-all max-h-[90vh] flex flex-col">
+        <div class="bg-slate-900 px-6 py-4 text-white flex justify-between items-center shrink-0">
+            <h3 class="font-bold text-lg flex items-center gap-2"><i class="fa-solid fa-pen-to-square text-amber-300"></i><span>Modifier l'opération</span></h3>
+            <button type="button" onclick="toggleEditOpModal(false)" class="text-slate-400 hover:text-white transition"><i class="fa-solid fa-xmark text-xl"></i></button>
+        </div>
+        <form id="form-edit-op" onsubmit="handleSaveEditOp(event)" class="p-6 space-y-4 overflow-y-auto">
+            <input type="hidden" id="edit-op-id" value="">
+            <p id="edit-op-info" class="text-xs font-semibold text-slate-600 bg-slate-100 rounded-xl px-3 py-2"></p>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                    <label id="edit-phone-label" class="block text-xs font-bold text-slate-700 uppercase mb-1">Téléphone Client *</label>
+                    <input type="tel" id="edit-phone" required placeholder="ex: 21 345 678" class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-500 focus:outline-none text-sm font-semibold">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Téléphone 2 (Optionnel)</label>
+                    <input type="tel" id="edit-phone2" placeholder="ex: 98 765 432" class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-500 focus:outline-none text-sm font-semibold">
+                </div>
+            </div>
+            <div>
+                <label id="edit-name-label" class="block text-xs font-bold text-slate-700 uppercase mb-1">Nom et Prénom du Client *</label>
+                <input type="text" id="edit-client-name" required placeholder="ex: Mohamed Trabelsi" class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-500 focus:outline-none text-sm">
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Adresse physique</label>
+                    <input type="text" id="edit-address" placeholder="ex: Rue Habib Bourguiba, N° 12" class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-500 focus:outline-none text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Localisation GPS / Maps</label>
+                    <input type="text" id="edit-location" placeholder="ex: Lac 2, Tunis ou Lien Google Maps" class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-500 focus:outline-none text-sm">
+                </div>
+            </div>
+            <div>
+                <label id="edit-remark-label" class="block text-xs font-bold text-slate-700 uppercase mb-1">Remarque (Facultatif)</label>
+                <input type="text" id="edit-remark" placeholder="Remarque..." class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-500 focus:outline-none text-sm">
+            </div>
+            <div class="pt-4 border-t border-slate-100 flex justify-end space-x-3 shrink-0">
+                <button type="button" onclick="toggleEditOpModal(false)" class="px-4 py-2.5 text-slate-600 hover:bg-slate-100 font-semibold text-sm rounded-xl transition">Annuler</button>
+                <button type="submit" class="px-5 py-2.5 bg-brand-600 hover:bg-brand-700 text-white font-semibold text-sm rounded-xl shadow-md transition">Enregistrer les modifications</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <div id="modal-remark" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
     <div class="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden transform transition-all">
         <div class="bg-brand-600 px-6 py-4 text-white flex justify-between items-center">
@@ -1573,6 +1618,11 @@ function opMessages(p, d, who, toAdmin) {
         else if (!before) out.push(['💬 Remarque', `${who} a laissé une remarque pour ${client} (${after})`]);
         else out.push(['💬 Remarque', `${who} a modifié une remarque pour ${client} (${after})`]);
     });
+
+    // Nom du client
+    if (q(p.clientName) !== q(d.clientName)) {
+        out.push(['👤 Nom du client', `${who} a modifié le nom du client ${q(p.clientName) || '(vide)'} en ${q(d.clientName) || '(vide)'}`]);
+    }
 
     // Téléphones
     if (q(p.phone) !== q(d.phone)) {
@@ -2552,23 +2602,20 @@ function renderAdminTable() {
                         <a href="tel:${esc(d.phone2)}" class="text-xs font-semibold text-amber-800 hover:underline flex items-center gap-1"><i class="fa-solid fa-phone text-[10px] text-amber-600"></i> ${esc(d.phone2)}</a>
                         <a href="https://wa.me/${esc((d.phone2 || '').replace(/\s+/g, ''))}" target="_blank" class="px-1.5 py-0.5 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold rounded flex items-center gap-0.5"><i class="fa-brands fa-whatsapp text-[10px]"></i> WA2</a>
                     </div>` : ''}
-                    <button onclick="promptEditPhone('${d.id}')" class="text-slate-400 hover:text-brand-600 text-xs p-0.5"><i class="fa-solid fa-pen text-[10px]"></i></button>
                 </div>
             </td>
             <td class="p-3.5">
                 <div class="space-y-1">
                     <div class="flex items-center space-x-1.5">
                         <span class="text-xs font-medium text-slate-800 flex items-center gap-1"><i class="fa-solid fa-house text-slate-500 text-[10px]"></i> ${esc(d.address) || 'Pas d\'adresse'}</span>
-                        <button onclick="promptEditAddress('${d.id}')" class="text-slate-400 hover:text-brand-600 text-xs p-0.5"><i class="fa-solid fa-pen text-[10px]"></i></button>
                     </div>
                     <div class="flex items-center space-x-1.5">
                         <a href="${esc(mapsUrl)}" target="_blank" class="text-slate-700 hover:text-brand-600 text-xs flex items-center gap-1 max-w-xs truncate"><i class="fa-solid fa-location-dot text-red-500"></i> ${esc(d.location) || 'Pas de GPS'}</a>
-                        <button onclick="promptEditLocation('${d.id}')" class="text-slate-400 hover:text-brand-600 text-xs p-0.5"><i class="fa-solid fa-pen text-[10px]"></i></button>
                     </div>
                 </div>
             </td>
             <td class="p-3.5 font-black ${isCash ? 'text-purple-700' : 'text-slate-900'} text-base">
-                ${canEditAmount ? `<span onclick="promptEditAmount('${d.id}')" class="cursor-pointer text-brand-600 hover:underline">${isCash ? '+' : ''}${Number(d.amount).toLocaleString('fr-FR')} <i class="fa-solid fa-pen text-[10px]"></i></span>` : `<span>${isCash ? '+' : ''}${Number(d.amount).toLocaleString('fr-FR')}</span>`}
+                ${canEditAmount ? `<span class="text-slate-900">${isCash ? '+' : ''}${Number(d.amount).toLocaleString('fr-FR')}</span><button type="button" onclick="promptEditAmount('${d.id}')" title="Modifier le montant" class="ms-1 px-0.5 py-0 bg-brand-50 hover:bg-brand-100 text-brand-700 rounded border border-brand-200 leading-none"><i class="fa-solid fa-pen text-[9px]"></i></button>` : `<span>${isCash ? '+' : ''}${Number(d.amount).toLocaleString('fr-FR')}</span>`}
                 <span class="text-xs font-semibold text-slate-500">TND</span>
             </td>
             <td class="p-3.5 font-medium text-slate-700">
@@ -2591,6 +2638,7 @@ function renderAdminTable() {
                     <button onclick="openCancelModal('${d.id}')" class="p-1.5 bg-red-600 text-white rounded-lg text-xs font-bold hover:bg-red-700 transition"><i class="fa-solid fa-ban"></i></button>
                 ` : `<button onclick="confirmResetToPending('${d.id}')" class="p-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-xs font-bold transition"><i class="fa-solid fa-rotate-left"></i></button>`}
                 <button onclick="openRemarkModal('${d.id}')" class="p-1.5 bg-brand-100 text-brand-700 hover:bg-brand-200 rounded-lg text-xs font-bold transition"><i class="fa-solid fa-comment-dots"></i></button>
+                <button type="button" onclick="openEditOpModal('${d.id}')" title="Modifier" class="p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold transition"><i class="fa-solid fa-pen-to-square"></i></button>
                 <button onclick="openConfirmDeleteModal('${d.id}')" class="p-1.5 bg-red-100 hover:bg-red-200 text-red-700 rounded-lg text-xs font-bold transition"><i class="fa-solid fa-trash-can"></i></button>
             </td>`;
         tbody.appendChild(tr);
@@ -2664,7 +2712,7 @@ function renderLivreurDashboard(livreurId) {
                     ${typeBadge}${statusBadge}
                     <span class="text-[11px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">🕒 ${cTime}${d.actionTime ? ' ➔ ' + d.actionTime : ''}</span>
                 </div>
-                <div class="text-right shrink-0"><span class="text-lg font-black ${isCash ? 'text-purple-700' : (d.status==='cancelled'?'text-slate-400 strikethrough-text':'text-slate-900')}">${isCash ? '+' : ''}${Number(d.amount).toLocaleString('fr-FR')}</span> <span class="text-[11px] font-bold text-slate-500">TND</span></div>
+                <div class="text-right shrink-0"><span class="text-lg font-black ${isCash ? 'text-purple-700' : (d.status==='cancelled'?'text-slate-400 strikethrough-text':'text-slate-900')}">${isCash ? '+' : ''}${Number(d.amount).toLocaleString('fr-FR')}</span> <span class="text-[11px] font-bold text-slate-500">TND</span>${(isCash && d.status === 'pending') ? `<button type="button" onclick="promptEditAmount('${d.id}')" title="Modifier le montant de l'alimentation" class="ms-1 px-1.5 py-0.5 bg-purple-100 hover:bg-purple-200 text-purple-800 rounded text-[10px] font-bold border border-purple-200"><i class="fa-solid fa-pen text-[9px]"></i> Modifier</button>` : ''}</div>
             </div>
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <div>
@@ -2672,11 +2720,8 @@ function renderLivreurDashboard(livreurId) {
                     <div class="flex items-center space-x-2 text-slate-600 mt-0.5 flex-wrap gap-y-1">
                         ${d.phone ? `<span class="inline-flex items-center gap-1 font-semibold text-brand-600 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-100"><i class="fa-solid fa-phone text-[10px]"></i> <a href="tel:${esc(d.phone)}" class="hover:underline">${esc(d.phone)}</a><a href="https://wa.me/${esc((d.phone || '').replace(/\s+/g, ''))}" target="_blank" class="ms-0.5 px-1 py-0.2 bg-emerald-600 text-white rounded text-[10px] font-bold">WA</a></span>` : ''}
                         ${d.phone2 ? `<span class="inline-flex items-center gap-1 font-semibold text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200"><i class="fa-solid fa-mobile-screen text-[10px]"></i> <a href="tel:${esc(d.phone2)}" class="hover:underline">${esc(d.phone2)}</a><a href="https://wa.me/${esc((d.phone2 || '').replace(/\s+/g, ''))}" target="_blank" class="ms-0.5 px-1 py-0.2 bg-emerald-600 text-white rounded text-[10px] font-bold">WA2</a></span>` : ''}
-                        <button onclick="promptEditPhone('${d.id}')" class="text-slate-400 hover:text-brand-600 text-xs px-1"><i class="fa-solid fa-pen text-[10px]"></i></button>
                         ${d.address ? `<span class="inline-flex items-center gap-1 font-medium text-slate-800" title="${esc(d.address)}"><i class="fa-solid fa-house text-slate-500 text-[10px]"></i> ${esc(d.address)}</span>` : ''}
-                        <button onclick="promptEditAddress('${d.id}')" class="text-slate-400 hover:text-brand-600 text-xs px-1"><i class="fa-solid fa-pen text-[10px]"></i></button>
                         ${d.location ? `<a href="${esc(mapsUrl)}" target="_blank" class="inline-flex items-center gap-1 font-medium text-slate-700 hover:text-brand-600 truncate max-w-[180px]" title="${esc(d.location)}"><i class="fa-solid fa-location-dot text-red-500 text-[10px]"></i> ${esc(d.location)}</a>` : ''}
-                        <button onclick="promptEditLocation('${d.id}')" class="text-slate-400 hover:text-brand-600 text-xs px-1"><i class="fa-solid fa-pen text-[10px]"></i></button>
                     </div>
                 </div>
                 <div class="flex items-center space-x-1 shrink-0 pt-1 sm:pt-0">
@@ -2685,6 +2730,7 @@ function renderLivreurDashboard(livreurId) {
                         <button onclick="openCancelModal('${d.id}')" class="px-2 py-1.5 bg-red-100 hover:bg-red-200 text-red-700 font-bold text-xs rounded-lg transition"><i class="fa-solid fa-ban"></i></button>
                     ` : `<button onclick="confirmResetToPending('${d.id}')" class="px-2 py-1 bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs rounded-lg transition"><i class="fa-solid fa-rotate-left"></i></button>`}
                     <button onclick="openRemarkModal('${d.id}')" class="px-2 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-lg transition"><i class="fa-solid fa-comment-dots"></i></button>
+                    <button type="button" onclick="openEditOpModal('${d.id}')" title="Modifier" class="px-2 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-lg transition"><i class="fa-solid fa-pen-to-square"></i> Modifier</button>
                 </div>
             </div>
             ${(d.remarkAdmin || d.remarkLivreur) ? `
@@ -2838,16 +2884,79 @@ function promptEditLocation(id) {
     if (v !== null) { patchOp(id, { location: v.trim(), timestamp: new Date().getTime() }); showToast("Localisation modifiée", `Nouvelle localisation pour ${d.clientName}.`); }
 }
 function promptEditAmount(id) {
-    if (state.currentRole !== 'admin') return;
     const d = state.deliveries.find(x => x.id === id);
     if (!d) return;
-    if (d.status !== 'pending') { alert("L'Admin ne peut modifier un montant qu'en cours !"); return; }
+    const isAdmin = state.currentRole === 'admin';
+    if (!isAdmin && d.type !== 'SOLDE_RECU') return;      // le livreur ne modifie que le montant d'une ALIMENTATION
+    if (d.status !== 'pending') { alert("Le montant ne peut être modifié que si l'opération est EN COURS !"); return; }
     const v = prompt("Nouveau montant (TND) :", d.amount);
     if (v !== null && !isNaN(v) && parseFloat(v) > 0) {
         const amount = parseFloat(v);
+        if (amount === Number(d.amount)) return;           // inchangé : pas de modification ni de notification
         patchOp(id, { amount, timestamp: new Date().getTime() });
         showToast("Montant modifié", `Nouveau montant ${amount} TND.`);
     }
+}
+
+// ----- Fenêtre « Modifier l'opération » (téléphones, nom, adresse, localisation, remarque) — ne touche pas au montant -----
+function openEditOpModal(id) {
+    const d = state.deliveries.find(x => x.id === id);
+    if (!d) return;
+    const isAdmin = state.currentRole === 'admin';
+    const isCash = d.type === 'SOLDE_RECU';
+    document.getElementById('edit-op-id').value = id;
+    document.getElementById('edit-phone').value = d.phone || '';
+    document.getElementById('edit-phone2').value = d.phone2 || '';
+    document.getElementById('edit-client-name').value = d.clientName || '';
+    document.getElementById('edit-address').value = d.address || '';
+    document.getElementById('edit-location').value = d.location || '';
+    document.getElementById('edit-remark').value = isAdmin ? (d.remarkAdmin || '') : (d.remarkLivreur || '');
+    document.getElementById('edit-remark-label').textContent = isAdmin ? "Remarque de l'Admin (Facultatif)" : "Remarque du Livreur (Facultatif)";
+    document.getElementById('edit-phone-label').textContent = isCash ? 'Téléphone Remettant / Contact (Facultatif)' : 'Téléphone Client *';
+    document.getElementById('edit-name-label').textContent = isCash ? 'Nom / Origine des fonds *' : 'Nom et Prénom du Client *';
+    document.getElementById('edit-phone').required = !isCash;
+    document.getElementById('edit-op-info').textContent = (isCash ? '➕ Alimentation' : '📦 Livraison') + ' — ' + Number(d.amount).toLocaleString('fr-FR') + ' TND (le montant se modifie avec son propre bouton)';
+    toggleEditOpModal(true);
+}
+function toggleEditOpModal(show) {
+    const m = document.getElementById('modal-edit-op');
+    if (show) m.classList.remove('hidden'); else m.classList.add('hidden');
+}
+function handleSaveEditOp(e) {
+    e.preventDefault();
+    const id = document.getElementById('edit-op-id').value;
+    const d = state.deliveries.find(x => x.id === id);
+    if (!d) { toggleEditOpModal(false); return; }
+    const isAdmin = state.currentRole === 'admin';
+    const val = (elId) => document.getElementById(elId).value.trim();
+    const cur = (v) => String(v == null ? '' : v).trim();
+    const next = {
+        phone: val('edit-phone'),
+        phone2: val('edit-phone2'),
+        clientName: val('edit-client-name'),
+        address: val('edit-address'),
+        location: val('edit-location')
+    };
+    next[isAdmin ? 'remarkAdmin' : 'remarkLivreur'] = val('edit-remark');
+    if (!next.clientName) { alert("Le nom du client est obligatoire."); return; }
+
+    // On n'envoie QUE les champs réellement modifiés : seules ces parties déclenchent une notification
+    const patch = {};
+    Object.keys(next).forEach(k => { if (cur(d[k]) !== next[k]) patch[k] = next[k]; });
+    if (Object.keys(patch).length === 0) {
+        toggleEditOpModal(false);
+        showToast("Aucune modification", "Aucun champ n'a été changé.");
+        return;
+    }
+    if ('phone' in patch) {
+        patch.phoneClean = patch.phone.replace(/\s+/g, '');
+        const bl = patch.phoneClean && (state.blacklist || []).find(b => String(b.phone).replace(/\s+/g, '') === patch.phoneClean);
+        if (bl && !confirm(`⚠️ CLIENT BLACKLISTÉ !\n\nNom : ${bl.clientName}\nMotif : ${bl.reason}\n\nEnregistrer quand même ce numéro ?`)) return;
+    }
+    patch.timestamp = new Date().getTime();
+    patchOp(id, patch);
+    toggleEditOpModal(false);
+    showToast("Modification enregistrée", `${Object.keys(patch).filter(k => k !== 'timestamp' && k !== 'phoneClean').length} information(s) mise(s) à jour pour ${next.clientName}.`);
 }
 
 // ==================== OPÉRATIONS ====================
@@ -3211,7 +3320,7 @@ window.addEventListener('DOMContentLoaded', boot);
 
     /* ---------- Textes exacts : [français, anglais, arabe] ---------- */
     var E = [
-                [`Warda v43 - Gestion de Warda`, `Warda v43 - Warda management`, `وردة v43 - إدارة وردة`],
+                [`Warda v44 - Gestion de Warda`, `Warda v44 - Warda management`, `وردة v44 - إدارة وردة`],
         [`Gestion de la Liste Noire (Clients Bloqués)`, `Blacklist Management (Blocked Clients)`, `إدارة القائمة السوداء (العملاء المحظورون)`],
         [`Ajouter / Modifier un Client Bloqué`, `Add / Edit a Blocked Client`, `إضافة / تعديل عميل محظور`],
         [`Téléphone *`, `Phone *`, `الهاتف *`],
