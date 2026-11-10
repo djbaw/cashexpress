@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Warda v45 - Gestion de Warda</title>
+<title>Warda v46 - Gestion de Warda</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -319,7 +319,7 @@
                     Warda
                     <span id="sync-indicator" class="syncing inline-block w-2.5 h-2.5 rounded-full" title="État de la connexion"></span>
                 </h1>
-                <p class="text-xs text-slate-400 hidden sm:block">Gestion de Warda - <span class="text-emerald-400 font-bold">v45</span></p>
+                <p class="text-xs text-slate-400 hidden sm:block">Gestion de Warda - <span class="text-emerald-400 font-bold">v46</span></p>
             </div>
         </div>
         <button id="notif-bell" type="button" onclick="openNotifPanel()" title="Toutes les notifications" class="relative w-11 h-11 bg-slate-800 border border-slate-700 rounded-xl text-slate-200 hover:text-white hover:bg-slate-700 transition order-2 sm:order-3">
@@ -2476,7 +2476,23 @@ function stopVoiceRecording(cancel) {
     _vr.cancel = !!cancel;
     try { _vr.recorder.stop(); } catch (e) {}
 }
-
+/* Notifier l'autre partie quand un vocal est ajouté ou supprimé */
+function notifyVoiceNote(opId, action, duration) {
+    if (!window.__me || notifMode === 'local') return;
+    const op = state.deliveries.find(d => d.id === opId);
+    if (!op) return;
+    const nameOf = id => (state.livreurs[id] && state.livreurs[id].name) || id;
+    const who = window.__me === 'admin' ? 'Admin' : nameOf(window.__me);
+    const client = op.clientName || 'client';
+    const recipient = window.__me === 'admin' ? op.livreurId : 'admin';
+    if (!recipient) return;
+    if (action === 'add') {
+        const mm = Math.floor(duration / 60), ss = String(duration % 60).padStart(2, '0');
+        sendNotification(recipient, '🎤 Nouveau vocal', `${who} a envoyé un vocal de ${mm}:${ss} pour ${client}`);
+    } else if (action === 'delete') {
+        sendNotification(recipient, '🎤 Vocal retiré', `${who} a supprimé un vocal pour ${client}`);
+    }
+}
 async function _vrFinalize(mimeType) {
     const { stream, timer, chunks, opId, startTime, cancel } = _vr;
     stream && stream.getTracks().forEach(t => t.stop());
@@ -2498,6 +2514,7 @@ async function _vrFinalize(mimeType) {
     try {
         await db.ref(OPS_PATH + '/' + opId + '/voiceRemarks/' + id).set(payload);
         showToast("🎤 Vocal envoyé", `${dur}s enregistrés.`);
+        notifyVoiceNote(opId, 'add', dur);
     } catch (e) {
         console.error(e);
         alert("❌ Échec de l'envoi du vocal.");
@@ -2537,7 +2554,9 @@ function deleteVoiceNote(ev, opId, voiceId) {
     const canDel = window.__me === 'admin' || v.by === window.__me;
     if (!canDel) return;
     if (!confirm("Supprimer ce message vocal ?")) return;
-    db.ref(OPS_PATH + '/' + opId + '/voiceRemarks/' + voiceId).remove().catch(e => console.warn(e));
+        db.ref(OPS_PATH + '/' + opId + '/voiceRemarks/' + voiceId).remove()
+        .then(() => notifyVoiceNote(opId, 'delete', 0))
+        .catch(e => console.warn(e));
     showToast("Vocal supprimé", "Message retiré.");
 }
 function _vBtn(opId) {
@@ -3364,7 +3383,7 @@ window.addEventListener('DOMContentLoaded', boot);
     try { var saved = localStorage.getItem(KEY); if (LANGS.indexOf(saved) >= 0) lang = saved; } catch (e) {}
 
     var E = [
-        [`Warda v45 - Gestion de Warda`, `Warda v45 - Warda management`, `وردة v45 - إدارة وردة`],
+        [`Warda v46 - Gestion de Warda`, `Warda v46 - Warda management`, `وردة v46 - إدارة وردة`],
         [`Gestion de la Liste Noire (Clients Bloqués)`, `Blacklist Management (Blocked Clients)`, `إدارة القائمة السوداء (العملاء المحظورون)`],
         [`Ajouter / Modifier un Client Bloqué`, `Add / Edit a Blocked Client`, `إضافة / تعديل عميل محظور`],
         [`Téléphone *`, `Phone *`, `الهاتف *`],
@@ -3717,6 +3736,8 @@ window.addEventListener('DOMContentLoaded', boot);
         [`Changer le code PIN`, `Change PIN`, `تغيير رمز PIN`],
         [`Heure d'insertion`, `Insertion time`, `وقت الإضافة`],
         [`Heure d'action`, `Action time`, `وقت الإجراء`]
+        [`🎤 Nouveau vocal`, `🎤 New voice message`, `🎤 رسالة صوتية جديدة`],
+        [`🎤 Vocal retiré`, `🎤 Voice message removed`, `🎤 تم سحب الرسالة الصوتية`]
     ];
 
     var P = [
@@ -3776,6 +3797,8 @@ window.addEventListener('DOMContentLoaded', boot);
         [`{1} a modifié le montant de {2} : {3} TND`, `{1} changed the amount of {2}: {3} TND`, `قام {1} بتعديل مبلغ {2}: {3} TND`],
         [`{1}s enregistrés.`, `{1}s recorded.`, `تم تسجيل {1} ثانية.`],
         [`⚠️ Maximum {1} messages vocaux par opération.\nSupprimez-en un (×) avant d'en ajouter un autre.`, `⚠️ Maximum {1} voice messages per operation.\nDelete one (×) before adding another.`, `⚠️ الحد الأقصى {1} رسالة صوتية لكل عملية.\nاحذف واحدة (×) قبل إضافة أخرى.`]
+        [`{1} a envoyé un vocal de {2} pour {3}`, `{1} sent a voice message of {2} for {3}`, `قام {1} بإرسال رسالة صوتية مدتها {2} لـ {3}`],
+        [`{1} a supprimé un vocal pour {2}`, `{1} deleted a voice message for {2}`, `قام {1} بحذف رسالة صوتية لـ {2}`],
     ];
 
     [
