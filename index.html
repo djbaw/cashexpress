@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Warda v42 - Gestion de Warda</title>
+<title>Warda v43 - Gestion de Warda</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -308,7 +308,7 @@ html[dir="rtl"] .date-nav-arrow i { transform: scaleX(-1); }
                     Warda
                     <span id="sync-indicator" class="syncing inline-block w-2.5 h-2.5 rounded-full" title="État de la connexion"></span>
                 </h1>
-                <p class="text-xs text-slate-400 hidden sm:block">Gestion de Warda - <span class="text-emerald-400 font-bold">v42</span></p>
+                <p class="text-xs text-slate-400 hidden sm:block">Gestion de Warda - <span class="text-emerald-400 font-bold">v43</span></p>
             </div>
         </div>
         <button id="notif-bell" type="button" onclick="openNotifPanel()" title="Toutes les notifications" class="relative w-11 h-11 bg-slate-800 border border-slate-700 rounded-xl text-slate-200 hover:text-white hover:bg-slate-700 transition order-2 sm:order-3">
@@ -527,7 +527,8 @@ html[dir="rtl"] .date-nav-arrow i { transform: scaleX(-1); }
             <div class="overflow-x-auto">
                 <table class="w-full text-left border-collapse">
                     <thead>
-                        <tr class="bg-slate-100/70 text-slate-600 text-xs font-bold uppercase tracking-wider border-b border-slate-200">
+                                                <tr class="bg-slate-100/70 text-slate-600 text-xs font-bold uppercase tracking-wider border-b border-slate-200">
+                            <th class="p-3.5 text-center w-10">#</th>
                             <th class="p-3.5">Type & Client / Remettant</th>
                             <th class="p-3.5">Adresse / Localisation</th>
                             <th class="p-3.5">Montant</th>
@@ -2510,9 +2511,11 @@ function renderAdminTable() {
     else if (filter !== 'all') filtered = filtered.filter(d => d.status === filter);
     if (search) filtered = filtered.filter(d => (d.clientName && d.clientName.toLowerCase().includes(search)) || (d.phone && d.phone.includes(search)) || (d.phone2 && d.phone2.includes(search)) || (d.address && d.address.toLowerCase().includes(search)) || (d.location && d.location.toLowerCase().includes(search)));
     filtered.sort((a, b) => { if (a.status === 'pending' && b.status !== 'pending') return -1; if (a.status !== 'pending' && b.status === 'pending') return 1; return b.timestamp - a.timestamp; });
-    if (filtered.length === 0) { tbody.innerHTML = `<tr><td colspan="7" class="p-8 text-center text-slate-400">Aucune opération pour cette journée.</td></tr>`; return; }
+    if (filtered.length === 0) { tbody.innerHTML = `<tr><td colspan="8" class="p-8 text-center text-slate-400">Aucune opération pour cette journée.</td></tr>`; return; }
 
+        let rowNumber = 0;
     filtered.forEach(d => {
+        rowNumber++;
         const tr = document.createElement('tr');
         const cTime = d.creationTime || getTimeStr(d.timestamp);
         let statusBadge = '', rowBgClass = 'hover:bg-slate-50/80', isStrikethrough = false;
@@ -2535,7 +2538,8 @@ function renderAdminTable() {
         }
         const canReassign = d.status === 'pending' || d.status === 'cancelled';
         const typeIcon = isCash ? `<span class="inline-block text-[11px] font-bold bg-purple-100 text-purple-900 border border-purple-200 px-2 py-0.5 rounded-full mb-1">➕ ALIMENTATION</span>` : `<span class="inline-block text-[11px] font-bold bg-blue-100 text-blue-900 border border-blue-200 px-2 py-0.5 rounded-full mb-1">📦 LIVRAISON</span>`;
-        tr.innerHTML = `
+                tr.innerHTML = `
+            <td class="p-3.5 text-center font-bold text-slate-500 text-sm">${rowNumber}</td>
             <td class="p-3.5">
                 ${typeIcon}
                 <div class="flex items-center space-x-2 flex-wrap">
@@ -2634,7 +2638,9 @@ function renderLivreurDashboard(livreurId) {
         cardsContainer.innerHTML = `<div class="bg-white p-8 text-center rounded-2xl border border-slate-200 text-slate-400"><i class="fa-solid fa-inbox text-3xl mb-2 text-slate-300"></i><p>Aucune opération correspondant aux filtres.</p></div>`;
         return;
     }
+        let cardNumber = 0;
     myDeliveries.forEach(d => {
+        cardNumber++;
         const card = document.createElement('div');
         const cTime = d.creationTime || getTimeStr(d.timestamp);
         const mapsUrl = d.location && d.location.startsWith('http') ? d.location : `https://maps.google.com/?q=${encodeURIComponent(d.location || '')}`;
@@ -2651,9 +2657,10 @@ function renderLivreurDashboard(livreurId) {
         }
         const typeBadge = isCash ? '<span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-purple-100 text-purple-900 border border-purple-200">➕ ALIM</span>' : '<span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-blue-100 text-blue-900 border border-blue-200">📦 LIVR</span>';
         card.className = `p-3 rounded-xl border-2 ${borderClass} shadow-sm transition space-y-2 text-xs`;
-        card.innerHTML = `
+                card.innerHTML = `
             <div class="flex items-center justify-between gap-2 border-b border-slate-200/60 pb-1.5">
                 <div class="flex items-center space-x-1.5 flex-wrap gap-y-1">
+                    <span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-700 text-white">#${cardNumber}</span>
                     ${typeBadge}${statusBadge}
                     <span class="text-[11px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">🕒 ${cTime}${d.actionTime ? ' ➔ ' + d.actionTime : ''}</span>
                 </div>
@@ -3204,7 +3211,7 @@ window.addEventListener('DOMContentLoaded', boot);
 
     /* ---------- Textes exacts : [français, anglais, arabe] ---------- */
     var E = [
-                [`Warda v42 - Gestion de Warda`, `Warda v42 - Warda management`, `وردة v42 - إدارة وردة`],
+                [`Warda v43 - Gestion de Warda`, `Warda v43 - Warda management`, `وردة v43 - إدارة وردة`],
         [`Gestion de la Liste Noire (Clients Bloqués)`, `Blacklist Management (Blocked Clients)`, `إدارة القائمة السوداء (العملاء المحظورون)`],
         [`Ajouter / Modifier un Client Bloqué`, `Add / Edit a Blocked Client`, `إضافة / تعديل عميل محظور`],
         [`Téléphone *`, `Phone *`, `الهاتف *`],
