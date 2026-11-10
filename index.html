@@ -2559,7 +2559,10 @@ function deleteVoiceNote(ev, opId, voiceId) {
         .catch(e => console.warn(e));
     showToast("Vocal supprimé", "Message retiré.");
 }
-function _vBtn(opId) {
+function _vBtn(opId, size) {
+    if (size === 'sm') {
+        return `<button type="button" onclick="startVoiceRecording('${opId}')" title="Enregistrer un vocal" class="mic-btn inline-flex items-center justify-center align-middle w-6 h-6 rounded-full bg-indigo-100 hover:bg-indigo-200 text-indigo-700 shrink-0"><i class="fa-solid fa-microphone text-[9px]"></i></button>`;
+    }
     return `<button type="button" onclick="startVoiceRecording('${opId}')" title="Enregistrer un vocal" class="mic-btn inline-flex items-center justify-center align-middle w-7 h-7 rounded-full bg-indigo-100 hover:bg-indigo-200 text-indigo-700 shrink-0"><i class="fa-solid fa-microphone text-[11px]"></i></button>`;
 }
 function _vList(opId, op) {
@@ -2744,7 +2747,7 @@ function renderAdminTable() {
                 <button onclick="openRemarkModal('${d.id}')" class="p-1.5 bg-brand-100 text-brand-700 hover:bg-brand-200 rounded-lg text-xs font-bold transition"><i class="fa-solid fa-comment-dots"></i></button>
                 <button type="button" onclick="openEditOpModal('${d.id}')" title="Modifier" class="p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold transition"><i class="fa-solid fa-pen-to-square"></i></button>
                 <button onclick="openConfirmDeleteModal('${d.id}')" class="p-1.5 bg-red-100 hover:bg-red-200 text-red-700 rounded-lg text-xs font-bold transition"><i class="fa-solid fa-trash-can"></i></button>
-${_vBtn(d.id)}
+${_vBtn(d.id, 'sm')}
 </td>`;
         tbody.appendChild(tr);
     });
