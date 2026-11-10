@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Gestion de Livraison d'Argent v41 - CashExpress</title>
+<title>Warda v42 - Gestion de Warda</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -301,14 +301,14 @@ html[dir="rtl"] .date-nav-arrow i { transform: scaleX(-1); }
 <!-- HEADER -->
 <header class="bg-slate-900 text-white shadow-md sm:sticky sm:top-0 z-30">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 min-h-16 py-2 flex flex-wrap items-center justify-between gap-2">
-        <div class="flex items-center space-x-3">
-            <div class="bg-emerald-500 p-2 rounded-lg text-slate-900 font-bold"><i class="fa-solid me-1 fa-money-bill-transfer text-xl"></i></div>
+                <div class="flex items-center space-x-3">
+            <div class="bg-rose-400 p-2 rounded-lg text-white font-bold"><i class="fa-solid me-1 fa-spa text-xl"></i></div>
             <div>
                 <h1 class="font-bold text-lg leading-tight tracking-tight flex items-center gap-2">
-                    CashExpress
+                    Warda
                     <span id="sync-indicator" class="syncing inline-block w-2.5 h-2.5 rounded-full" title="État de la connexion"></span>
                 </h1>
-                <p class="text-xs text-slate-400 hidden sm:block">Gestion de livraison d'argent en temps réel - <span class="text-emerald-400 font-bold">v41</span></p>
+                <p class="text-xs text-slate-400 hidden sm:block">Gestion de Warda - <span class="text-emerald-400 font-bold">v42</span></p>
             </div>
         </div>
         <button id="notif-bell" type="button" onclick="openNotifPanel()" title="Toutes les notifications" class="relative w-11 h-11 bg-slate-800 border border-slate-700 rounded-xl text-slate-200 hover:text-white hover:bg-slate-700 transition order-2 sm:order-3">
@@ -2742,7 +2742,7 @@ async function executeExcelExport() {
     const blacklistRows = (state.blacklist || []).map(b => ({ "Téléphone": b.phone || '', "Nom Client": b.clientName || '', "Motif Blocage": b.reason || '', "Date Ajout": b.date || getTodayStr() }));
     const blWs = XLSX.utils.json_to_sheet(blacklistRows.length > 0 ? blacklistRows : [{"Téléphone":"","Nom Client":"","Motif Blocage":"","Date Ajout":""}]);
     XLSX.utils.book_append_sheet(workbook, blWs, "Liste Noire");
-    const fileName = mode === 'single' ? `Rapport_CashExpress_${startDate}.xlsx` : `Rapport_CashExpress_${startDate}_au_${endDate}.xlsx`;
+        const fileName = mode === 'single' ? `Rapport_Warda_${startDate}.xlsx` : `Rapport_Warda_${startDate}_au_${endDate}.xlsx`;
     XLSX.writeFile(workbook, fileName);
     toggleExportExcelModal(false);
     showToast("Extraction Réussie", `Fichier "${fileName}" généré.`);
@@ -3205,7 +3205,7 @@ window.addEventListener('DOMContentLoaded', boot);
 
     /* ---------- Textes exacts : [français, anglais, arabe] ---------- */
     var E = [
-        [`Gestion de Livraison d'Argent v40 - CashExpress`, `Cash Delivery Management v40 - CashExpress`, `إدارة توصيل الأموال v40 - CashExpress`],
+                [`Warda v42 - Gestion de Warda`, `Warda v42 - Warda management`, `وردة v42 - إدارة وردة`],
         [`Gestion de la Liste Noire (Clients Bloqués)`, `Blacklist Management (Blocked Clients)`, `إدارة القائمة السوداء (العملاء المحظورون)`],
         [`Ajouter / Modifier un Client Bloqué`, `Add / Edit a Blocked Client`, `إضافة / تعديل عميل محظور`],
         [`Téléphone *`, `Phone *`, `الهاتف *`],
@@ -3276,8 +3276,9 @@ window.addEventListener('DOMContentLoaded', boot);
         [`Enregistrer`, `Save`, `حفظ`],
         [`Connexion au serveur…`, `Connecting to the server…`, `جارٍ الاتصال بالخادم…`],
         [`Réessayer`, `Retry`, `إعادة المحاولة`],
-        [`Gestion de livraison d'argent en temps réel -`, `Real-time cash delivery management -`, `إدارة توصيل الأموال في الوقت الفعلي -`],
-        [`Mode Vue :`, `View mode:`, `وضع العرض:`],
+        [`Gestion de Warda -`, `Warda management -`, `إدارة وردة -`],
+	[`Warda`, `Warda`, `وردة`],        
+	[`Mode Vue :`, `View mode:`, `وضع العرض:`],
         [`Admin`, `Admin`, `المسؤول`],
         [`Activer le son`, `Enable sound`, `تفعيل الصوت`],
         [`Nouvelle Notification`, `New Notification`, `إشعار جديد`],
