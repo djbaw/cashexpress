@@ -3,14 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Warda v44 - Gestion de Warda</title>
+<title>Warda v45 - Gestion de Warda</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
 
-    <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
 
@@ -48,11 +47,10 @@
             input, select, textarea { font-size: 16px !important; }
         }
 
-        body.locked > header, body.locked > main, body.locked > #audio-unlock-btn, body.locked > #notification-toast, body.locked > #notif-stack { display: none !important; }
+        body.locked > header, body.locked > main, body.locked > #audio-unlock-btn, body.locked > #notification-toast, body.locked > #notif-stack, body.locked > #voice-rec-banner { display: none !important; }
         #sync-indicator.online  { background-color: #10b981; }
         #sync-indicator.offline { background-color: #ef4444; }
         #sync-indicator.syncing { background-color: #f59e0b; }
-        /* ===== Sélecteur de langue + arabe (droite à gauche) ===== */
         .lang-btn { min-width: 36px; height: 32px; padding: 0 8px; border-radius: 8px; font-size: 12px; font-weight: 700; color: #cbd5e1; }
         .lang-btn:hover { background: #334155; color: #fff; }
         .lang-btn.on { background: #2563eb; color: #fff; }
@@ -64,12 +62,25 @@
         html[dir="rtl"] [class*="space-x-"] > :not([hidden]) ~ :not([hidden]) { --tw-space-x-reverse: 1; }
         html[dir="rtl"] a[href^="tel:"], html[dir="rtl"] input[type="tel"], html[dir="rtl"] input[type="number"], html[dir="rtl"] input[type="password"] { direction: ltr; unicode-bidi: isolate; }
         html[dir="rtl"] input[type="tel"], html[dir="rtl"] input[type="number"], html[dir="rtl"] input[type="password"] { text-align: right; }
-html[dir="rtl"] .date-nav-arrow i { transform: scaleX(-1); }
+        html[dir="rtl"] .date-nav-arrow i { transform: scaleX(-1); }
+
+        /* ===== MESSAGES VOCAUX (style WhatsApp) ===== */
+        .mic-btn { transition: all .2s; }
+        .mic-btn:active { transform: scale(.9); }
+        #voice-rec-banner { position: fixed; top: 64px; left: 50%; transform: translateX(-50%); z-index: 9998; display: none; align-items: center; gap: 10px; padding: 10px 14px; background: #1e293b; color: #fff; border-radius: 14px; box-shadow: 0 10px 30px rgba(0,0,0,.35); border: 1px solid #dc2626; font-weight: 600; font-size: 13px; max-width: calc(100vw - 24px); }
+        #voice-rec-banner.on { display: flex; }
+        #voice-rec-banner .dot { width: 10px; height: 10px; border-radius: 50%; background: #ef4444; animation: micp 1s infinite; flex-shrink: 0; }
+        @keyframes micp { 0%,100%{ box-shadow:0 0 0 0 rgba(239,68,68,.65);} 50%{ box-shadow:0 0 0 8px rgba(239,68,68,0);} }
+        .voice-pill { display:inline-flex; align-items:center; gap:5px; padding:3px 8px; border-radius:9999px; background:#e0e7ff; color:#3730a3; font-size:11px; font-weight:700; border:1px solid #c7d2fe; cursor:pointer; transition:.15s; user-select:none; }
+        .voice-pill:hover { background:#c7d2fe; }
+        .voice-pill.playing { background:#dc2626; color:#fff; border-color:#b91c1c; }
+        .voice-pill .del { margin-inline-start:4px; opacity:.55; font-size:10px; cursor:pointer; }
+        .voice-pill .del:hover { opacity:1; color:#b91c1c; }
+        .voice-pill.playing .del:hover { color:#fff; }
     </style>
 </head>
 <body class="locked h-full font-sans text-slate-800 flex flex-col bg-slate-100">
 <div id="lang-float" role="group" aria-label="Langue / Language / اللغة"><button type="button" class="lang-btn" data-lang="fr" onclick="setLang('fr')">FR</button><button type="button" class="lang-btn" data-lang="en" onclick="setLang('en')">EN</button><button type="button" class="lang-btn" data-lang="ar" onclick="setLang('ar')">ع</button></div>
-
 
 <!-- MODAL: BLACKLIST MANAGEMENT -->
 <div id="modal-blacklist" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
@@ -248,7 +259,7 @@ html[dir="rtl"] .date-nav-arrow i { transform: scaleX(-1); }
     </div>
 </div>
 
-<!-- NOTIFICATIONS PERSISTANTES (restent jusqu'au clic sur OK) -->
+<!-- NOTIFICATIONS PERSISTANTES -->
 <div id="notif-stack" class="fixed top-20 right-4 left-4 sm:left-auto sm:w-96 z-[55] flex flex-col gap-2 max-h-[75vh] overflow-y-auto pointer-events-none"></div>
 
 <!-- MODAL: HISTORIQUE DES NOTIFICATIONS -->
@@ -266,7 +277,7 @@ html[dir="rtl"] .date-nav-arrow i { transform: scaleX(-1); }
     </div>
 </div>
 
-<!-- MODAL: SOLDE POSSÉDÉ (livreur) -->
+<!-- MODAL: SOLDE POSSÉDÉ -->
 <div id="modal-held-balance" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
     <div class="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden transform transition-all">
         <div class="bg-amber-600 px-6 py-4 text-white flex justify-between items-center">
@@ -291,7 +302,7 @@ html[dir="rtl"] .date-nav-arrow i { transform: scaleX(-1); }
     </div>
 </div>
 
-<!-- ÉCRAN DE CHARGEMENT / ERREUR DE CONNEXION -->
+<!-- ÉCRAN DE CHARGEMENT -->
 <div id="app-loading" class="fixed inset-0 z-[60] bg-slate-900 flex flex-col items-center justify-center text-white p-6 text-center gap-3">
     <i id="app-loading-icon" class="fa-solid fa-circle-notch fa-spin text-3xl text-emerald-400"></i>
     <p id="app-loading-text" class="text-sm font-semibold max-w-xs">Connexion au serveur…</p>
@@ -301,14 +312,14 @@ html[dir="rtl"] .date-nav-arrow i { transform: scaleX(-1); }
 <!-- HEADER -->
 <header class="bg-slate-900 text-white shadow-md sm:sticky sm:top-0 z-30">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 min-h-16 py-2 flex flex-wrap items-center justify-between gap-2">
-                <div class="flex items-center space-x-3">
+        <div class="flex items-center space-x-3">
             <div class="bg-rose-400 p-2 rounded-lg text-white font-bold"><i class="fa-solid me-1 fa-spa text-xl"></i></div>
             <div>
                 <h1 class="font-bold text-lg leading-tight tracking-tight flex items-center gap-2">
                     Warda
                     <span id="sync-indicator" class="syncing inline-block w-2.5 h-2.5 rounded-full" title="État de la connexion"></span>
                 </h1>
-                <p class="text-xs text-slate-400 hidden sm:block">Gestion de Warda - <span class="text-emerald-400 font-bold">v44</span></p>
+                <p class="text-xs text-slate-400 hidden sm:block">Gestion de Warda - <span class="text-emerald-400 font-bold">v45</span></p>
             </div>
         </div>
         <button id="notif-bell" type="button" onclick="openNotifPanel()" title="Toutes les notifications" class="relative w-11 h-11 bg-slate-800 border border-slate-700 rounded-xl text-slate-200 hover:text-white hover:bg-slate-700 transition order-2 sm:order-3">
@@ -337,8 +348,7 @@ html[dir="rtl"] .date-nav-arrow i { transform: scaleX(-1); }
     </div>
 </header>
 
-<!-- TOAST -->
-    <!-- Bouton de déblocage audio (apparaît si le son n'est pas encore activé) -->
+<!-- Bouton de déblocage audio -->
 <button id="audio-unlock-btn" onclick="unlockAudio()" class="fixed bottom-4 right-4 z-40 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-lg transition flex items-center gap-2">
     <i class="fa-solid fa-volume-high"></i>
     <span>Activer le son</span>
@@ -354,10 +364,18 @@ html[dir="rtl"] .date-nav-arrow i { transform: scaleX(-1); }
     </div>
 </div>
 
+<!-- BANDEAU ENREGISTREMENT VOCAL -->
+<div id="voice-rec-banner">
+    <span class="dot"></span>
+    <span>Enregistrement… <b id="voice-timer">0s</b></span>
+    <button type="button" onclick="stopVoiceRecording(false)" class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 rounded-lg text-[11px] font-bold"><i class="fa-solid fa-check me-1"></i>Envoyer</button>
+    <button type="button" onclick="stopVoiceRecording(true)" class="px-2.5 py-1 bg-slate-600 hover:bg-slate-500 rounded-lg text-[11px] font-bold"><i class="fa-solid fa-xmark me-1"></i>Annuler</button>
+</div>
+
 <!-- MAIN -->
 <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 space-y-6">
     <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-col sm:flex-row justify-between items-center gap-4">
-                <div class="flex items-center space-x-2 w-full sm:w-auto">
+        <div class="flex items-center space-x-2 w-full sm:w-auto">
             <i class="fa-solid fa-calendar-days text-brand-600 text-lg hidden sm:block"></i>
             <span class="text-xs sm:text-sm font-bold text-slate-700 shrink-0">Journée :</span>
             <button type="button" onclick="shiftDate(-1)" title="Jour précédent" aria-label="Jour précédent" class="date-nav-arrow w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-700 rounded-xl transition shrink-0">
@@ -527,7 +545,7 @@ html[dir="rtl"] .date-nav-arrow i { transform: scaleX(-1); }
             <div class="overflow-x-auto">
                 <table class="w-full text-left border-collapse">
                     <thead>
-                                                <tr class="bg-slate-100/70 text-slate-600 text-xs font-bold uppercase tracking-wider border-b border-slate-200">
+                        <tr class="bg-slate-100/70 text-slate-600 text-xs font-bold uppercase tracking-wider border-b border-slate-200">
                             <th class="p-3.5 text-center w-10">#</th>
                             <th class="p-3.5">Type & Client / Remettant</th>
                             <th class="p-3.5">Adresse / Localisation</th>
@@ -571,7 +589,7 @@ html[dir="rtl"] .date-nav-arrow i { transform: scaleX(-1); }
             </div>
         </div>
         <div class="space-y-3">
-                        <div class="flex items-center justify-between px-1 gap-2">
+            <div class="flex items-center justify-between px-1 gap-2">
                 <h3 class="font-bold text-slate-800 text-base sm:text-lg flex items-center gap-2 min-w-0"><i class="fa-solid fa-truck-ramp-box text-brand-600 shrink-0"></i><span class="truncate">Mes Opérations</span></h3>
                 <div class="flex items-center space-x-1.5 sm:space-x-2 shrink-0">
                     <span class="text-xs font-medium text-slate-500">Filtrer :</span>
@@ -849,7 +867,7 @@ html[dir="rtl"] .date-nav-arrow i { transform: scaleX(-1); }
     </div>
 </div>
 
-<!-- MODAL: REMARK -->
+<!-- MODAL: EDIT OP -->
 <div id="modal-edit-op" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
     <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden transform transition-all max-h-[90vh] flex flex-col">
         <div class="bg-slate-900 px-6 py-4 text-white flex justify-between items-center shrink-0">
@@ -992,10 +1010,10 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 const ROOT = 'cashexpress';
-const OPS_PATH = ROOT + '/ops';          // une entrée PAR opération
-const CFG_PATH = ROOT + '/config';       // PIN (empreinte), soldes, livreurs, liste noire
-const NOTIF_PATH = ROOT + '/notifs';       // notifications par destinataire (admin, livreur1..3)
-const LEGACY_PATH = ROOT + '/state';     // ancienne structure (v33), lue une seule fois pour la migration
+const OPS_PATH = ROOT + '/ops';
+const CFG_PATH = ROOT + '/config';
+const NOTIF_PATH = ROOT + '/notifs';
+const LEGACY_PATH = ROOT + '/state';
 
 function setSyncStatus(status) {
     const el = document.getElementById('sync-indicator');
@@ -1009,8 +1027,7 @@ function setSyncStatus(status) {
 window.addEventListener('offline', () => setSyncStatus('offline'));
 window.addEventListener('online',  () => setSyncStatus('syncing'));
 
-// ==================== UTILITAIRES ====================
-// ==================== DÉBLOCAGE AUDIO (Android/Chrome) ====================
+// ==================== DÉBLOCAGE AUDIO ====================
 function unlockAudio() {
     try {
         const AudioContext = window.AudioContext || window.webkitAudioContext;
@@ -1020,8 +1037,6 @@ function unlockAudio() {
         }
         window._cashAudioCtx.resume().then(() => {
             const ctx = window._cashAudioCtx;
-
-            // Petit bip de confirmation
             const osc = ctx.createOscillator();
             const gain = ctx.createGain();
             osc.type = 'sine';
@@ -1030,8 +1045,6 @@ function unlockAudio() {
             gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2);
             osc.connect(gain); gain.connect(ctx.destination);
             osc.start(); osc.stop(ctx.currentTime + 0.2);
-
-            // KEEP-ALIVE : jouer un silence périodique pour garder le contexte actif
             if (window._audioKeepAlive) clearInterval(window._audioKeepAlive);
             window._audioKeepAlive = setInterval(() => {
                 try {
@@ -1045,18 +1058,13 @@ function unlockAudio() {
                     silentOsc.start();
                     silentOsc.stop(window._cashAudioCtx.currentTime + 0.01);
                 } catch (e) {}
-            }, 10000); // toutes les 10 secondes
-
-            // Masquer le bouton définitivement
+            }, 10000);
             const btn = document.getElementById('audio-unlock-btn');
             if (btn) btn.remove();
             try { localStorage.setItem('cashexpress_audio_unlocked', '1'); } catch (e) {}
         });
-    } catch (e) {
-        console.log('Erreur unlock audio:', e);
-    }
+    } catch (e) { console.log('Erreur unlock audio:', e); }
 }
-// Déblocage automatique au premier clic/tap n'importe où sur la page
 function autoUnlockOnFirstInteraction() {
     const handler = () => {
         try {
@@ -1078,8 +1086,6 @@ function autoUnlockOnFirstInteraction() {
     document.addEventListener('click', handler, { once: false, passive: true });
     document.addEventListener('touchstart', handler, { once: false, passive: true });
 }
-
-// Vérifier si le son a déjà été débloqué précédemment
 (function checkAudioStatus() {
     try {
         if (localStorage.getItem('cashexpress_audio_unlocked') === '1') {
@@ -1088,10 +1094,7 @@ function autoUnlockOnFirstInteraction() {
                 if (btn) { btn.remove(); return true; }
                 return false;
             };
-            if (!removeBtn()) {
-                document.addEventListener('DOMContentLoaded', removeBtn);
-            }
-            // Restaurer le keep-alive
+            if (!removeBtn()) document.addEventListener('DOMContentLoaded', removeBtn);
             document.addEventListener('DOMContentLoaded', () => {
                 const AudioContext = window.AudioContext || window.webkitAudioContext;
                 if (!AudioContext) return;
@@ -1119,8 +1122,8 @@ function autoUnlockOnFirstInteraction() {
         }
     } catch (e) {}
 })();
-    
-    function playNotificationSound() {
+
+function playNotificationSound() {
     try {
         const AudioContext = window.AudioContext || window.webkitAudioContext;
         if (!AudioContext) return;
@@ -1129,8 +1132,6 @@ function autoUnlockOnFirstInteraction() {
         }
         const audioCtx = window._cashAudioCtx;
         if (audioCtx.state === 'suspended') audioCtx.resume();
-
-        // Attendre que le contexte soit prêt
         const playTones = () => {
             const osc1 = audioCtx.createOscillator();
             const gain1 = audioCtx.createGain();
@@ -1140,7 +1141,6 @@ function autoUnlockOnFirstInteraction() {
             gain1.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.35);
             osc1.connect(gain1); gain1.connect(audioCtx.destination);
             osc1.start(); osc1.stop(audioCtx.currentTime + 0.35);
-
             setTimeout(() => {
                 if (audioCtx.state === 'closed') return;
                 const osc2 = audioCtx.createOscillator();
@@ -1153,15 +1153,9 @@ function autoUnlockOnFirstInteraction() {
                 osc2.start(); osc2.stop(audioCtx.currentTime + 0.5);
             }, 100);
         };
-
-        if (audioCtx.state === 'running') {
-            playTones();
-        } else {
-            audioCtx.resume().then(playTones).catch(() => {});
-        }
-    } catch (err) {
-        console.log('Erreur son:', err);
-    }
+        if (audioCtx.state === 'running') playTones();
+        else audioCtx.resume().then(playTones).catch(() => {});
+    } catch (err) { console.log('Erreur son:', err); }
 }
 
 const UI_ZOOM_KEY = 'cashexpress_ui_zoom';
@@ -1196,15 +1190,14 @@ const getTimeStr = (timestamp) => {
     return d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
 };
 
-// ==================== ÉTAT & COUCHE DONNÉES (Realtime Database) ====================
-// Chaque appareil ne charge que la journée affichée : l'application reste rapide même avec un long historique.
+// ==================== ÉTAT ====================
 const LIVREUR_IDS = ['livreur1', 'livreur2', 'livreur3'];
 const DEFAULT_NAMES = { livreur1: 'Sami (Livreur 1)', livreur2: 'Karim (Livreur 2)', livreur3: 'Youssef (Livreur 3)' };
 const VALID_ID = /^[A-Za-z0-9_-]{1,80}$/;
 
 let state = {
-    currentRole: 'admin',               // vue affichée (local à l'appareil)
-    selectedDate: getTodayStr(),        // journée affichée (local à l'appareil)
+    currentRole: 'admin',
+    selectedDate: getTodayStr(),
     adminStartBalances: {},
     livreurs: {
         livreur1: { id: 'livreur1', name: DEFAULT_NAMES.livreur1, startBalances: {} },
@@ -1212,21 +1205,15 @@ let state = {
         livreur3: { id: 'livreur3', name: DEFAULT_NAMES.livreur3, startBalances: {} }
     },
     blacklist: [],
-    deliveries: []                      // opérations de la journée affichée uniquement
+    deliveries: []
 };
 
 let isAdminAuthenticated = false;
-window.__me = null;          // identité de CET appareil : 'admin' ou 'livreurN'
+window.__me = null;
 window.__myToken = null;
 window.__pinHash = null;
 window.__bootMode = 'normal';
-// ==================== NORMALISATION DES NUMÉROS DE TÉLÉPHONE ====================
-// Forme canonique : +XX… (international) ou XXXX… (local, chiffres bruts)
-//   +216 22 111 222   → +21622111222
-//   00216 22 111 222  → +21622111222
-//   0021622111222     → +21622111222
-//   00216-22-111-222  → +21622111222
-//   22 555 555        → 22555555
+
 function normalizePhone(raw) {
     if (raw === null || raw === undefined) return '';
     const s = String(raw).trim();
@@ -1234,15 +1221,11 @@ function normalizePhone(raw) {
     const hasPlus = s.startsWith('+');
     let digits = s.replace(/[^0-9]/g, '');
     if (!digits) return '';
-    if (digits.startsWith('00')) {
-        digits = digits.substring(2);   // 00XX… → XX…
-        return '+' + digits;
-    }
+    if (digits.startsWith('00')) { digits = digits.substring(2); return '+' + digits; }
     if (hasPlus) return '+' + digits;
     return digits;
 }
 
-    
 function esc(s) {
     return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
@@ -1268,7 +1251,6 @@ function cleanObj(o) {
     return r;
 }
 
-// ---------- écritures ----------
 function handleWriteError(e) {
     console.error('Erreur écriture :', e);
     setSyncStatus('offline');
@@ -1329,7 +1311,6 @@ async function fetchOpsRange(startDate, endDate) {
     return arr.sort((a, b) => (a.date === b.date ? (a.timestamp || 0) - (b.timestamp || 0) : (a.date < b.date ? -1 : 1)));
 }
 
-// ---------- écran de chargement / blocage ----------
 function unlockUI() { document.body.classList.remove('locked'); startNotifs(); }
 function hideLoading() { const el = document.getElementById('app-loading'); if (el) el.classList.add('hidden'); }
 function showFatal(message) {
@@ -1350,7 +1331,6 @@ function showAccessBlocked() {
     document.body.innerHTML = modal.outerHTML;
 }
 
-// ---------- écoute temps réel ----------
 let cfgListeners = [];
 let opsRef = null, opsHandler = null, opsFirstLoad = true;
 
@@ -1401,7 +1381,7 @@ function attachConfigListeners(isAdmin, myId) {
     } else {
         addCfgListener(CFG_PATH + '/livreurs/' + myId, s => {
             const v = s.val();
-            if (!v || v.token !== window.__myToken) { showAccessBlocked(); return; }   // lien révoqué : blocage immédiat
+            if (!v || v.token !== window.__myToken) { showAccessBlocked(); return; }
             mergeLivreur(myId, v);
             if (window.__livDefaultHash) window.__livHash = v.pinHash || window.__livDefaultHash;
             renderApp();
@@ -1429,11 +1409,9 @@ function subscribeOps() {
     opsRef.on('value', opsHandler, onListenerError);
 }
 
-// ==================== CENTRE DE NOTIFICATIONS ====================
-// Les notifications sont enregistrées dans la base, au nom du DESTINATAIRE (admin, livreur1, livreur2, livreur3).
-// Elles restent jusqu'au clic sur « OK » et se retrouvent sur n'importe quel appareil / navigateur.
+// ==================== NOTIFICATIONS ====================
 let notifs = [];
-let notifMode = 'pending';          // 'pending' (démarrage) | 'server' (base) | 'local' (secours si les règles ne sont pas à jour)
+let notifMode = 'pending';
 let notifServerLoaded = false;
 let notifRef = null, notifHandler = null;
 
@@ -1465,7 +1443,6 @@ function startNotifs() {
             playNotificationSound();
             try { if (navigator.vibrate) navigator.vibrate([150, 80, 150]); } catch (e) {}
         }
-        // historique limité à 200 entrées (on supprime les plus anciennes déjà validées)
         if (arr.length > 200) {
             const u = {};
             arr.filter(n => n.ack).slice(0, arr.length - 200).forEach(n => { u[NOTIF_PATH + '/' + window.__me + '/' + n.id] = null; });
@@ -1473,14 +1450,13 @@ function startNotifs() {
         }
     };
     notifRef.on('value', notifHandler, (err) => {
-        console.warn('Notifications serveur indisponibles (règles non republiées ?) — mode local :', err);
+        console.warn('Notifications serveur indisponibles — mode local :', err);
         notifRef = null; notifHandler = null;
         notifMode = 'local';
         loadNotifs();
     });
 }
 
-// ----- mode de secours (stockage sur l'appareil) -----
 function notifKey() { return 'cashexpress_notifs_' + (window.__me || 'none'); }
 function loadNotifs() {
     try {
@@ -1490,7 +1466,7 @@ function loadNotifs() {
     renderNotifs();
 }
 function saveNotifs() { try { localStorage.setItem(notifKey(), JSON.stringify(notifs.slice(-200))); } catch (e) {} }
-function pushNotification(title, text) {   // utilisé seulement en mode de secours
+function pushNotification(title, text) {
     notifs.push({ id: Date.now() + '-' + Math.random().toString(36).slice(2, 6), title: String(title), text: String(text), at: Date.now(), ack: false });
     if (notifs.length > 200) notifs = notifs.slice(-200);
     saveNotifs();
@@ -1499,7 +1475,6 @@ function pushNotification(title, text) {   // utilisé seulement en mode de seco
     try { if (navigator.vibrate) navigator.vibrate([150, 80, 150]); } catch (e) {}
 }
 
-// ----- actions de l'utilisateur sur ses notifications -----
 function ackNotif(id) {
     const n = notifs.find(x => x.id === id);
     if (!n) return;
@@ -1532,8 +1507,6 @@ function renderNotifs() {
     const stack = document.getElementById('notif-stack');
     if (!stack) return;
     const pending = notifs.filter(n => !n.ack);
-
-    // Pile des notifications non validées (la plus récente en haut)
     stack.innerHTML = '';
     pending.slice().reverse().forEach(n => {
         const card = document.createElement('div');
@@ -1551,15 +1524,11 @@ function renderNotifs() {
         card.appendChild(t); card.appendChild(b); card.appendChild(row);
         stack.appendChild(card);
     });
-
-    // Pastille sur la cloche
     const badge = document.getElementById('notif-badge');
     if (badge) {
         badge.textContent = pending.length > 99 ? '99+' : String(pending.length);
         badge.classList.toggle('hidden', pending.length === 0);
     }
-
-    // Historique complet
     const list = document.getElementById('notif-list');
     if (list) {
         list.innerHTML = '';
@@ -1583,7 +1552,6 @@ function renderNotifs() {
     }
 }
 
-// ----- construction des messages (une opération passe de p à d, par « who ») -----
 function opMessages(p, d, who, toAdmin) {
     const q = v => String(v == null ? '' : v).trim();
     const nameOf = id => (state.livreurs[id] && state.livreurs[id].name) || id;
@@ -1592,16 +1560,11 @@ function opMessages(p, d, who, toAdmin) {
     const label = isCash ? 'alimentation' : 'livraison';
     const art = isCash ? "l'" : 'la ';
     const client = q(d.clientName) || 'client';
-
     if (!p) {
         out.push([`🔔 Nouvelle ${label}`, `${who} a ajouté une ${label} pour ${client} — ${d.amount} TND` + (toAdmin ? ` → ${nameOf(d.livreurId)}` : '')]);
         return out;
     }
-
-    // Remarques modifiées (le texte saisi est inclus dans la notification)
     const remarkFields = ['remarkAdmin', 'remarkLivreur'].filter(f => q(p[f]) !== q(d[f]));
-
-    // Validation / annulation / remise en cours
     if (p.status !== d.status) {
         const verb = d.status === 'delivered' ? 'validé' : (d.status === 'cancelled' ? 'annulé' : 'remis en cours');
         const title = d.status === 'delivered' ? '✅ Validation' : (d.status === 'cancelled' ? '🔴 Annulation' : '🔄 Remise en cours');
@@ -1610,50 +1573,37 @@ function opMessages(p, d, who, toAdmin) {
         if (withText) { txt += ` — remarque : « ${q(d[withText])} »`; remarkFields.length = 0; }
         out.push([title, txt]);
     }
-
-    // Remarque laissée / modifiée / supprimée
     remarkFields.forEach(f => {
         const before = q(p[f]), after = q(d[f]);
         if (!after) out.push(['💬 Remarque', `${who} a supprimé la remarque de ${client}`]);
         else if (!before) out.push(['💬 Remarque', `${who} a laissé une remarque pour ${client} (${after})`]);
         else out.push(['💬 Remarque', `${who} a modifié une remarque pour ${client} (${after})`]);
     });
-
-    // Nom du client
     if (q(p.clientName) !== q(d.clientName)) {
         out.push(['👤 Nom du client', `${who} a modifié le nom du client ${q(p.clientName) || '(vide)'} en ${q(d.clientName) || '(vide)'}`]);
     }
-
-    // Téléphones
     if (q(p.phone) !== q(d.phone)) {
         out.push(['📞 Téléphone', q(d.phone) ? `${who} a modifié le numéro de téléphone de ${client} ${q(d.phone)}` : `${who} a supprimé le numéro de téléphone de ${client}`]);
     }
     if (q(p.phone2) !== q(d.phone2)) {
         out.push(['📞 Téléphone', q(d.phone2) ? `${who} a modifié le second numéro de téléphone de ${client} ${q(d.phone2)}` : `${who} a supprimé le second numéro de téléphone de ${client}`]);
     }
-
-    // Adresse
     if (q(p.address) !== q(d.address)) {
         const a0 = q(p.address), a1 = q(d.address);
         out.push(['🏠 Adresse', !a1 ? `${who} a supprimé l'adresse de ${client}`
             : (!a0 ? `${who} a ajouté une adresse pour ${client} (${a1})` : `${who} a modifié l'adresse de ${client} (${a1})`)]);
     }
-
-    // Localisation
     if (q(p.location) !== q(d.location)) {
         const l0 = q(p.location), l1 = q(d.location);
         out.push(['📍 Localisation', !l1 ? `${who} a supprimé la localisation de ${client}`
             : (!l0 ? `${who} a ajouté une localisation de ${client}` : `${who} a modifié la localisation de ${client}`)]);
     }
-
-    // Montant
     if (Number(p.amount) !== Number(d.amount)) {
         out.push(['✏️ Montant', `${who} a modifié le montant de ${client} : ${d.amount} TND`]);
     }
     return out;
 }
 
-// ----- envoi côté action : le destinataire retrouvera la notification même s'il est hors ligne -----
 function sendNotification(recipient, title, text) {
     if (!recipient) return;
     const id = 'n' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
@@ -1661,19 +1611,17 @@ function sendNotification(recipient, title, text) {
         .set({ title: String(title).slice(0, 200), text: String(text).slice(0, 2000), at: Date.now(), ack: false })
         .catch(e => console.warn('Notification non envoyée :', e));
 }
-function notifyOp(before, after) {          // before = null : création ; after = null : suppression
+function notifyOp(before, after) {
     if (!window.__me || notifMode === 'local') return;
     const me = window.__me;
     const nameOf = id => (state.livreurs[id] && state.livreurs[id].name) || id;
     const who = me === 'admin' ? 'Admin' : nameOf(me);
     const removedMsg = (op) => ['↩️ Opération retirée', `${String(op.clientName || '').trim() || 'Une opération'} n'est plus dans votre liste.`];
-
-    if (me !== 'admin') {                    // livreur -> admin
+    if (me !== 'admin') {
         if (!after) return;
         opMessages(before, after, who, true).forEach(m => sendNotification('admin', m[0], m[1]));
         return;
     }
-    // admin -> livreur concerné
     if (before && !after) { const m = removedMsg(before); sendNotification(before.livreurId, m[0], m[1]); return; }
     if (before && after && before.livreurId !== after.livreurId) {
         const m = removedMsg(before);
@@ -1684,7 +1632,6 @@ function notifyOp(before, after) {          // before = null : création ; after
     if (after) opMessages(before, after, who, false).forEach(m => sendNotification(after.livreurId, m[0], m[1]));
 }
 
-// ----- secours : calcul côté destinataire (seulement si les règles de notifications ne sont pas publiées) -----
 function notifyOpsChanges(prev, cur) {
     if (appBlocked || notifMode !== 'local') return;
     const me = window.__me;
@@ -1694,7 +1641,6 @@ function notifyOpsChanges(prev, cur) {
     const nameOf = id => (state.livreurs[id] && state.livreurs[id].name) || id;
     const actorOf = d => d.lastBy === 'admin' ? 'Admin' : (LIVREUR_IDS.includes(d.lastBy) ? nameOf(d.lastBy) : null);
     const out = [];
-
     cur.forEach(d => {
         if (d.lastBy === me || d.lastBy === 'system') return;
         if (!isAdminMe && d.livreurId !== me) return;
@@ -1715,10 +1661,9 @@ function notifyOpsChanges(prev, cur) {
     else out.forEach(m => pushNotification(m[0], m[1]));
 }
 
-function ensureStateIntegrity() { /* plus nécessaire : l'état local n'est plus réécrit en bloc */ }
 function saveState() { renderApp(); }
 
-// ---------- session admin mémorisée 1 h sur l'appareil (liée à l'empreinte du PIN) ----------
+// ---------- sessions ----------
 function saveAdminSession() {
     try { localStorage.setItem('cashexpress_admin_session', (window.__pinHash || '').slice(0, 16) + ':' + (Date.now() + 60 * 60 * 1000)); } catch (e) {}
 }
@@ -1728,8 +1673,19 @@ function restoreAdminSession() {
         return !!parts[0] && parts[0] === (window.__pinHash || '').slice(0, 16) && Date.now() < Number(parts[1]);
     } catch (e) { return false; }
 }
+function livSessionKey() { return 'cashexpress_liv_session_' + window.__livId; }
+function saveLivreurSession() {
+    try { localStorage.setItem(livSessionKey(), (window.__livHash || '').slice(0, 16) + ':' + (window.__livToken || '').slice(-10) + ':' + (Date.now() + 60 * 60 * 1000)); } catch (e) {}
+}
+function restoreLivreurSession() {
+    try {
+        const parts = (localStorage.getItem(livSessionKey()) || '').split(':');
+        return !!parts[0] && parts[0] === (window.__livHash || '').slice(0, 16)
+            && parts[1] === (window.__livToken || '').slice(-10) && Date.now() < Number(parts[2]);
+    } catch (e) { return false; }
+}
 
-// ---------- création de la configuration / migration depuis l'ancienne version ----------
+// ---------- config ----------
 function buildConfig(legacy, pinHash) {
     const lv = {};
     LIVREUR_IDS.forEach(id => {
@@ -1758,7 +1714,7 @@ async function writeConfig(cfg) {
     });
     Object.keys(cfg.blacklist || {}).forEach(id => { u[CFG_PATH + '/blacklist/' + id] = cfg.blacklist[id]; });
     u[CFG_PATH + '/migratedAt'] = Date.now();
-    await db.ref().update(u);   // atomique : le PIN n'existe qu'une fois tout écrit
+    await db.ref().update(u);
 }
 async function createInitialConfig(pinHash) { await writeConfig(buildConfig(null, pinHash)); }
 async function migrateLegacy(legacy, pinHash) {
@@ -1775,7 +1731,7 @@ async function migrateLegacy(legacy, pinHash) {
         ops.slice(i, i + 100).forEach(([id, o]) => { u[OPS_PATH + '/' + id] = o; });
         await db.ref().update(u);
     }
-    await writeConfig(buildConfig(legacy, pinHash));   // en dernier : marque la fin de la migration
+    await writeConfig(buildConfig(legacy, pinHash));
 }
 
 // ==================== IMPORT EXCEL ====================
@@ -1805,7 +1761,7 @@ function handleExcelImport(e) {
                 if (livreurName.includes("Karim") || livreurName.includes("2")) livreurId = 'livreur2';
                 else if (livreurName.includes("Youssef") || livreurName.includes("3")) livreurId = 'livreur3';
                 const date = String(row["Date"] || getTodayStr());
-                if (date.length !== 10) return;   // date illisible : ligne ignorée
+                if (date.length !== 10) return;
                 const id = 'imp-' + Date.now() + '-' + idx;
                 imported.push([id, normalizeOp({
                     date, type: typeVal,
@@ -1818,8 +1774,6 @@ function handleExcelImport(e) {
                     timestamp: Date.now() + idx
                 }, id)]);
             });
-
-            // Évite les doublons avec ce qui existe déjà dans la base
             let newOps = [];
             if (imported.length) {
                 const sig = d => [d.date, d.type, d.clientName, d.phone, Number(d.amount), d.livreurId, d.creationTime].join('|');
@@ -1828,7 +1782,6 @@ function handleExcelImport(e) {
                 const known = new Set(existing.map(sig));
                 newOps = imported.filter(([id, o]) => { const s = sig(o); if (known.has(s)) return false; known.add(s); return true; });
             }
-
             const blWrites = [];
             const sheetBL = workbook.SheetNames.includes("Liste Noire") ? XLSX.utils.sheet_to_json(workbook.Sheets["Liste Noire"]) : [];
             sheetBL.forEach(row => {
@@ -1844,7 +1797,6 @@ function handleExcelImport(e) {
                     }
                 }
             });
-
             if (newOps.length === 0 && blWrites.length === 0) { showToast("📥 Importation", "Rien de nouveau : tout existe déjà."); return; }
             for (let i = 0; i < newOps.length; i += 100) {
                 const u = {};
@@ -1866,7 +1818,6 @@ function handleExcelImport(e) {
 }
 
 // ==================== ROLLOVER ====================
-// Les opérations "En cours" des jours précédents sont reportées à aujourd'hui (par le premier appareil qui s'ouvre).
 async function checkAndExecuteDailyRollover() {
     try {
         const today = getTodayStr();
@@ -1875,8 +1826,8 @@ async function checkAndExecuteDailyRollover() {
         snap.forEach(ch => {
             const d = ch.val();
             if (!d || !VALID_ID.test(ch.key) || !d.date || d.date >= today) return;
-            if (d.carriedTo) return;                                              // déjà reportée : on ne la copie pas une 2e fois
-            if (window.__me !== 'admin' && d.livreurId !== window.__me) return;   // livreur : seulement ses opérations
+            if (d.carriedTo) return;
+            if (window.__me !== 'admin' && d.livreurId !== window.__me) return;
             todo.push([ch.key, d]);
         });
         for (const [key, d] of todo.slice(0, 200)) {
@@ -1888,6 +1839,7 @@ async function checkAndExecuteDailyRollover() {
                 status: 'pending',
                 actionTime: undefined,
                 carriedTo: undefined,
+                voiceRemarks: undefined,
                 remarkAdmin: ra.includes('[Reporté') ? ra : `[Reporté du ${d.date}] ${ra}`.trim(),
                 origId: d.origId || key,
                 reportedFrom: d.date,
@@ -1895,14 +1847,10 @@ async function checkAndExecuteDailyRollover() {
                 lastBy: 'system',
                 lastAt: Date.now()
             }));
-            // La copie n'est créée que si elle n'existe pas déjà (plusieurs appareils peuvent s'ouvrir en même temps)
             await db.ref(OPS_PATH + '/' + copyId).transaction(cur => (cur === null || cur === undefined) ? copy : undefined);
-            // L'original reste dans sa journée (toujours « En cours »), simplement marqué comme déjà reporté
             await db.ref(OPS_PATH + '/' + key).update({ carriedTo: copyId });
         }
-    } catch (e) {
-        console.warn('Report quotidien impossible :', e);
-    }
+    } catch (e) { console.warn('Report quotidien impossible :', e); }
 }
 
 // ==================== TOAST ====================
@@ -1924,7 +1872,7 @@ function hideToast() {
     window._toastHideTimer = setTimeout(() => toast.classList.add('hidden'), 300);
 }
 
-// ==================== AUTH / RÔLES ====================
+// ==================== AUTH ====================
 function generateRandomToken(prefix) {
     const a = new Uint8Array(12);
     crypto.getRandomValues(a);
@@ -1940,7 +1888,7 @@ function getRoleFromURL() {
 function lockRoleSelector(lockedRole) {
     document.querySelectorAll('.role-btn').forEach(btn => btn.classList.add('hidden'));
     const pinBtn = document.getElementById('admin-pin-settings-btn');
-    if (pinBtn) pinBtn.classList.remove('hidden');   // le livreur peut modifier son propre PIN
+    if (pinBtn) pinBtn.classList.remove('hidden');
     const activeBtn = document.getElementById(`role-btn-${lockedRole}`);
     if (activeBtn) { activeBtn.classList.remove('hidden'); activeBtn.classList.add('bg-brand-600', 'text-white'); }
 }
@@ -1980,18 +1928,6 @@ function toggleAdminAuthModal(show) {
     const modal = document.getElementById('modal-admin-auth');
     if (show) modal.classList.remove('hidden'); else modal.classList.add('hidden');
 }
-// ==================== ACCÈS LIVREUR PAR CODE PIN ====================
-function livSessionKey() { return 'cashexpress_liv_session_' + window.__livId; }
-function saveLivreurSession() {
-    try { localStorage.setItem(livSessionKey(), (window.__livHash || '').slice(0, 16) + ':' + (window.__livToken || '').slice(-10) + ':' + (Date.now() + 60 * 60 * 1000)); } catch (e) {}
-}
-function restoreLivreurSession() {
-    try {
-        const parts = (localStorage.getItem(livSessionKey()) || '').split(':');
-        return !!parts[0] && parts[0] === (window.__livHash || '').slice(0, 16)
-            && parts[1] === (window.__livToken || '').slice(-10) && Date.now() < Number(parts[2]);
-    } catch (e) { return false; }
-}
 function openLivreurLogin() {
     document.getElementById('admin-auth-title').textContent = 'Accès Livreur';
     document.getElementById('admin-auth-help').textContent = 'Saisissez votre code PIN pour accéder à votre espace.';
@@ -2013,6 +1949,7 @@ function startLivreurSession() {
     switchRole(id, false);
     checkAndExecuteDailyRollover();
     carryOverStartBalances();
+    purgeOldVoiceNotes();
     startMidnightWatcher();
 }
 async function verifyLivreurPIN(e) {
@@ -2028,7 +1965,6 @@ async function verifyLivreurPIN(e) {
     const oldLabel = btn.textContent;
     btn.disabled = true; btn.textContent = 'Vérification…';
     try {
-        // On relit le lien et le PIN dans la base (lien révoqué ou PIN modifié entre-temps)
         const snap = await withTimeout(db.ref(CFG_PATH + '/livreurs/' + window.__livId).once('value'), 15000);
         const v = snap.val();
         if (!v || v.token !== window.__livToken) { showAccessBlocked(); return; }
@@ -2052,7 +1988,6 @@ async function verifyLivreurPIN(e) {
         btn.disabled = false; btn.textContent = oldLabel;
     }
 }
-
 async function verifyAdminPIN(e) {
     e.preventDefault();
     if (window.__bootRole === 'livreur') { return verifyLivreurPIN(e); }
@@ -2068,10 +2003,8 @@ async function verifyAdminPIN(e) {
         showErr('❌ Code PIN incorrect ! Réessayez.');
     };
     errEl.classList.add('hidden');
-
     if (Date.now() < (window.__pinLockUntil || 0)) { showErr("⏳ Trop d'essais. Patientez 30 secondes."); return; }
     if (pin.length < 4) { showErr('❌ Le code PIN doit contenir au moins 4 caractères.'); return; }
-
     const oldLabel = btn.textContent;
     btn.disabled = true; btn.textContent = 'Vérification…';
     try {
@@ -2113,7 +2046,6 @@ async function verifyAdminPIN(e) {
         btn.disabled = false; btn.textContent = oldLabel;
     }
 }
-
 function openChangeAdminPinModal() {
     const isLiv = !!window.__me && window.__me !== 'admin';
     if (!isLiv && !isAdminAuthenticated) { switchRole('admin'); return; }
@@ -2136,7 +2068,6 @@ async function handleSaveLivreurPIN(e) {
     errorElement.classList.add('hidden');
     const id = window.__me;
     try {
-        // Le PIN actuel est comparé à celui enregistré dans la base (pas à une copie locale)
         const snap = await withTimeout(db.ref(CFG_PATH + '/livreurs/' + id).once('value'), 15000);
         const v = snap.val();
         if (!v || v.token !== window.__myToken) { showAccessBlocked(); return; }
@@ -2155,7 +2086,6 @@ async function handleSaveLivreurPIN(e) {
         showErr("⚠️ Échec de l'enregistrement. Vérifiez la connexion (ou les règles de la base).");
     }
 }
-
 async function handleSaveNewAdminPIN(e) {
     e.preventDefault();
     if (window.__me && window.__me !== 'admin') { return handleSaveLivreurPIN(e); }
@@ -2210,7 +2140,7 @@ function revokeAndRegenerateLink(livreurId) {
     if (!confirm(`Révoquer le lien de ${livreurName} ?\n\nSon ancien lien sera IMMÉDIATEMENT bloqué.`)) return;
     const newToken = generateRandomToken(livreurId);
     state.livreurs[livreurId].token = newToken;
-    dbUpdate(CFG_PATH + '/livreurs/' + livreurId, { token: newToken, pinHash: null });   // pinHash supprimé = PIN par défaut 1212
+    dbUpdate(CFG_PATH + '/livreurs/' + livreurId, { token: newToken, pinHash: null });
     openDirectLinksModal();
     showToast("🔴 Lien Révoqué !", `L'ancien lien de ${livreurName} a été désactivé. Nouveau lien généré. Son code PIN est remis à 1212.`);
 }
@@ -2244,7 +2174,7 @@ function calculateTheoreticalBalance(livreurId, date) {
     return getStartBalance(livreurId, date) + getAddedCashTheoreticalTotal(livreurId, date) - getAllDeliveriesTotal(livreurId, date);
 }
 
-// ==================== SOLDE POSSÉDÉ (calcul parallèle, même principe) ====================
+// ==================== SOLDE POSSÉDÉ ====================
 function fmtMoneyTND(v) { return Number(v).toLocaleString('fr-FR') + ' TND'; }
 function getHeldBalance(livreurId, date) {
     const l = state.livreurs[livreurId];
@@ -2263,7 +2193,6 @@ function setHeldLine(elId, show, text) {
     if (show) { el.textContent = text; el.classList.remove('hidden'); }
     else { el.textContent = ''; el.classList.add('hidden'); }
 }
-// Le « possédé » n'est affiché que s'il est différent du solde de départ (donc différent du réel / théorique)
 function applyHeldLinesLivreur(id, date, start) {
     const held = getHeldBalance(id, date);
     const differs = Math.abs(held - start) > 0.005;
@@ -2271,7 +2200,7 @@ function applyHeldLinesLivreur(id, date, start) {
     setHeldLine('livreur-real-held', differs, `possédé : ${fmtMoneyTND(calculateRealHeld(id, date))}`);
     setHeldLine('livreur-theo-held', differs, `possédé : ${fmtMoneyTND(calculateTheoHeld(id, date))}`);
     const btn = document.getElementById('held-btn');
-    if (btn) btn.classList.toggle('hidden', window.__me !== id);   // seul le livreur lui-même peut modifier (pas l'admin)
+    if (btn) btn.classList.toggle('hidden', window.__me !== id);
 }
 function applyHeldLinesAdmin(id, date, start) {
     const held = getHeldBalance(id, date);
@@ -2319,9 +2248,7 @@ function resetHeldBalance() {
     showToast("Solde possédé", "Le solde possédé est de nouveau égal au solde de départ.");
 }
 
-// ==================== SOLDE REPORTÉ (solde réel de la veille => solde de départ du jour) ====================
-// Sans serveur, le report est fait par le premier appareil ouvert après minuit (ou resté ouvert à minuit).
-// Il n'écrit JAMAIS par-dessus un solde de départ déjà saisi.
+// ==================== CARRY OVER ====================
 async function carryOverStartBalances() {
     try {
         const today = getTodayStr();
@@ -2329,13 +2256,9 @@ async function carryOverStartBalances() {
         const adm = cfg.adminStartBalances || {};
         const livs = cfg.livreurs || {};
         const has = (o, k) => !!o && o[k] !== undefined && o[k] !== null;
-
-        // Un solde déjà saisi pour aujourd'hui n'est JAMAIS écrasé
         const needAdmin = !has(adm, today);
         const needLiv = LIVREUR_IDS.filter(id => !has(livs[id] && livs[id].startBalances, today));
         if (!needAdmin && needLiv.length === 0) return;
-
-        // Dernier jour d'activité avant aujourd'hui : un solde de départ (admin ou livreur) OU une opération
         const lastKey = (o) => Object.keys(o || {}).filter(k => k < today).sort().pop() || null;
         let prevDate = lastKey(adm);
         LIVREUR_IDS.forEach(id => {
@@ -2350,15 +2273,12 @@ async function carryOverStartBalances() {
                 if (dd && (!prevDate || dd > prevDate)) prevDate = dd;
             });
         } catch (e) { console.warn('Dernière opération introuvable :', e); }
-        if (!prevDate) return;      // aucune activité avant aujourd'hui : rien à reporter
-
-        // Solde réel de fin de journée = départ + alimentations validées - livraisons validées
+        if (!prevDate) return;
         const ops = await fetchOpsRange(prevDate, prevDate);
         const sumOf = (list, type) => list.filter(d => d.type === type && d.status === 'delivered').reduce((t, d) => t + (Number(d.amount) || 0), 0);
         const r2 = v => Math.round(v * 100) / 100;
         const setIfEmpty = (path, value) => db.ref(path).transaction(cur => (cur === null || cur === undefined) ? value : undefined);
         let wrote = false;
-
         if (needAdmin) {
             const real = (Number(adm[prevDate]) || 0) + sumOf(ops, 'SOLDE_RECU') - sumOf(ops, 'LIVRAISON');
             const res = await setIfEmpty(CFG_PATH + '/adminStartBalances/' + today, r2(real));
@@ -2372,9 +2292,7 @@ async function carryOverStartBalances() {
             if (res && res.committed) wrote = true;
         }
         if (wrote && window.__me === 'admin') showToast("🔁 Soldes reportés", `Les soldes de départ d'aujourd'hui reprennent les soldes réels du ${prevDate}.`);
-    } catch (e) {
-        console.warn('Report du solde impossible :', e);
-    }
+    } catch (e) { console.warn('Report du solde impossible :', e); }
 }
 
 // ==================== RENDER ====================
@@ -2497,6 +2415,176 @@ function handlePhoneHistoryLookup(phone) {
     }, 500);
 }
 
+/* ==================== MESSAGES VOCAUX ==================== */
+const MAX_VOICE_PER_PERSON = 2;
+let _vr = { active: false, opId: null, startTime: 0, chunks: [], recorder: null, stream: null, timer: null };
+
+function _vrPickMime() {
+    if (!window.MediaRecorder) return '';
+    const candidates = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg;codecs=opus'];
+    for (const m of candidates) if (MediaRecorder.isTypeSupported(m)) return m;
+    return '';
+}
+
+async function startVoiceRecording(opId) {
+    if (_vr.active) { stopVoiceRecording(false); return; }
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !window.MediaRecorder) {
+        alert("🎤 Enregistrement vocal non supporté.\nUtilisez Chrome, Edge, Firefox ou Safari iOS 14.3+.");
+        return;
+    }
+    const op = state.deliveries.find(d => d.id === opId);
+    const existing = op && op.voiceRemarks ? op.voiceRemarks : {};
+    const mine = Object.values(existing).filter(v => v.by === window.__me).length;
+    if (mine >= MAX_VOICE_PER_PERSON) {
+        alert(`⚠️ Maximum ${MAX_VOICE_PER_PERSON} messages vocaux par opération.\nSupprimez-en un (×) avant d'en ajouter un autre.`);
+        return;
+    }
+    let stream;
+    try {
+        stream = await navigator.mediaDevices.getUserMedia({
+            audio: { channelCount: 1, sampleRate: 16000, echoCancellation: true, noiseSuppression: true }
+        });
+    } catch (e) {
+        alert(e.name === 'NotAllowedError' ? "🎤 Autorisez l'accès au microphone." : "🎤 Impossible d'accéder au micro.");
+        return;
+    }
+    const mime = _vrPickMime();
+    const opts = { audioBitsPerSecond: 16000 };
+    if (mime) opts.mimeType = mime;
+    let rec;
+    try { rec = new MediaRecorder(stream, opts); }
+    catch (e) { stream.getTracks().forEach(t => t.stop()); alert("Erreur MediaRecorder."); return; }
+
+    _vr = { active: true, opId, startTime: Date.now(), chunks: [], recorder: rec, stream, timer: null };
+    rec.ondataavailable = e => { if (e.data && e.data.size) _vr.chunks.push(e.data); };
+    rec.onstop = () => _vrFinalize(rec.mimeType || 'audio/webm');
+    rec.onerror = e => { console.warn(e); stopVoiceRecording(true); };
+
+    document.getElementById('voice-rec-banner').classList.add('on');
+    document.getElementById('voice-timer').textContent = '0s';
+    _vr.timer = setInterval(() => {
+        const s = Math.floor((Date.now() - _vr.startTime) / 1000);
+        document.getElementById('voice-timer').textContent = s + 's';
+        if (s >= 60) stopVoiceRecording(false);
+    }, 250);
+
+    rec.start();
+}
+
+function stopVoiceRecording(cancel) {
+    if (!_vr.active) return;
+    _vr.cancel = !!cancel;
+    try { _vr.recorder.stop(); } catch (e) {}
+}
+
+async function _vrFinalize(mimeType) {
+    const { stream, timer, chunks, opId, startTime, cancel } = _vr;
+    stream && stream.getTracks().forEach(t => t.stop());
+    clearInterval(timer);
+    document.getElementById('voice-rec-banner').classList.remove('on');
+    const dur = Math.max(1, Math.round((Date.now() - startTime) / 1000));
+    _vr.active = false;
+    if (cancel || !chunks.length) return;
+    const blob = new Blob(chunks, { type: mimeType });
+    if (blob.size > 400000) { alert("⚠️ Message trop long (~60s max)."); return; }
+    const b64 = await new Promise(res => {
+        const r = new FileReader();
+        r.onloadend = () => res(String(r.result).split(',')[1] || '');
+        r.readAsDataURL(blob);
+    });
+    if (!b64) return;
+    const id = 'v' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
+    const payload = { data: b64, mimeType, duration: dur, at: Date.now(), by: window.__me || 'admin' };
+    try {
+        await db.ref(OPS_PATH + '/' + opId + '/voiceRemarks/' + id).set(payload);
+        showToast("🎤 Vocal envoyé", `${dur}s enregistrés.`);
+    } catch (e) {
+        console.error(e);
+        alert("❌ Échec de l'envoi du vocal.");
+    }
+}
+
+let _vrAudio = null, _vrBtn = null;
+function playVoiceNote(ev, opId, voiceId) {
+    if (ev) ev.stopPropagation();
+    const op = state.deliveries.find(d => d.id === opId);
+    const v = op && op.voiceRemarks && op.voiceRemarks[voiceId];
+    if (!v) return;
+    const pill = ev && ev.currentTarget;
+    if (_vrBtn === pill && _vrAudio) { _vrAudio.pause(); _vrReset(); return; }
+    _vrReset();
+    const audio = new Audio('data:' + v.mimeType + ';base64,' + v.data);
+    _vrAudio = audio; _vrBtn = pill;
+    if (pill) { pill.classList.add('playing'); const i = pill.querySelector('i'); if (i) i.className = 'fa-solid fa-pause'; }
+    audio.onended = _vrReset;
+    audio.onerror = () => { _vrReset(); alert("Lecture impossible."); };
+    audio.play().catch(() => _vrReset());
+}
+function _vrReset() {
+    if (_vrAudio) { try { _vrAudio.pause(); } catch (e) {} }
+    if (_vrBtn) {
+        _vrBtn.classList.remove('playing');
+        const i = _vrBtn.querySelector('i');
+        if (i) i.className = 'fa-solid fa-play';
+    }
+    _vrBtn = null; _vrAudio = null;
+}
+function deleteVoiceNote(ev, opId, voiceId) {
+    ev.stopPropagation();
+    const op = state.deliveries.find(d => d.id === opId);
+    const v = op && op.voiceRemarks && op.voiceRemarks[voiceId];
+    if (!v) return;
+    const canDel = window.__me === 'admin' || v.by === window.__me;
+    if (!canDel) return;
+    if (!confirm("Supprimer ce message vocal ?")) return;
+    db.ref(OPS_PATH + '/' + opId + '/voiceRemarks/' + voiceId).remove().catch(e => console.warn(e));
+    showToast("Vocal supprimé", "Message retiré.");
+}
+function _vBtn(opId) {
+    return `<button type="button" onclick="startVoiceRecording('${opId}')" title="Enregistrer un vocal" class="mic-btn inline-flex items-center justify-center align-middle w-7 h-7 rounded-full bg-indigo-100 hover:bg-indigo-200 text-indigo-700 shrink-0"><i class="fa-solid fa-microphone text-[11px]"></i></button>`;
+}
+function _vList(opId, op) {
+    const vr = op && op.voiceRemarks ? op.voiceRemarks : {};
+    const ids = Object.keys(vr).sort((a, b) => (vr[a].at || 0) - (vr[b].at || 0));
+    if (!ids.length) return '';
+    return ids.map(id => {
+        const v = vr[id];
+        const mm = Math.floor(v.duration / 60), ss = String(v.duration % 60).padStart(2, '0');
+        const who = v.by === 'admin' ? '👑' : '🛵';
+        const canDel = window.__me === 'admin' || v.by === window.__me;
+        return `<span class="voice-pill" onclick="playVoiceNote(event,'${opId}','${id}')"><i class="fa-solid fa-play"></i>${who} ${mm}:${ss}${canDel ? `<span class="del" onclick="deleteVoiceNote(event,'${opId}','${id}')"><i class="fa-solid fa-xmark"></i></span>` : ''}</span>`;
+    }).join(' ');
+}
+
+async function purgeOldVoiceNotes() {
+    try {
+        const today = getTodayStr();
+        const d = new Date(today + 'T12:00:00');
+        d.setDate(d.getDate() - 2);
+        const cutoff = toLocalDateStr(d);
+        const snap = await db.ref(OPS_PATH).orderByChild('date').endAt(cutoff).once('value');
+        const updates = {};
+        let count = 0;
+        snap.forEach(ch => {
+            const v = ch.val();
+            if (!v) return;
+            if (v.voiceRemarks && Object.keys(v.voiceRemarks).length) {
+                updates[OPS_PATH + '/' + ch.key + '/voiceRemarks'] = null;
+                count += Object.keys(v.voiceRemarks).length;
+            }
+        });
+        if (Object.keys(updates).length) {
+            await db.ref().update(updates);
+            console.log(`🧹 ${count} vocal(aux) purgé(s) — ops antérieures au ${cutoff}`);
+        }
+    } catch (e) { console.warn('Purge des vocaux impossible :', e); }
+}
+window.startVoiceRecording = startVoiceRecording;
+window.stopVoiceRecording = stopVoiceRecording;
+window.playVoiceNote = playVoiceNote;
+window.deleteVoiceNote = deleteVoiceNote;
+window.purgeOldVoiceNotes = purgeOldVoiceNotes;
+
 // ==================== ADMIN DASHBOARD ====================
 function renderAdminDashboard() {
     const blCount = (state.blacklist || []).length;
@@ -2509,10 +2597,8 @@ function renderAdminDashboard() {
     document.getElementById('admin-global-start-balance').textContent = `${adminStart.toLocaleString('fr-FR')} TND`;
     document.getElementById('admin-distributed-starts').textContent = `${totalLivreursStart.toLocaleString('fr-FR')} TND`;
     document.getElementById('admin-remaining-starts').textContent = `${remainingStart.toLocaleString('fr-FR')} TND`;
-
     let globalAddedDelivered = 0, globalAddedTheo = 0, globalDelivered = 0, globalDeliveriesTheo = 0;
     let countPending = 0, countDelivered = 0, countCancelled = 0, countCash = 0;
-
     ['livreur1', 'livreur2', 'livreur3'].forEach(id => {
         const theo = calculateTheoreticalBalance(id, date);
         const real = calculateRealBalance(id, date);
@@ -2528,13 +2614,11 @@ function renderAdminDashboard() {
         document.getElementById(`admin-added-${id}`).textContent = `+${addedDelivered.toLocaleString('fr-FR')} TND`;
         applyHeldLinesAdmin(id, date, start);
     });
-
     const globalRealTotal = adminStart + globalAddedDelivered - globalDelivered;
     const globalTheoTotal = adminStart + globalAddedTheo - globalDeliveriesTheo;
     document.getElementById('admin-total-real-balance').textContent = `${globalRealTotal.toLocaleString('fr-FR')} TND`;
     document.getElementById('admin-total-theo-balance').textContent = `${globalTheoTotal.toLocaleString('fr-FR')} TND`;
     document.getElementById('admin-global-date-label').textContent = date === getTodayStr() ? "Aujourd'hui" : date;
-
     const dayOps = state.deliveries.filter(d => (d.date || getTodayStr()) === date);
     dayOps.forEach(d => {
         if (d.type === 'SOLDE_RECU') countCash++;
@@ -2563,7 +2647,7 @@ function renderAdminTable() {
     filtered.sort((a, b) => { if (a.status === 'pending' && b.status !== 'pending') return -1; if (a.status !== 'pending' && b.status === 'pending') return 1; return b.timestamp - a.timestamp; });
     if (filtered.length === 0) { tbody.innerHTML = `<tr><td colspan="8" class="p-8 text-center text-slate-400">Aucune opération pour cette journée.</td></tr>`; return; }
 
-        let rowNumber = 0;
+    let rowNumber = 0;
     filtered.forEach(d => {
         rowNumber++;
         const tr = document.createElement('tr');
@@ -2588,7 +2672,7 @@ function renderAdminTable() {
         }
         const canReassign = d.status === 'pending' || d.status === 'cancelled';
         const typeIcon = isCash ? `<span class="inline-block text-[11px] font-bold bg-purple-100 text-purple-900 border border-purple-200 px-2 py-0.5 rounded-full mb-1">➕ ALIMENTATION</span>` : `<span class="inline-block text-[11px] font-bold bg-blue-100 text-blue-900 border border-blue-200 px-2 py-0.5 rounded-full mb-1">📦 LIVRAISON</span>`;
-                tr.innerHTML = `
+        tr.innerHTML = `
             <td class="p-3.5 text-center font-bold text-slate-500 text-sm">${rowNumber}</td>
             <td class="p-3.5">
                 ${typeIcon}
@@ -2630,6 +2714,7 @@ function renderAdminTable() {
                     ${statusBadge}
                     ${d.remarkAdmin ? `<p class="text-[11px] text-brand-700 bg-brand-50 p-1 rounded border border-brand-100">👑 <strong>Admin:</strong> « ${esc(d.remarkAdmin)} »</p>` : ''}
                     ${d.remarkLivreur ? `<p class="text-[11px] text-amber-800 bg-amber-50 p-1 rounded border border-amber-100">🛵 <strong>Livreur:</strong> « ${esc(d.remarkLivreur)} »</p>` : ''}
+   ${Object.keys(d.voiceRemarks || {}).length ? `<div class="flex items-center gap-1.5 flex-wrap mt-1">${_vList(d.id, d)}</div>` : ''}                 
                 </div>
             </td>
             <td class="p-3.5 text-right space-x-1">
@@ -2640,7 +2725,8 @@ function renderAdminTable() {
                 <button onclick="openRemarkModal('${d.id}')" class="p-1.5 bg-brand-100 text-brand-700 hover:bg-brand-200 rounded-lg text-xs font-bold transition"><i class="fa-solid fa-comment-dots"></i></button>
                 <button type="button" onclick="openEditOpModal('${d.id}')" title="Modifier" class="p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold transition"><i class="fa-solid fa-pen-to-square"></i></button>
                 <button onclick="openConfirmDeleteModal('${d.id}')" class="p-1.5 bg-red-100 hover:bg-red-200 text-red-700 rounded-lg text-xs font-bold transition"><i class="fa-solid fa-trash-can"></i></button>
-            </td>`;
+${_vBtn(d.id)}
+</td>`;
         tbody.appendChild(tr);
     });
 }
@@ -2686,7 +2772,7 @@ function renderLivreurDashboard(livreurId) {
         cardsContainer.innerHTML = `<div class="bg-white p-8 text-center rounded-2xl border border-slate-200 text-slate-400"><i class="fa-solid fa-inbox text-3xl mb-2 text-slate-300"></i><p>Aucune opération correspondant aux filtres.</p></div>`;
         return;
     }
-        let cardNumber = 0;
+    let cardNumber = 0;
     myDeliveries.forEach(d => {
         cardNumber++;
         const card = document.createElement('div');
@@ -2705,7 +2791,7 @@ function renderLivreurDashboard(livreurId) {
         }
         const typeBadge = isCash ? '<span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-purple-100 text-purple-900 border border-purple-200">➕ ALIM</span>' : '<span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-blue-100 text-blue-900 border border-blue-200">📦 LIVR</span>';
         card.className = `p-3 rounded-xl border-2 ${borderClass} shadow-sm transition space-y-2 text-xs`;
-                card.innerHTML = `
+        card.innerHTML = `
             <div class="flex items-center justify-between gap-2 border-b border-slate-200/60 pb-1.5">
                 <div class="flex items-center space-x-1.5 flex-wrap gap-y-1">
                     <span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-700 text-white">#${cardNumber}</span>
@@ -2731,13 +2817,15 @@ function renderLivreurDashboard(livreurId) {
                     ` : `<button onclick="confirmResetToPending('${d.id}')" class="px-2 py-1 bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs rounded-lg transition"><i class="fa-solid fa-rotate-left"></i></button>`}
                     <button onclick="openRemarkModal('${d.id}')" class="px-2 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-lg transition"><i class="fa-solid fa-comment-dots"></i></button>
                     <button type="button" onclick="openEditOpModal('${d.id}')" title="Modifier" class="px-2 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-lg transition"><i class="fa-solid fa-pen-to-square"></i> Modifier</button>
-                </div>
+${_vBtn(d.id)}
+</div>
             </div>
-            ${(d.remarkAdmin || d.remarkLivreur) ? `
-                <div class="text-[11px] pt-1.5 border-t border-slate-200/60 space-y-0.5">
-                    ${d.remarkAdmin ? `<p class="text-brand-800 bg-brand-50/80 px-2 py-0.5 rounded">👑 <strong>Admin:</strong> ${esc(d.remarkAdmin)}</p>` : ''}
-                    ${d.remarkLivreur ? `<p class="text-amber-900 bg-amber-50/80 px-2 py-0.5 rounded">🛵 <strong>Remarque:</strong> ${esc(d.remarkLivreur)}</p>` : ''}
-                </div>` : ''}`;
+            ${(d.remarkAdmin || d.remarkLivreur || Object.keys(d.voiceRemarks || {}).length) ? `
+<div class="text-[11px] pt-1.5 border-t border-slate-200/60 space-y-0.5">
+    ${d.remarkAdmin ? `<p class="text-brand-800 bg-brand-50/80 px-2 py-0.5 rounded">👑 <strong>Admin:</strong> ${esc(d.remarkAdmin)}</p>` : ''}
+    ${d.remarkLivreur ? `<p class="text-amber-900 bg-amber-50/80 px-2 py-0.5 rounded">🛵 <strong>Remarque:</strong> ${esc(d.remarkLivreur)}</p>` : ''}
+    ${Object.keys(d.voiceRemarks || {}).length ? `<div class="flex items-center gap-1.5 flex-wrap pt-1">${_vList(d.id, d)}</div>` : ''}
+</div>` : ''}`;
         cardsContainer.appendChild(card);
     });
 }
@@ -2794,7 +2882,7 @@ async function executeExcelExport() {
     const blacklistRows = (state.blacklist || []).map(b => ({ "Téléphone": b.phone || '', "Nom Client": b.clientName || '', "Motif Blocage": b.reason || '', "Date Ajout": b.date || getTodayStr() }));
     const blWs = XLSX.utils.json_to_sheet(blacklistRows.length > 0 ? blacklistRows : [{"Téléphone":"","Nom Client":"","Motif Blocage":"","Date Ajout":""}]);
     XLSX.utils.book_append_sheet(workbook, blWs, "Liste Noire");
-        const fileName = mode === 'single' ? `Rapport_Warda_${startDate}.xlsx` : `Rapport_Warda_${startDate}_au_${endDate}.xlsx`;
+    const fileName = mode === 'single' ? `Rapport_Warda_${startDate}.xlsx` : `Rapport_Warda_${startDate}_au_${endDate}.xlsx`;
     XLSX.writeFile(workbook, fileName);
     toggleExportExcelModal(false);
     showToast("Extraction Réussie", `Fichier "${fileName}" généré.`);
@@ -2860,45 +2948,21 @@ function executeResetToPending() {
 }
 
 // ==================== MODIFICATIONS RAPIDES ====================
-function promptEditPhone(deliveryId) {
-    const d = state.deliveries.find(x => x.id === deliveryId);
-    if (!d) return;
-    const p1 = prompt("Téléphone principal :", d.phone || '');
-    if (p1 === null) return;
-    const p2 = prompt("Téléphone secondaire (optionnel) :", d.phone2 || '');
-    const phone = p1.trim();
-    const phone2 = p2 !== null ? p2.trim() : (d.phone2 || '');
-    patchOp(deliveryId, { phone, phone2, phoneClean: phone.replace(/\s+/g, ''), timestamp: new Date().getTime() });
-    showToast("Téléphone(s) mis à jour", `Contact(s) modifié(s) pour ${d.clientName}.`);
-}
-function promptEditAddress(id) {
-    const d = state.deliveries.find(x => x.id === id);
-    if (!d) return;
-    const v = prompt("Adresse physique :", d.address || '');
-    if (v !== null) { patchOp(id, { address: v.trim(), timestamp: new Date().getTime() }); showToast("Adresse modifiée", `Nouvelle adresse pour ${d.clientName}.`); }
-}
-function promptEditLocation(id) {
-    const d = state.deliveries.find(x => x.id === id);
-    if (!d) return;
-    const v = prompt("Localisation / GPS :", d.location || '');
-    if (v !== null) { patchOp(id, { location: v.trim(), timestamp: new Date().getTime() }); showToast("Localisation modifiée", `Nouvelle localisation pour ${d.clientName}.`); }
-}
 function promptEditAmount(id) {
     const d = state.deliveries.find(x => x.id === id);
     if (!d) return;
     const isAdmin = state.currentRole === 'admin';
-    if (!isAdmin && d.type !== 'SOLDE_RECU') return;      // le livreur ne modifie que le montant d'une ALIMENTATION
+    if (!isAdmin && d.type !== 'SOLDE_RECU') return;
     if (d.status !== 'pending') { alert("Le montant ne peut être modifié que si l'opération est EN COURS !"); return; }
     const v = prompt("Nouveau montant (TND) :", d.amount);
     if (v !== null && !isNaN(v) && parseFloat(v) > 0) {
         const amount = parseFloat(v);
-        if (amount === Number(d.amount)) return;           // inchangé : pas de modification ni de notification
+        if (amount === Number(d.amount)) return;
         patchOp(id, { amount, timestamp: new Date().getTime() });
         showToast("Montant modifié", `Nouveau montant ${amount} TND.`);
     }
 }
 
-// ----- Fenêtre « Modifier l'opération » (téléphones, nom, adresse, localisation, remarque) — ne touche pas au montant -----
 function openEditOpModal(id) {
     const d = state.deliveries.find(x => x.id === id);
     if (!d) return;
@@ -2939,8 +3003,6 @@ function handleSaveEditOp(e) {
     };
     next[isAdmin ? 'remarkAdmin' : 'remarkLivreur'] = val('edit-remark');
     if (!next.clientName) { alert("Le nom du client est obligatoire."); return; }
-
-    // On n'envoie QUE les champs réellement modifiés : seules ces parties déclenchent une notification
     const patch = {};
     Object.keys(next).forEach(k => { if (cur(d[k]) !== next[k]) patch[k] = next[k]; });
     if (Object.keys(patch).length === 0) {
@@ -3071,29 +3133,21 @@ function handleSaveStartBalance(e) {
     const adminStart = getAdminStartBalance(date);
     const otherSum = LIVREUR_IDS.filter(id => id !== livreurId).reduce((s, id) => s + getStartBalance(id, date), 0);
     if (amount > 0 && otherSum + amount > adminStart) { alert(`Plafond dépassé ! Max : ${adminStart - otherSum} TND`); return; }
-
-    // Capturer l'ancienne valeur AVANT modification
     const oldAmount = getStartBalance(livreurId, date);
     const hasChanged = Math.abs(oldAmount - amount) > 0.005;
-
     if (!state.livreurs[livreurId].startBalances) state.livreurs[livreurId].startBalances = {};
     state.livreurs[livreurId].startBalances[date] = amount;
     dbSet(CFG_PATH + '/livreurs/' + livreurId + '/startBalances/' + date, amount);
     toggleStartBalanceModal(false);
     renderApp();
     showToast("Solde Livreur mis à jour", `${amount} TND attribués à ${state.livreurs[livreurId]?.name}.`);
-
-    // Notifier le livreur concerné
     if (hasChanged && notifMode !== 'local') {
         const fmt = v => Number(v).toLocaleString('fr-FR');
-        sendNotification(
-            livreurId,
-            '💰 Solde de départ modifié',
-            `Admin a modifié votre solde de départ : ${fmt(oldAmount)} → ${fmt(amount)} TND (${date})`
-        );
+        sendNotification(livreurId, '💰 Solde de départ modifié', `Admin a modifié votre solde de départ : ${fmt(oldAmount)} → ${fmt(amount)} TND (${date})`);
     }
 }
-    // ==================== MODALES ====================
+
+// ==================== MODALES ====================
 function toggleAddModal(show) {
     const modal = document.getElementById('modal-delivery');
     if (show) {
@@ -3187,7 +3241,6 @@ function executeDeleteDelivery() {
     }
     toggleConfirmDeleteModal(false);
 }
-// Flèches jour précédent / jour suivant
 function shiftDate(delta) {
     const base = state.selectedDate || getTodayStr();
     const d = new Date(base + 'T12:00:00');
@@ -3196,8 +3249,6 @@ function shiftDate(delta) {
     if (picker) picker.value = toLocalDateStr(d);
     handleDateChange();
 }
-// ==================== DATE ====================
-// La journée affichée est propre à chaque appareil (elle n'est plus partagée).
 function handleDateChange() {
     state.selectedDate = document.getElementById('global-date-picker').value || getTodayStr();
     state.deliveries = [];
@@ -3223,8 +3274,9 @@ function startMidnightWatcher() {
                 state.deliveries = [];
                 subscribeOps();
             }
-            checkAndExecuteDailyRollover();   // copie des opérations « En cours » vers la nouvelle journée
-            carryOverStartBalances();         // soldes de départ = soldes réels de la veille (sans écraser)
+            checkAndExecuteDailyRollover();
+            carryOverStartBalances();
+            purgeOldVoiceNotes();
             renderApp();
         }
         window.__lastToday = t;
@@ -3244,6 +3296,7 @@ async function startAdminSession() {
     switchRole('admin', true);
     checkAndExecuteDailyRollover();
     carryOverStartBalances();
+    purgeOldVoiceNotes();
     startMidnightWatcher();
 }
 
@@ -3253,7 +3306,6 @@ async function boot() {
     const { role: urlRole, token: urlToken } = getRoleFromURL();
     try {
         if (urlRole && urlRole !== 'admin') {
-            // ----- Espace livreur (lien personnel) -----
             const snap = await withTimeout(db.ref(CFG_PATH + '/livreurs/' + urlRole).once('value'), 15000);
             const v = snap.val();
             if (!v) { showFatal("L'application est en cours de mise à jour par l'administrateur. Réessayez dans quelques minutes."); return; }
@@ -3268,7 +3320,6 @@ async function boot() {
             else { hideLoading(); openLivreurLogin(); }
             return;
         }
-        // ----- Espace admin -----
         const hashSnap = await withTimeout(db.ref(CFG_PATH + '/adminPinHash').once('value'), 15000);
         window.__pinHash = hashSnap.val();
         if (window.__pinHash) {
@@ -3281,7 +3332,6 @@ async function boot() {
                 window.__legacyState = legacySnap.val();
             } catch (legacyErr) {
                 if (legacyErr && (legacyErr.code === 'PERMISSION_DENIED' || String(legacyErr.message || '').includes('permission_denied'))) {
-                    // Les nouvelles règles masquent l'ancienne structure : on ne peut pas migrer automatiquement
                     window.__legacyState = null;
                     window.__legacyBlocked = true;
                 } else { throw legacyErr; }
@@ -3304,11 +3354,6 @@ window.addEventListener('DOMContentLoaded', boot);
 <script>
 /* ===================================================================
    TRADUCTION DE L'INTERFACE (Français / English / العربية)
-   - Seuls les textes de l'interface sont traduits.
-   - Jamais traduits : noms des livreurs, noms de clients, adresses, téléphones,
-     remarques saisies, montants, dates, ni le contenu envoyé à Firebase.
-   - L'application d'origine n'est pas modifiée : ce script remplace les textes
-     affichés (français) par leur traduction, et revient au français à la demande.
    =================================================================== */
 (function () {
     'use strict';
@@ -3318,9 +3363,8 @@ window.addEventListener('DOMContentLoaded', boot);
     var lang = 'fr';
     try { var saved = localStorage.getItem(KEY); if (LANGS.indexOf(saved) >= 0) lang = saved; } catch (e) {}
 
-    /* ---------- Textes exacts : [français, anglais, arabe] ---------- */
     var E = [
-                [`Warda v44 - Gestion de Warda`, `Warda v44 - Warda management`, `وردة v44 - إدارة وردة`],
+        [`Warda v45 - Gestion de Warda`, `Warda v45 - Warda management`, `وردة v45 - إدارة وردة`],
         [`Gestion de la Liste Noire (Clients Bloqués)`, `Blacklist Management (Blocked Clients)`, `إدارة القائمة السوداء (العملاء المحظورون)`],
         [`Ajouter / Modifier un Client Bloqué`, `Add / Edit a Blocked Client`, `إضافة / تعديل عميل محظور`],
         [`Téléphone *`, `Phone *`, `الهاتف *`],
@@ -3392,8 +3436,8 @@ window.addEventListener('DOMContentLoaded', boot);
         [`Connexion au serveur…`, `Connecting to the server…`, `جارٍ الاتصال بالخادم…`],
         [`Réessayer`, `Retry`, `إعادة المحاولة`],
         [`Gestion de Warda -`, `Warda management -`, `إدارة وردة -`],
-	[`Warda`, `Warda`, `وردة`],        
-	[`Mode Vue :`, `View mode:`, `وضع العرض:`],
+        [`Warda`, `Warda`, `وردة`],
+        [`Mode Vue :`, `View mode:`, `وضع العرض:`],
         [`Admin`, `Admin`, `المسؤول`],
         [`Activer le son`, `Enable sound`, `تفعيل الصوت`],
         [`Nouvelle Notification`, `New Notification`, `إشعار جديد`],
@@ -3457,9 +3501,7 @@ window.addEventListener('DOMContentLoaded', boot);
         [`➕ Alim.`, `➕ Top-up`, `➕ تغذية`],
         [`Mes Opérations`, `My Operations`, `عملياتي`],
         [`Toutes`, `All`, `الكل`],
-        [`En cours`, `Pending`, `قيد التنفيذ`],
         [`Envoyés / Validés`, `Sent / Validated`, `المُرسَلة / المؤكَّدة`],
-        [`Annulés`, `Cancelled`, `الملغاة`],
         [`Livraisons`, `Deliveries`, `التوصيلات`],
         [`Filtrer :`, `Filter:`, `تصفية:`],
         [`Confirmation de Validation`, `Validation Confirmation`, `تأكيد المصادقة`],
@@ -3563,7 +3605,6 @@ window.addEventListener('DOMContentLoaded', boot);
         [`Livreur:`, `Courier:`, `الموزّع:`],
         [`Remarque:`, `Remark:`, `ملاحظة:`],
         [`Une opération`, `An operation`, `عملية`],
-        /* messages courts (toasts, boîtes de dialogue) */
         [`❌ Le fichier Excel est vide ou invalide !`, `❌ The Excel file is empty or invalid!`, `❌ ملف Excel فارغ أو غير صالح!`],
         [`📥 Importation`, `📥 Import`, `📥 استيراد`],
         [`Rien de nouveau : tout existe déjà.`, `Nothing new: everything already exists.`, `لا جديد: كل شيء موجود مسبقاً.`],
@@ -3598,14 +3639,6 @@ window.addEventListener('DOMContentLoaded', boot);
         [`✅ Validation`, `✅ Validation`, `✅ تأكيد`],
         [`🔄 Remise en cours`, `🔄 Back to pending`, `🔄 إعادة إلى قيد التنفيذ`],
         [`Remise en cours`, `Back to pending`, `إعادة إلى قيد التنفيذ`],
-        [`Téléphone principal :`, `Main phone:`, `الهاتف الرئيسي:`],
-        [`Téléphone secondaire (optionnel) :`, `Secondary phone (optional):`, `الهاتف الثانوي (اختياري):`],
-        [`Téléphone(s) mis à jour`, `Phone number(s) updated`, `تم تحديث رقم (أرقام) الهاتف`],
-        [`Adresse physique :`, `Physical address:`, `العنوان الفعلي:`],
-        [`Adresse modifiée`, `Address updated`, `تم تعديل العنوان`],
-        [`Localisation / GPS :`, `Location / GPS:`, `الموقع / GPS:`],
-        [`Localisation modifiée`, `Location updated`, `تم تعديل الموقع`],
-        [`L'Admin ne peut modifier un montant qu'en cours !`, `The Admin can only change an amount while pending!`, `لا يمكن للمسؤول تعديل المبلغ إلا إذا كانت العملية قيد التنفيذ!`],
         [`Nouveau montant (TND) :`, `New amount (TND):`, `المبلغ الجديد (TND):`],
         [`Montant modifié`, `Amount updated`, `تم تعديل المبلغ`],
         [`Impossible : date passée.`, `Not possible: past date.`, `غير ممكن: تاريخ سابق.`],
@@ -3624,7 +3657,6 @@ window.addEventListener('DOMContentLoaded', boot);
         [`🔔 Notification`, `🔔 Notification`, `🔔 إشعار`],
         [`Ligne supprimée`, `Line deleted`, `تم حذف السطر`],
         [`Opération retirée.`, `Operation removed.`, `تم سحب العملية.`],
-        /* notifications échangées entre admin et livreurs */
         [`🔔 Nouvelle alimentation`, `🔔 New top-up`, `🔔 تغذية جديدة`],
         [`🔔 Nouvelle livraison`, `🔔 New delivery`, `🔔 توصيل جديد`],
         [`💬 Remarque`, `💬 Remark`, `💬 ملاحظة`],
@@ -3634,7 +3666,6 @@ window.addEventListener('DOMContentLoaded', boot);
         [`✏️ Montant`, `✏️ Amount`, `✏️ المبلغ`],
         [`↩️ Opération retirée`, `↩️ Operation removed`, `↩️ تم سحب العملية`],
         [`💰 Solde de départ modifié`, `💰 Opening balance changed`, `💰 تم تعديل رصيد البداية`],
-        /* messages de la page de chargement */
         [`L'application est en cours de mise à jour par l'administrateur. Réessayez dans quelques minutes.`, `The application is being updated by the administrator. Try again in a few minutes.`, `يقوم المسؤول بتحديث التطبيق حالياً. أعد المحاولة بعد بضع دقائق.`],
         [`Impossible de joindre le serveur. Vérifiez votre connexion Internet.`, `Unable to reach the server. Check your Internet connection.`, `تعذّر الوصول إلى الخادم. تحقق من اتصالك بالإنترنت.`],
         [`Accès refusé par les règles de la base de données. Vérifiez les règles publiées dans Firebase.`, `Access denied by the database rules. Check the rules published in Firebase.`, `تم رفض الوصول من طرف قواعد قاعدة البيانات. تحقق من القواعد المنشورة في Firebase.`],
@@ -3643,7 +3674,20 @@ window.addEventListener('DOMContentLoaded', boot);
         [`Synchronisé avec Firebase`, `Synced with Firebase`, `تمت المزامنة مع Firebase`],
         [`Hors ligne — les changements seront synchronisés au retour`, `Offline: changes will be synced when back online`, `غير متصل: ستتم مزامنة التغييرات عند عودة الاتصال`],
         [`Synchronisation en cours...`, `Syncing...`, `جارٍ المزامنة...`],
-        /* attributs : placeholder, title, aria-label */
+        [`Enregistrement… `, `Recording… `, `جارٍ التسجيل… `],
+        [`Envoyer`, `Send`, `إرسال`],
+        [`Enregistrer un vocal`, `Record a voice message`, `تسجيل رسالة صوتية`],
+        [`🎤 Vocal envoyé`, `🎤 Voice message sent`, `🎤 تم إرسال الرسالة الصوتية`],
+        [`Vocal supprimé`, `Voice message deleted`, `تم حذف الرسالة الصوتية`],
+        [`Message retiré.`, `Message removed.`, `تم سحب الرسالة.`],
+        [`Supprimer ce message vocal ?`, `Delete this voice message?`, `حذف هذه الرسالة الصوتية؟`],
+        [`🎤 Enregistrement vocal non supporté.\nUtilisez Chrome, Edge, Firefox ou Safari iOS 14.3+.`, `🎤 Voice recording not supported.\nUse Chrome, Edge, Firefox or Safari iOS 14.3+.`, `🎤 التسجيل الصوتي غير مدعوم.\nاستخدم Chrome أو Edge أو Firefox أو Safari iOS 14.3+.`],
+        [`🎤 Autorisez l'accès au microphone.`, `🎤 Allow microphone access.`, `🎤 اسمح بالوصول إلى الميكروفون.`],
+        [`🎤 Impossible d'accéder au micro.`, `🎤 Unable to access the microphone.`, `🎤 تعذّر الوصول إلى الميكروفون.`],
+        [`Erreur MediaRecorder.`, `MediaRecorder error.`, `خطأ في MediaRecorder.`],
+        [`⚠️ Message trop long (~60s max).`, `⚠️ Message too long (~60s max).`, `⚠️ الرسالة طويلة جداً (60 ثانية كحد أقصى).`],
+        [`❌ Échec de l'envoi du vocal.`, `❌ Voice message sending failed.`, `❌ فشل إرسال الرسالة الصوتية.`],
+        [`Lecture impossible.`, `Playback not possible.`, `تعذّر التشغيل.`],
         [`ex: 99 999 999`, `e.g. 99 999 999`, `مثال: 99 999 999`],
         [`ex: 21 345 678`, `e.g. 21 345 678`, `مثال: 21 345 678`],
         [`ex: 98 765 432`, `e.g. 98 765 432`, `مثال: 98 765 432`],
@@ -3675,7 +3719,6 @@ window.addEventListener('DOMContentLoaded', boot);
         [`Heure d'action`, `Action time`, `وقت الإجراء`]
     ];
 
-    /* ---------- Textes contenant des données (nom, montant...) : {1}, {2}... ---------- */
     var P = [
         [`❌ L'enregistrement a échoué ({1}). Vérifiez votre connexion puis réessayez.`, `❌ Saving failed ({1}). Check your connection and try again.`, `❌ فشل الحفظ ({1}). تحقق من اتصالك ثم أعد المحاولة.`],
         [`{1} notification(s) n'ont pas encore été validées (OK). Tout effacer quand même ?`, `{1} notification(s) have not been acknowledged yet (OK). Clear everything anyway?`, `{1} إشعار (إشعارات) لم يتم تأكيدها بعد (OK). هل تريد مسح الكل رغم ذلك؟`],
@@ -3694,9 +3737,6 @@ window.addEventListener('DOMContentLoaded', boot);
         [`Livraison validée pour {1}.`, `Delivery validated for {1}.`, `تم تأكيد التوصيل الخاص بـ {1}.`],
         [`Opération pour {1} annulée.`, `Operation for {1} cancelled.`, `تم إلغاء العملية الخاصة بـ {1}.`],
         [`{1} est à nouveau EN COURS.`, `{1} is PENDING again.`, `{1} عادت إلى قيد التنفيذ.`],
-        [`Contact(s) modifié(s) pour {1}.`, `Contact(s) updated for {1}.`, `تم تعديل بيانات الاتصال الخاصة بـ {1}.`],
-        [`Nouvelle adresse pour {1}.`, `New address for {1}.`, `عنوان جديد لـ {1}.`],
-        [`Nouvelle localisation pour {1}.`, `New location for {1}.`, `موقع جديد لـ {1}.`],
         [`Nouveau montant {1} TND.`, `New amount {1} TND.`, `المبلغ الجديد {1} TND.`],
         [`⚠️ CLIENT BLACKLISTÉ !\n\nNom : {1}\nTéléphone : {2}\nMotif : {3}\n\nForcer l'enregistrement ?`, `⚠️ BLACKLISTED CLIENT!\n\nName: {1}\nPhone: {2}\nReason: {3}\n\nForce the registration?`, `⚠️ عميل في القائمة السوداء!\n\nالاسم: {1}\nالهاتف: {2}\nالسبب: {3}\n\nهل تريد فرض التسجيل؟`],
         [`Alimentation de {1} TND assignée à {2}.`, `Top-up of {1} TND assigned to {2}.`, `تم تعيين تغذية بقيمة {1} TND إلى {2}.`],
@@ -3720,7 +3760,6 @@ window.addEventListener('DOMContentLoaded', boot);
         [`🔔 {1} nouveautés`, `🔔 {1} updates`, `🔔 {1} مستجدات`],
         [`{1} n'est plus dans votre liste.`, `{1} is no longer in your list.`, `{1} لم تعد في قائمتك.`],
         [`Admin a modifié votre solde de départ : {1} → {2} TND ({3})`, `Admin changed your opening balance: {1} → {2} TND ({3})`, `قام المسؤول بتعديل رصيد البداية الخاص بك: {1} ← {2} TND ({3})`],
-        /* notifications : suppression / modification de champs */
         [`{1} a supprimé la remarque de {2}`, `{1} deleted the remark of {2}`, `قام {1} بحذف الملاحظة الخاصة بـ {2}`],
         [`{1} a laissé une remarque pour {2} ({3})`, `{1} left a remark for {2} ({3})`, `قام {1} بترك ملاحظة لـ {2} ({3})`],
         [`{1} a modifié une remarque pour {2} ({3})`, `{1} edited a remark for {2} ({3})`, `قام {1} بتعديل ملاحظة لـ {2} ({3})`],
@@ -3734,10 +3773,11 @@ window.addEventListener('DOMContentLoaded', boot);
         [`{1} a supprimé la localisation de {2}`, `{1} deleted the location of {2}`, `قام {1} بحذف موقع {2}`],
         [`{1} a ajouté une localisation de {2}`, `{1} added a location for {2}`, `قام {1} بإضافة موقع لـ {2}`],
         [`{1} a modifié la localisation de {2}`, `{1} changed the location of {2}`, `قام {1} بتعديل موقع {2}`],
-        [`{1} a modifié le montant de {2} : {3} TND`, `{1} changed the amount of {2}: {3} TND`, `قام {1} بتعديل مبلغ {2}: {3} TND`]
+        [`{1} a modifié le montant de {2} : {3} TND`, `{1} changed the amount of {2}: {3} TND`, `قام {1} بتعديل مبلغ {2}: {3} TND`],
+        [`{1}s enregistrés.`, `{1}s recorded.`, `تم تسجيل {1} ثانية.`],
+        [`⚠️ Maximum {1} messages vocaux par opération.\nSupprimez-en un (×) avant d'en ajouter un autre.`, `⚠️ Maximum {1} voice messages per operation.\nDelete one (×) before adding another.`, `⚠️ الحد الأقصى {1} رسالة صوتية لكل عملية.\nاحذف واحدة (×) قبل إضافة أخرى.`]
     ];
 
-    /* Notifications : ajout, validation, annulation, remise en cours (livraison / alimentation) */
     [
         { fr: 'alimentation', art: "l'", en: 'top-up', add: 'تغذية', def: 'التغذية الخاصة بـ' },
         { fr: 'livraison', art: 'la ', en: 'delivery', add: 'توصيل', def: 'التوصيل الخاص بـ' }
@@ -3757,14 +3797,12 @@ window.addEventListener('DOMContentLoaded', boot);
         });
     });
 
-    /* Mots seuls qu'on traduit quand ils servent de valeur dans un message (ex. « Admin », « client ») */
     var GROUP = [
         [`Admin`, `Admin`, `المسؤول`],
         [`client`, `client`, `العميل`],
         [`Une opération`, `An operation`, `عملية`]
     ];
 
-    /* ---------- Moteur ---------- */
     var key = function (s) { return String(s).replace(/\u2019/g, "'").replace(/\s+/g, ' ').trim(); };
     var EXACT = new Map(), BACK = new Map(), GEXACT = new Map(), PATS = [];
     E.forEach(function (r) { EXACT.set(key(r[0]), r); });
@@ -3858,7 +3896,6 @@ window.addEventListener('DOMContentLoaded', boot);
         list.forEach(applyText);
     }
 
-    /* Boîtes de dialogue du navigateur */
     var nativeAlert = window.alert.bind(window), nativeConfirm = window.confirm.bind(window), nativePrompt = window.prompt.bind(window);
     function dlg(m) {
         if (lang === 'fr' || typeof m !== 'string') return m;
@@ -3906,7 +3943,6 @@ window.addEventListener('DOMContentLoaded', boot);
     }
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
 })();
-
 </script>
 </body>
 </html>
