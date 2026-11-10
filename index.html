@@ -2488,7 +2488,7 @@ async function startVoiceRecording(opId) {
         return;
     }
     const mime = _vrPickMime();
-    const opts = { audioBitsPerSecond: 16000 };
+    const opts = { audioBitsPerSecond: 32000 };
     if (mime) opts.mimeType = mime;
     let rec;
     try { rec = new MediaRecorder(stream, opts); }
