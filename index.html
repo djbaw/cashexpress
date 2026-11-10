@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Warda v46 - Gestion de Warda</title>
+<title>Warda v47 - Gestion de Warda</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -319,7 +319,7 @@
                     Warda
                     <span id="sync-indicator" class="syncing inline-block w-2.5 h-2.5 rounded-full" title="État de la connexion"></span>
                 </h1>
-                <p class="text-xs text-slate-400 hidden sm:block">Gestion de Warda - <span class="text-emerald-400 font-bold">v46</span></p>
+                <p class="text-xs text-slate-400 hidden sm:block">Gestion de Warda - <span class="text-emerald-400 font-bold">v47</span></p>
             </div>
         </div>
         <button id="notif-bell" type="button" onclick="openNotifPanel()" title="Toutes les notifications" class="relative w-11 h-11 bg-slate-800 border border-slate-700 rounded-xl text-slate-200 hover:text-white hover:bg-slate-700 transition order-2 sm:order-3">
@@ -403,10 +403,11 @@
                         <p class="text-xs text-slate-400">Suivi du coffre central et répartition entre livreurs</p>
                     </div>
                 </div>
-                <div class="flex items-center space-x-2">
-                    <span class="text-xs text-slate-300 bg-slate-800 px-3 py-1.5 rounded-xl border border-slate-700 font-medium" id="admin-global-date-label">Aujourd'hui</span>
-                    <button onclick="openAdminStartBalanceModal()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow transition flex items-center space-x-1.5"><i class="fa-solid fa-pen text-[11px]"></i><span>Départ Admin</span></button>
-                </div>
+                <div class="flex items-center space-x-2 flex-wrap">
+    <span class="text-xs text-slate-300 bg-slate-800 px-3 py-1.5 rounded-xl border border-slate-700 font-medium" id="admin-global-date-label">Aujourd'hui</span>
+    <button onclick="openTransferModal()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl shadow transition flex items-center space-x-1.5"><i class="fa-solid fa-arrow-right-arrow-left text-[11px]"></i><span>Transférer</span></button>
+    <button onclick="openAdminStartBalanceModal()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow transition flex items-center space-x-1.5"><i class="fa-solid fa-pen text-[11px]"></i><span>Départ Admin</span></button>
+</div>
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div class="bg-slate-800/80 p-4 rounded-xl border border-slate-700/60">
@@ -674,7 +675,45 @@
     </div>
 </div>
 
-<!-- MODAL: EXPORT EXCEL -->
+<!-- MODAL: TRANSFER BALANCE -->
+<div id="modal-transfer-balance" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden transform transition-all">
+        <div class="bg-indigo-600 px-6 py-4 text-white flex justify-between items-center">
+            <h3 class="font-bold text-lg"><i class="fa-solid fa-arrow-right-arrow-left me-2"></i>Transférer un solde entre livreurs</h3>
+            <button onclick="toggleTransferModal(false)" class="text-white/80 hover:text-white transition"><i class="fa-solid fa-xmark text-xl"></i></button>
+        </div>
+        <form id="form-transfer-balance" onsubmit="handleTransferBalance(event)" class="p-6 space-y-4">
+            <p class="text-xs text-slate-600 leading-relaxed">Transférez un montant du <strong>solde de départ</strong> d'un livreur vers un autre. Le total distribué reste inchangé (pas d'impact sur le Solde Admin Global).</p>
+            <div>
+                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Livreur source (retrait) *</label>
+                <select id="transfer-from-livreur" required onchange="updateTransferPreview()" class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none text-sm font-semibold">
+                    <option value="livreur1" class="livreur-name-1">Livreur 1</option>
+                    <option value="livreur2" class="livreur-name-2">Livreur 2</option>
+                    <option value="livreur3" class="livreur-name-3">Livreur 3</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Livreur destination (ajout) *</label>
+                <select id="transfer-to-livreur" required onchange="updateTransferPreview()" class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none text-sm font-semibold">
+                    <option value="livreur1" class="livreur-name-1">Livreur 1</option>
+                    <option value="livreur2" class="livreur-name-2" selected>Livreur 2</option>
+                    <option value="livreur3" class="livreur-name-3">Livreur 3</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Montant à transférer (TND) *</label>
+                <input type="number" id="transfer-amount" step="0.01" min="0.01" required placeholder="ex: 1000" oninput="updateTransferPreview()" class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none text-base font-bold text-slate-800">
+            </div>
+            <div id="transfer-preview" class="p-3 bg-indigo-50 border border-indigo-200 rounded-xl text-xs text-indigo-900 space-y-1"></div>
+            <div class="pt-3 flex justify-end space-x-3">
+                <button type="button" onclick="toggleTransferModal(false)" class="px-4 py-2.5 text-slate-600 hover:bg-slate-100 font-semibold text-sm rounded-xl transition">Annuler</button>
+                <button type="submit" class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm rounded-xl shadow-md transition flex items-center gap-2"><i class="fa-solid fa-arrow-right-arrow-left"></i> Transférer</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL: EXPORT EXCEL -->        
 <div id="modal-export-excel" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
     <div class="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden transform transition-all">
         <div class="bg-emerald-600 px-6 py-4 text-white flex justify-between items-center">
@@ -2677,7 +2716,7 @@ function renderAdminTable() {
         let statusBadge = '', rowBgClass = 'hover:bg-slate-50/80', isStrikethrough = false;
         const isCash = d.type === 'SOLDE_RECU';
         if (isCash) {
-            if (d.status === 'delivered') { statusBadge = `<span class="px-2.5 py-1 rounded-full text-xs font-bold bg-purple-700 text-white">🟣 Validé (Crédité)</span>`; rowBgClass = 'bg-purple-100/90 font-semibold text-purple-950 border-b border-purple-200'; }
+            if (d.status === 'delivered') { statusBadge = `<span class="px-2.5 py-1 rounded-full text-xs font-bold bg-purple-700 text-white">🟣 Reçu</span>`; rowBgClass = 'bg-purple-100/90 font-semibold text-purple-950 border-b border-purple-200'; }
             else if (d.status === 'cancelled') { statusBadge = `<span class="px-2.5 py-1 rounded-full text-xs font-bold bg-red-600 text-white">🔴 Annulé</span>`; rowBgClass = 'bg-red-100/90 text-red-950 border-b border-red-200'; isStrikethrough = true; }
             else { statusBadge = `<span class="px-2.5 py-1 rounded-full text-xs font-bold bg-purple-200 text-purple-900 border border-purple-300">🟡 En cours</span>`; rowBgClass = 'bg-purple-50/80 border-b border-purple-100'; }
         } else {
@@ -2739,16 +2778,18 @@ function renderAdminTable() {
    ${Object.keys(d.voiceRemarks || {}).length ? `<div class="flex items-center gap-1.5 flex-wrap mt-1">${_vList(d.id, d)}</div>` : ''}                 
                 </div>
             </td>
-            <td class="p-3.5 text-right space-x-1">
-                ${d.status === 'pending' ? `
-                    <button onclick="openConfirmValidationModal('${d.id}')" class="p-1.5 bg-emerald-600 text-white rounded-lg text-xs font-bold hover:bg-emerald-700 transition"><i class="fa-solid fa-check"></i></button>
-                    <button onclick="openCancelModal('${d.id}')" class="p-1.5 bg-red-600 text-white rounded-lg text-xs font-bold hover:bg-red-700 transition"><i class="fa-solid fa-ban"></i></button>
-                ` : `<button onclick="confirmResetToPending('${d.id}')" class="p-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-xs font-bold transition"><i class="fa-solid fa-rotate-left"></i></button>`}
-                <button onclick="openRemarkModal('${d.id}')" class="p-1.5 bg-brand-100 text-brand-700 hover:bg-brand-200 rounded-lg text-xs font-bold transition"><i class="fa-solid fa-comment-dots"></i></button>
-                <button type="button" onclick="openEditOpModal('${d.id}')" title="Modifier" class="p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold transition"><i class="fa-solid fa-pen-to-square"></i></button>
-                <button onclick="openConfirmDeleteModal('${d.id}')" class="p-1.5 bg-red-100 hover:bg-red-200 text-red-700 rounded-lg text-xs font-bold transition"><i class="fa-solid fa-trash-can"></i></button>
-${_vBtn(d.id, 'sm')}
-</td>`;
+                        <td class="p-3.5">
+                <div class="grid grid-cols-3 gap-1 justify-items-end items-center">
+                    ${d.status === 'pending' ? `
+                        <button onclick="openConfirmValidationModal('${d.id}')" class="p-1.5 bg-emerald-600 text-white rounded-lg text-xs font-bold hover:bg-emerald-700 transition"><i class="fa-solid fa-check"></i></button>
+                        <button onclick="openCancelModal('${d.id}')" class="p-1.5 bg-red-600 text-white rounded-lg text-xs font-bold hover:bg-red-700 transition"><i class="fa-solid fa-ban"></i></button>
+                    ` : `<button onclick="confirmResetToPending('${d.id}')" class="p-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-xs font-bold transition"><i class="fa-solid fa-rotate-left"></i></button>`}
+                    <button onclick="openRemarkModal('${d.id}')" class="p-1.5 bg-brand-100 text-brand-700 hover:bg-brand-200 rounded-lg text-xs font-bold transition"><i class="fa-solid fa-comment-dots"></i></button>
+                    <button type="button" onclick="openEditOpModal('${d.id}')" title="Modifier" class="p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold transition"><i class="fa-solid fa-pen-to-square"></i></button>
+                    <button onclick="openConfirmDeleteModal('${d.id}')" class="p-1.5 bg-red-100 hover:bg-red-200 text-red-700 rounded-lg text-xs font-bold transition"><i class="fa-solid fa-trash-can"></i></button>
+                    ${_vBtn(d.id, 'sm')}
+                </div>
+            </td>`;
         tbody.appendChild(tr);
     });
 }
@@ -3200,6 +3241,97 @@ function openAdminStartBalanceModal() {
     toggleAdminStartBalanceModal(true);
 }
 function toggleAdminStartBalanceModal(show) { const m = document.getElementById('modal-admin-start-balance'); if (show) m.classList.remove('hidden'); else m.classList.add('hidden'); }
+/* ==================== TRANSFERT DE SOLDE ENTRE LIVREURS ==================== */
+function openTransferModal() {
+    document.getElementById('form-transfer-balance').reset();
+    document.getElementById('transfer-from-livreur').value = 'livreur1';
+    document.getElementById('transfer-to-livreur').value = 'livreur2';
+    updateTransferPreview();
+    document.getElementById('modal-transfer-balance').classList.remove('hidden');
+}
+function toggleTransferModal(show) {
+    const m = document.getElementById('modal-transfer-balance');
+    if (show) m.classList.remove('hidden'); else m.classList.add('hidden');
+}
+function updateTransferPreview() {
+    const fromId = document.getElementById('transfer-from-livreur').value;
+    const toId = document.getElementById('transfer-to-livreur').value;
+    const amount = parseFloat(document.getElementById('transfer-amount').value) || 0;
+    const date = state.selectedDate || getTodayStr();
+    const preview = document.getElementById('transfer-preview');
+    if (fromId === toId) {
+        preview.innerHTML = `<p class="font-bold text-red-700">❌ Source et destination doivent être différents.</p>`;
+        return;
+    }
+    const fromBal = getStartBalance(fromId, date);
+    const toBal = getStartBalance(toId, date);
+    const newFrom = fromBal - amount;
+    const newTo = toBal + amount;
+    const fromName = state.livreurs[fromId]?.name || fromId;
+    const toName = state.livreurs[toId]?.name || toId;
+    const fmt = v => Number(v).toLocaleString('fr-FR');
+    let html = `
+        <p class="font-bold mb-1">📊 Aperçu du transfert :</p>
+        <p>🛵 <strong>${fromName}</strong> : ${fmt(fromBal)} → <strong>${fmt(newFrom)} TND</strong> (-${fmt(amount)})</p>
+        <p>🛵 <strong>${toName}</strong> : ${fmt(toBal)} → <strong>${fmt(newTo)} TND</strong> (+${fmt(amount)})</p>
+    `;
+    if (amount > fromBal) {
+        html += `<p class="font-bold text-red-700 mt-1">⚠️ Solde insuffisant chez ${fromName} !</p>`;
+    }
+    preview.innerHTML = html;
+}
+async function handleTransferBalance(e) {
+    e.preventDefault();
+    const fromId = document.getElementById('transfer-from-livreur').value;
+    const toId = document.getElementById('transfer-to-livreur').value;
+    const amount = parseFloat(document.getElementById('transfer-amount').value);
+    const date = state.selectedDate || getTodayStr();
+
+    if (fromId === toId) { alert("Source et destination doivent être différents."); return; }
+    if (!(amount > 0)) { alert("Montant invalide."); return; }
+
+    const fromBal = getStartBalance(fromId, date);
+    const toBal = getStartBalance(toId, date);
+
+    if (amount > fromBal) {
+        alert(`Solde insuffisant ! ${state.livreurs[fromId]?.name} n'a que ${fromBal.toLocaleString('fr-FR')} TND.`);
+        return;
+    }
+
+    const newFrom = Math.round((fromBal - amount) * 100) / 100;
+    const newTo = Math.round((toBal + amount) * 100) / 100;
+    const fromName = state.livreurs[fromId]?.name || fromId;
+    const toName = state.livreurs[toId]?.name || toId;
+    const fmt = v => Number(v).toLocaleString('fr-FR');
+
+    const confirmMsg = `Confirmer le transfert ?\n\n🛵 ${fromName} : ${fmt(fromBal)} → ${fmt(newFrom)} TND (-${fmt(amount)})\n🛵 ${toName} : ${fmt(toBal)} → ${fmt(newTo)} TND (+${fmt(amount)})\n\nDate : ${date}`;
+    if (!confirm(confirmMsg)) return;
+
+    try {
+        const updates = {};
+        updates[CFG_PATH + '/livreurs/' + fromId + '/startBalances/' + date] = newFrom;
+        updates[CFG_PATH + '/livreurs/' + toId + '/startBalances/' + date] = newTo;
+        await db.ref().update(updates);
+
+        if (!state.livreurs[fromId].startBalances) state.livreurs[fromId].startBalances = {};
+        if (!state.livreurs[toId].startBalances) state.livreurs[toId].startBalances = {};
+        state.livreurs[fromId].startBalances[date] = newFrom;
+        state.livreurs[toId].startBalances[date] = newTo;
+
+        if (notifMode !== 'local') {
+            sendNotification(fromId, '🔁 Transfert de solde (sortie)', `Admin a transféré ${fmt(amount)} TND de votre solde vers ${toName} : ${fmt(fromBal)} → ${fmt(newFrom)} TND (${date})`);
+            sendNotification(toId, '🔁 Transfert de solde (entrée)', `Admin a transféré ${fmt(amount)} TND de ${fromName} vers votre solde : ${fmt(toBal)} → ${fmt(newTo)} TND (${date})`);
+        }
+
+        toggleTransferModal(false);
+        renderApp();
+        showToast("🔁 Transfert effectué", `${fmt(amount)} TND transférés de ${fromName} vers ${toName}.`);
+    } catch (err) {
+        console.error(err);
+        alert("❌ Échec du transfert. Vérifiez la connexion.");
+    }
+}
+
 function handleSaveAdminStartBalance(e) {
     e.preventDefault();
     const date = state.selectedDate || getTodayStr();
@@ -3386,7 +3518,7 @@ window.addEventListener('DOMContentLoaded', boot);
     try { var saved = localStorage.getItem(KEY); if (LANGS.indexOf(saved) >= 0) lang = saved; } catch (e) {}
 
     var E = [
-        [`Warda v46 - Gestion de Warda`, `Warda v46 - Warda management`, `وردة v46 - إدارة وردة`],
+        [`Warda v47 - Gestion de Warda`, `Warda v47 - Warda management`, `وردة v47 - إدارة وردة`],
         [`Gestion de la Liste Noire (Clients Bloqués)`, `Blacklist Management (Blocked Clients)`, `إدارة القائمة السوداء (العملاء المحظورون)`],
         [`Ajouter / Modifier un Client Bloqué`, `Add / Edit a Blocked Client`, `إضافة / تعديل عميل محظور`],
         [`Téléphone *`, `Phone *`, `الهاتف *`],
@@ -3608,7 +3740,7 @@ window.addEventListener('DOMContentLoaded', boot);
         [`Aucun client sur la liste noire.`, `No clients on the blacklist.`, `لا يوجد عملاء في القائمة السوداء.`],
         [`Aucune opération pour cette journée.`, `No operations for this day.`, `لا توجد عمليات في هذا اليوم.`],
         [`Aucune opération correspondant aux filtres.`, `No operations matching the filters.`, `لا توجد عمليات مطابقة للتصفية.`],
-        [`🟣 Validé (Crédité)`, `🟣 Validated (Credited)`, `🟣 مؤكَّد (مُضاف)`],
+        [`🟣 Reçu`, `🟣 Credited`, `🟣 تم الاستلام`],
         [`🔴 Annulé`, `🔴 Cancelled`, `🔴 ملغى`],
         [`🟡 En cours`, `🟡 Pending`, `🟡 قيد التنفيذ`],
         [`🟢 Envoyé`, `🟢 Sent`, `🟢 مُرسَل`],
@@ -3738,9 +3870,17 @@ window.addEventListener('DOMContentLoaded', boot);
         [`Taille du texte`, `Text size`, `حجم النص`],
         [`Changer le code PIN`, `Change PIN`, `تغيير رمز PIN`],
         [`Heure d'insertion`, `Insertion time`, `وقت الإضافة`],
-        [`Heure d'action`, `Action time`, `وقت الإجراء`]
+        [`Heure d'action`, `Action time`, `وقت الإجراء`],
         [`🎤 Nouveau vocal`, `🎤 New voice message`, `🎤 رسالة صوتية جديدة`],
-        [`🎤 Vocal retiré`, `🎤 Voice message removed`, `🎤 تم سحب الرسالة الصوتية`]
+        [`🎤 Vocal retiré`, `🎤 Voice message removed`, `🎤 تم سحب الرسالة الصوتية`],
+	[`Transférer`, `Transfer`, `تحويل`],
+	[`Transférer un solde entre livreurs`, `Transfer balance between couriers`, `تحويل رصيد بين الموزعين`],
+	[`Livreur source (retrait) *`, `Source courier (withdraw) *`, `الموزع المصدر (سحب) *`],
+	[`Livreur destination (ajout) *`, `Destination courier (add) *`, `الموزع المستقبل (إضافة) *`],
+	[`Montant à transférer (TND) *`, `Amount to transfer (TND) *`, `المبلغ المراد تحويله (TND) *`],
+	[`🔁 Transfert effectué`, `🔁 Transfer completed`, `🔁 تم التحويل`],
+	[`🔁 Transfert de solde (sortie)`, `🔁 Balance transfer (out)`, `🔁 تحويل رصيد (خروج)`],
+	[`🔁 Transfert de solde (entrée)`, `🔁 Balance transfer (in)`, `🔁 تحويل رصيد (دخول)`]
     ];
 
     var P = [
@@ -3799,10 +3939,13 @@ window.addEventListener('DOMContentLoaded', boot);
         [`{1} a modifié la localisation de {2}`, `{1} changed the location of {2}`, `قام {1} بتعديل موقع {2}`],
         [`{1} a modifié le montant de {2} : {3} TND`, `{1} changed the amount of {2}: {3} TND`, `قام {1} بتعديل مبلغ {2}: {3} TND`],
         [`{1}s enregistrés.`, `{1}s recorded.`, `تم تسجيل {1} ثانية.`],
-        [`⚠️ Maximum {1} messages vocaux par opération.\nSupprimez-en un (×) avant d'en ajouter un autre.`, `⚠️ Maximum {1} voice messages per operation.\nDelete one (×) before adding another.`, `⚠️ الحد الأقصى {1} رسالة صوتية لكل عملية.\nاحذف واحدة (×) قبل إضافة أخرى.`]
+        [`⚠️ Maximum {1} messages vocaux par opération.\nSupprimez-en un (×) avant d'en ajouter un autre.`, `⚠️ Maximum {1} voice messages per operation.\nDelete one (×) before adding another.`, `⚠️ الحد الأقصى {1} رسالة صوتية لكل عملية.\nاحذف واحدة (×) قبل إضافة أخرى.`],
         [`{1} a envoyé un vocal de {2} pour {3}`, `{1} sent a voice message of {2} for {3}`, `قام {1} بإرسال رسالة صوتية مدتها {2} لـ {3}`],
         [`{1} a supprimé un vocal pour {2}`, `{1} deleted a voice message for {2}`, `قام {1} بحذف رسالة صوتية لـ {2}`],
-    ];
+	[`Admin a transféré {1} TND de votre solde vers {2} : {3} → {4} TND ({5})`, `Admin transferred {1} TND from your balance to {2}: {3} → {4} TND ({5})`, `قام المسؤول بتحويل {1} TND من رصيدك إلى {2}: {3} ← {4} TND ({5})`],
+	[`Admin a transféré {1} TND de {2} vers votre solde : {3} → {4} TND ({5})`, `Admin transferred {1} TND from {2} to your balance: {3} → {4} TND ({5})`, `قام المسؤول بتحويل {1} TND من {2} إلى رصيدك: {3} ← {4} TND ({5})`],
+	[`{1} TND transférés de {2} vers {3}.`, `{1} TND transferred from {2} to {3}.`, `تم تحويل {1} TND من {2} إلى {3}.`],   
+ ];
 
     [
         { fr: 'alimentation', art: "l'", en: 'top-up', add: 'تغذية', def: 'التغذية الخاصة بـ' },
