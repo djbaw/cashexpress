@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Warda v50 - Gestion de Warda</title>
+<title>Warda v51 - Gestion de Warda</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -77,6 +77,26 @@
         .voice-pill .del { margin-inline-start:4px; opacity:.55; font-size:10px; cursor:pointer; }
         .voice-pill .del:hover { opacity:1; color:#b91c1c; }
         .voice-pill.playing .del:hover { color:#fff; }
+/* ===== PRÉSENCE EN LIGNE ===== */
+.presence-dot {
+    display: inline-block;
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: #cbd5e1;
+    margin-inline-start: 6px;
+    vertical-align: middle;
+    transition: background .3s, box-shadow .3s;
+}
+.presence-dot.online {
+    background: #10b981;
+    animation: presence-pulse 2s infinite;
+}
+.presence-dot.offline { background: #ef4444; }
+@keyframes presence-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(16,185,129,.6); }
+    50%      { box-shadow: 0 0 0 4px rgba(16,185,129,0); }
+}
     </style>
 </head>
 <body class="locked h-full font-sans text-slate-800 flex flex-col bg-slate-100">
@@ -319,7 +339,7 @@
                     Warda
                     <span id="sync-indicator" class="syncing inline-block w-2.5 h-2.5 rounded-full" title="État de la connexion"></span>
                 </h1>
-                <p class="text-xs text-slate-400 hidden sm:block">Gestion de Warda - <span class="text-emerald-400 font-bold">v50</span></p>
+                <p class="text-xs text-slate-400 hidden sm:block">Gestion de Warda - <span class="text-emerald-400 font-bold">v51</span></p>
             </div>
         </div>
         <button id="notif-bell" type="button" onclick="openNotifPanel()" title="Toutes les notifications" class="relative w-11 h-11 bg-slate-800 border border-slate-700 rounded-xl text-slate-200 hover:text-white hover:bg-slate-700 transition order-2 sm:order-3">
@@ -441,7 +461,10 @@
                             <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Solde Livreur</span>
                             <button onclick="openEditLivreurNameModal('livreur1')" class="text-slate-400 hover:text-brand-600 text-xs"><i class="fa-solid fa-user-pen"></i></button>
                         </div>
-                        <h3 class="text-lg font-bold text-slate-800 livreur-name-1">Livreur 1</h3>
+                        <h3 class="text-lg font-bold text-slate-800">
+    <span class="livreur-name-1">Livreur 1</span>
+    <span class="presence-dot" data-presence="livreur1" title="État de connexion"></span>
+</h3>
                     </div>
                     <button onclick="openStartBalanceModal('livreur1')" class="text-xs font-bold text-brand-600 hover:text-brand-800 bg-brand-50 hover:bg-brand-100 px-2.5 py-1 rounded-lg transition"><i class="fa-solid fa-pen text-[10px] mr-1"></i>Départ</button>
                 </div>
@@ -461,7 +484,10 @@
                             <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Solde Livreur</span>
                             <button onclick="openEditLivreurNameModal('livreur2')" class="text-slate-400 hover:text-brand-600 text-xs"><i class="fa-solid fa-user-pen"></i></button>
                         </div>
-                        <h3 class="text-lg font-bold text-slate-800 livreur-name-2">Livreur 2</h3>
+                        <h3 class="text-lg font-bold text-slate-800">
+    <span class="livreur-name-2">Livreur 2</span>
+    <span class="presence-dot" data-presence="livreur2" title="État de connexion"></span>
+</h3>
                     </div>
                     <button onclick="openStartBalanceModal('livreur2')" class="text-xs font-bold text-brand-600 hover:text-brand-800 bg-brand-50 hover:bg-brand-100 px-2.5 py-1 rounded-lg transition"><i class="fa-solid fa-pen text-[10px] mr-1"></i>Départ</button>
                 </div>
@@ -481,7 +507,10 @@
                             <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Solde Livreur</span>
                             <button onclick="openEditLivreurNameModal('livreur3')" class="text-slate-400 hover:text-brand-600 text-xs"><i class="fa-solid fa-user-pen"></i></button>
                         </div>
-                        <h3 class="text-lg font-bold text-slate-800 livreur-name-3">Livreur 3</h3>
+                        <h3 class="text-lg font-bold text-slate-800">
+    <span class="livreur-name-3">Livreur 3</span>
+    <span class="presence-dot" data-presence="livreur3" title="État de connexion"></span>
+</h3>
                     </div>
                     <button onclick="openStartBalanceModal('livreur3')" class="text-xs font-bold text-brand-600 hover:text-brand-800 bg-brand-50 hover:bg-brand-100 px-2.5 py-1 rounded-lg transition"><i class="fa-solid fa-pen text-[10px] mr-1"></i>Départ</button>
                 </div>
@@ -570,10 +599,11 @@
         <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 space-y-4">
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-slate-100 pb-4 gap-2">
                 <div>
-                    <div class="inline-flex items-center space-x-2">
-                        <span class="w-3 h-3 rounded-full bg-emerald-500 animate-pulse"></span>
-                        <h2 class="text-2xl font-bold text-slate-900" id="livreur-view-title">Espace Livreur</h2>
-                    </div>
+                    <div class="inline-flex items-center space-x-2 flex-wrap gap-y-1">
+    <span class="w-3 h-3 rounded-full bg-emerald-500 animate-pulse"></span>
+    <h2 class="text-2xl font-bold text-slate-900" id="livreur-view-title">Espace Livreur</h2>
+    <span id="admin-presence-badge" class="hidden inline-flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1 rounded-lg border"></span>
+</div>
                 </div>
                 <div class="flex items-center space-x-2">
                     <button onclick="openAddCashModal()" class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white font-semibold text-xs rounded-xl shadow-sm transition flex items-center space-x-1.5"><i class="fa-solid fa-hand-holding-dollar"></i><span>+ Ajouter Alimentation</span></button>
@@ -1056,6 +1086,7 @@ const CFG_PATH = ROOT + '/config';
 const CLIENTS_PATH = ROOT + '/clients';      // fiches clients (conservées)
 const VOICE_PATH = ROOT + '/voiceData';      // fichiers audio (séparés des opérations)
 const NOTIF_PATH = ROOT + '/notifs';
+const PRESENCE_PATH = ROOT + '/presence';
 const LEGACY_PATH = ROOT + '/state';
 
 function setSyncStatus(status) {
@@ -1282,8 +1313,9 @@ const VALID_ID = /^[A-Za-z0-9_-]{1,80}$/;
 let state = {
     currentRole: 'admin',
     selectedDate: getTodayStr(),
-    adminStartBalances: {},
+        adminStartBalances: {},
     couriersCanSeeHistory: true,
+    presence: {},
     livreurs: {
         livreur1: { id: 'livreur1', name: DEFAULT_NAMES.livreur1, startBalances: {} },
         livreur2: { id: 'livreur2', name: DEFAULT_NAMES.livreur2, startBalances: {} },
@@ -2103,6 +2135,53 @@ function applyCourierHistoryRestriction() {
         if (badge) badge.classList.add('hidden');
     }
 }
+/* ==================== PRÉSENCE EN LIGNE (rouge/vert) ==================== */
+function initPresence() {
+    if (!window.__me || window.__presenceInit) return;
+    window.__presenceInit = true;
+    const myRef = db.ref(PRESENCE_PATH + '/' + window.__me);
+    // .info/connected se déclenche à chaque reconnexion
+    db.ref('.info/connected').on('value', snap => {
+        if (snap.val() !== true) return;
+        // Armer le marqueur "offline" au cas où on se déconnecte brutalement
+        myRef.onDisconnect().set({ online: false, lastSeen: Date.now() }).then(() => {
+            // On se déclare en ligne
+            myRef.set({ online: true, lastSeen: Date.now() }).catch(() => {});
+        }).catch(e => console.warn('Presence onDisconnect:', e));
+    });
+    // Écoute de tous les utilisateurs
+    db.ref(PRESENCE_PATH).on('value', snap => {
+        state.presence = snap.val() || {};
+        updatePresenceDots();
+    });
+}
+function updatePresenceDots() {
+    // Points à côté des cartes livreur (admin)
+    document.querySelectorAll('[data-presence]').forEach(el => {
+        const id = el.getAttribute('data-presence');
+        const p = state.presence[id];
+        const online = p && p.online === true;
+        el.classList.remove('online', 'offline');
+        el.classList.add(online ? 'online' : 'offline');
+        el.title = online ? 'En ligne' : 'Hors ligne';
+    });
+    // Badge "Admin en ligne" côté livreur
+    const badge = document.getElementById('admin-presence-badge');
+    if (badge) {
+        const p = state.presence.admin;
+        const online = p && p.online === true;
+        badge.classList.remove('hidden', 'bg-emerald-100', 'text-emerald-800', 'border-emerald-300', 'bg-red-100', 'text-red-800', 'border-red-300');
+        if (online) {
+            badge.classList.add('bg-emerald-100', 'text-emerald-800', 'border-emerald-300');
+            badge.innerHTML = '<span class="w-2 h-2 rounded-full bg-emerald-500"></span>Admin en ligne';
+        } else {
+            badge.classList.add('bg-red-100', 'text-red-800', 'border-red-300');
+            badge.innerHTML = '<span class="w-2 h-2 rounded-full bg-red-500"></span>Admin hors ligne';
+        }
+    }
+}
+window.initPresence = initPresence;
+window.updatePresenceDots = updatePresenceDots;
 async function runDailyMaintenance() {
     try {
         const today = getTodayStr();
@@ -2219,9 +2298,11 @@ function startLivreurSession() {
     hideLoading();
     attachConfigListeners(false, id);
     subscribeOps();
-    switchRole(id, false);
+        switchRole(id, false);
     setTimeout(applyCourierHistoryRestriction, 100);
+    initPresence();
     runDailyMaintenance();
+    startMidnightWatcher();
     startMidnightWatcher();
 }
 async function verifyLivreurPIN(e) {
@@ -2584,6 +2665,7 @@ async function carryOverStartBalances() {
 function renderApp() {
     if (appBlocked || !document.getElementById('view-admin')) return;
     updateLivreurNamesInUI();
+    updatePresenceDots();
     if (state.currentRole === 'admin') renderAdminDashboard();
     else renderLivreurDashboard(state.currentRole);
 }
@@ -2826,10 +2908,27 @@ async function playVoiceNote(ev, opId, voiceId) {
             if (v && v.data) _vCache.set(voiceId, v);
         }
     }
-    if (!v || !v.data) {
+        if (!v || !v.data) {
         if (pill) pill.classList.remove('playing');
         alert("Ce message vocal n'est plus disponible.");
         return;
+    }
+    // 🎧 Notifier l'auteur si c'est la première fois que CET utilisateur écoute ce vocal
+    if (v.by && v.by !== window.__me && v.by !== 'admin' || (v.by === 'admin' && window.__me !== 'admin')) {
+        if (v.by && v.by !== window.__me) {
+            try {
+                const readRef = db.ref(VOICE_PATH + '/' + voiceId + '/readBy/' + window.__me);
+                const res = await readRef.transaction(cur => (cur === null || cur === undefined) ? Date.now() : undefined);
+                if (res && res.committed) {
+                    const nameOf = id => (state.livreurs[id] && state.livreurs[id].name) || id;
+                    const who = window.__me === 'admin' ? 'Admin' : nameOf(window.__me);
+                    const mm = Math.floor((Number(v.duration) || 0) / 60);
+                    const ss = String((Number(v.duration) || 0) % 60).padStart(2, '0');
+                    const client = (op && op.clientName) || 'client';
+                    sendNotification(v.by, '🎧 Vocal écouté', `${who} a écouté votre vocal (${mm}:${ss}) pour ${client}`);
+                }
+            } catch (e) { console.warn('Suivi lecture vocal :', e); }
+        }
     }
     const audio = new Audio('data:' + v.mimeType + ';base64,' + v.data);
     _vrAudio = audio; _vrBtn = pill;
@@ -3731,6 +3830,7 @@ async function startAdminSession() {
     attachConfigListeners(true);
     subscribeOps();
     switchRole('admin', true);
+        initPresence();
     runDailyMaintenance();
     startMidnightWatcher();
 }
@@ -3799,7 +3899,7 @@ window.addEventListener('DOMContentLoaded', boot);
     try { var saved = localStorage.getItem(KEY); if (LANGS.indexOf(saved) >= 0) lang = saved; } catch (e) {}
 
     var E = [
-        [`Warda v50 - Gestion de Warda`, `Warda v50 - Warda management`, `وردة v50 - إدارة وردة`],
+        [`Warda v51 - Gestion de Warda`, `Warda v51 - Warda management`, `وردة v51 - إدارة وردة`],
         [`Gestion de la Liste Noire (Clients Bloqués)`, `Blacklist Management (Blocked Clients)`, `إدارة القائمة السوداء (العملاء المحظورون)`],
         [`Ajouter / Modifier un Client Bloqué`, `Add / Edit a Blocked Client`, `إضافة / تعديل عميل محظور`],
         [`Téléphone *`, `Phone *`, `الهاتف *`],
@@ -4162,6 +4262,10 @@ window.addEventListener('DOMContentLoaded', boot);
 	[`🔁 Transfert effectué`, `🔁 Transfer completed`, `🔁 تم التحويل`],
 	[`🔁 Transfert de solde (sortie)`, `🔁 Balance transfer (out)`, `🔁 تحويل رصيد (خروج)`],
 	[`🔁 Transfert de solde (entrée)`, `🔁 Balance transfer (in)`, `🔁 تحويل رصيد (دخول)`],
+	[`Historique livreur : ON`, `Courier history: ON`, `سجل الموزّع: مفعّل`],
+	[`Historique livreur : OFF`, `Courier history: OFF`, `سجل الموزّع: معطّل`],
+	[`🔒 Aujourd'hui uniquement`, `🔒 Today only`, `🔒 اليوم فقط`],
+	[`🎧 Vocal écouté`, `🎧 Voice message heard`, `🎧 تم الاستماع إلى الرسالة الصوتية`],
     ];
 
     var P = [
@@ -4225,7 +4329,8 @@ window.addEventListener('DOMContentLoaded', boot);
         [`{1} a supprimé un vocal pour {2}`, `{1} deleted a voice message for {2}`, `قام {1} بحذف رسالة صوتية لـ {2}`],
 	[`Admin a transféré {1} TND de votre solde vers {2} : {3} → {4} TND ({5})`, `Admin transferred {1} TND from your balance to {2}: {3} → {4} TND ({5})`, `قام المسؤول بتحويل {1} TND من رصيدك إلى {2}: {3} ← {4} TND ({5})`],
 	[`Admin a transféré {1} TND de {2} vers votre solde : {3} → {4} TND ({5})`, `Admin transferred {1} TND from {2} to your balance: {3} → {4} TND ({5})`, `قام المسؤول بتحويل {1} TND من {2} إلى رصيدك: {3} ← {4} TND ({5})`],
-	[`{1} TND transférés de {2} vers {3}.`, `{1} TND transferred from {2} to {3}.`, `تم تحويل {1} TND من {2} إلى {3}.`],   
+	[`{1} TND transférés de {2} vers {3}.`, `{1} TND transferred from {2} to {3}.`, `تم تحويل {1} TND من {2} إلى {3}.`],
+[`{1} a écouté votre vocal ({2}) pour {3}`, `{1} listened to your voice message ({2}) for {3}`, `قام {1} بالاستماع إلى رسالتك الصوتية ({2}) لـ {3}`],   
  ];
 
     [
