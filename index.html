@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Warda v49 - Gestion de Warda</title>
+<title>Warda v50 - Gestion de Warda</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -319,7 +319,7 @@
                     Warda
                     <span id="sync-indicator" class="syncing inline-block w-2.5 h-2.5 rounded-full" title="État de la connexion"></span>
                 </h1>
-                <p class="text-xs text-slate-400 hidden sm:block">Gestion de Warda - <span class="text-emerald-400 font-bold">v49</span></p>
+                <p class="text-xs text-slate-400 hidden sm:block">Gestion de Warda - <span class="text-emerald-400 font-bold">v50</span></p>
             </div>
         </div>
         <button id="notif-bell" type="button" onclick="openNotifPanel()" title="Toutes les notifications" class="relative w-11 h-11 bg-slate-800 border border-slate-700 rounded-xl text-slate-200 hover:text-white hover:bg-slate-700 transition order-2 sm:order-3">
@@ -375,17 +375,18 @@
 <!-- MAIN -->
 <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 space-y-6">
     <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-col sm:flex-row justify-between items-center gap-4">
-        <div class="flex items-center space-x-2 w-full sm:w-auto">
-            <i class="fa-solid fa-calendar-days text-brand-600 text-lg hidden sm:block"></i>
-            <span class="text-xs sm:text-sm font-bold text-slate-700 shrink-0">Journée :</span>
-            <button type="button" onclick="shiftDate(-1)" title="Jour précédent" aria-label="Jour précédent" class="date-nav-arrow w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-700 rounded-xl transition shrink-0">
-                <i class="fa-solid fa-chevron-left text-[10px] sm:text-xs"></i>
-            </button>
-            <input type="date" id="global-date-picker" onchange="handleDateChange()" class="flex-1 sm:flex-initial min-w-0 px-2 sm:px-3 py-1.5 border border-slate-300 rounded-xl text-sm font-semibold text-slate-800 focus:ring-2 focus:ring-brand-500 focus:outline-none">
-            <button type="button" onclick="shiftDate(1)" title="Jour suivant" aria-label="Jour suivant" class="date-nav-arrow w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-700 rounded-xl transition shrink-0">
-                <i class="fa-solid fa-chevron-right text-[10px] sm:text-xs"></i>
-            </button>
-        </div>
+        <div class="flex items-center space-x-2 w-full sm:w-auto flex-wrap">
+    <i class="fa-solid fa-calendar-days text-brand-600 text-lg hidden sm:block"></i>
+    <span class="text-xs sm:text-sm font-bold text-slate-700 shrink-0">Journée :</span>
+    <button type="button" onclick="shiftDate(-1)" id="date-prev-btn" title="Jour précédent" aria-label="Jour précédent" class="date-nav-arrow w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-700 rounded-xl transition shrink-0">
+        <i class="fa-solid fa-chevron-left text-[10px] sm:text-xs"></i>
+    </button>
+    <input type="date" id="global-date-picker" onchange="handleDateChange()" class="flex-1 sm:flex-initial min-w-0 px-2 sm:px-3 py-1.5 border border-slate-300 rounded-xl text-sm font-semibold text-slate-800 focus:ring-2 focus:ring-brand-500 focus:outline-none">
+    <button type="button" onclick="shiftDate(1)" id="date-next-btn" title="Jour suivant" aria-label="Jour suivant" class="date-nav-arrow w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-700 rounded-xl transition shrink-0">
+        <i class="fa-solid fa-chevron-right text-[10px] sm:text-xs"></i>
+    </button>
+    <span id="history-locked-badge" class="hidden text-[10px] font-bold text-red-700 bg-red-50 px-2 py-0.5 rounded border border-red-200 whitespace-nowrap">🔒 Aujourd'hui uniquement</span>
+</div>
         <div class="relative w-full sm:w-72">
             <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-slate-400 text-xs"></i>
             <input type="text" id="global-search-input" oninput="renderApp()" placeholder="Rechercher nom, tél, adresse..." class="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-xl text-xs font-medium focus:ring-2 focus:ring-brand-500 focus:outline-none">
@@ -405,6 +406,7 @@
                 </div>
                 <div class="flex items-center space-x-2 flex-wrap">
     <span class="text-xs text-slate-300 bg-slate-800 px-3 py-1.5 rounded-xl border border-slate-700 font-medium" id="admin-global-date-label">Aujourd'hui</span>
+    <button onclick="toggleCouriersHistory()" id="btn-couriers-history" class="px-3 py-1.5 bg-teal-600 hover:bg-teal-500 text-white font-bold text-xs rounded-xl shadow transition flex items-center space-x-1.5"><i class="fa-solid fa-eye text-[11px]"></i><span id="btn-couriers-history-label">Historique livreur : ON</span></button>
     <button onclick="openTransferModal()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl shadow transition flex items-center space-x-1.5"><i class="fa-solid fa-arrow-right-arrow-left text-[11px]"></i><span>Transférer</span></button>
     <button onclick="openAdminStartBalanceModal()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow transition flex items-center space-x-1.5"><i class="fa-solid fa-pen text-[11px]"></i><span>Départ Admin</span></button>
 </div>
@@ -1281,6 +1283,7 @@ let state = {
     currentRole: 'admin',
     selectedDate: getTodayStr(),
     adminStartBalances: {},
+    couriersCanSeeHistory: true,
     livreurs: {
         livreur1: { id: 'livreur1', name: DEFAULT_NAMES.livreur1, startBalances: {} },
         livreur2: { id: 'livreur2', name: DEFAULT_NAMES.livreur2, startBalances: {} },
@@ -1488,8 +1491,17 @@ function attachConfigListeners(isAdmin, myId) {
             if (m && !m.classList.contains('hidden')) renderBlacklistTable();
             renderApp();
         });
-        addCfgListener(CFG_PATH + '/adminPinHash', s => { if (s.val()) window.__pinHash = s.val(); });
+                addCfgListener(CFG_PATH + '/adminPinHash', s => { if (s.val()) window.__pinHash = s.val(); });
+        addCfgListener(CFG_PATH + '/couriersCanSeeHistory', s => {
+            state.couriersCanSeeHistory = s.val() !== false;
+            updateCouriersHistoryBtn();
+            renderApp();
+        });
     } else {
+        addCfgListener(CFG_PATH + '/couriersCanSeeHistory', s => {
+            state.couriersCanSeeHistory = s.val() !== false;
+            applyCourierHistoryRestriction();
+        });
         addCfgListener(CFG_PATH + '/livreurs/' + myId, s => {
             const v = s.val();
             if (!v || v.token !== window.__myToken) { showAccessBlocked(); return; }
@@ -2032,7 +2044,65 @@ async function purgeOldOperations() {
         return false;
     }
 }
+/* ==================== ACCÈS HISTORIQUE LIVREUR (ON/OFF) ==================== */
+function toggleCouriersHistory() {
+    if (state.currentRole !== 'admin' || !isAdminAuthenticated) { alert("Réservé à l'admin."); return; }
+    const current = state.couriersCanSeeHistory !== false;
+    const newVal = !current;
+    const msg = newVal
+        ? "Activer l'historique pour les livreurs ?\n\nLes livreurs pourront naviguer dans toutes les dates (présentes et passées)."
+        : "Bloquer l'historique pour les livreurs ?\n\nLes livreurs ne verront plus que la journée en cours. Ils ne pourront plus naviguer dans les dates.";
+    if (!confirm(msg)) return;
+    dbSet(CFG_PATH + '/couriersCanSeeHistory', newVal);
+    showToast(
+        newVal ? "👁️ Historique autorisé" : "🔒 Historique bloqué",
+        newVal ? "Les livreurs peuvent à nouveau voir toutes les dates." : "Les livreurs sont limités à la journée en cours."
+    );
+}
+function updateCouriersHistoryBtn() {
+    const btn = document.getElementById('btn-couriers-history');
+    const lbl = document.getElementById('btn-couriers-history-label');
+    if (!btn || !lbl) return;
+    const allowed = state.couriersCanSeeHistory !== false;
+    lbl.textContent = allowed ? 'Historique livreur : ON' : 'Historique livreur : OFF';
+    btn.classList.remove('bg-teal-600', 'hover:bg-teal-500', 'bg-red-600', 'hover:bg-red-500');
+    if (allowed) {
+        btn.classList.add('bg-teal-600', 'hover:bg-teal-500');
+        btn.querySelector('i').className = 'fa-solid fa-eye text-[11px]';
+    } else {
+        btn.classList.add('bg-red-600', 'hover:bg-red-500');
+        btn.querySelector('i').className = 'fa-solid fa-eye-slash text-[11px]';
+    }
+}
+function applyCourierHistoryRestriction() {
+    if (state.currentRole === 'admin') return;
+    const allowed = state.couriersCanSeeHistory !== false;
+    const picker = document.getElementById('global-date-picker');
+    const prevBtn = document.getElementById('date-prev-btn');
+    const nextBtn = document.getElementById('date-next-btn');
+    const badge = document.getElementById('history-locked-badge');
 
+    if (!allowed) {
+        // Force la date du jour
+        const today = getTodayStr();
+        if (state.selectedDate !== today) {
+            state.selectedDate = today;
+            if (picker) picker.value = today;
+            state.deliveries = [];
+            if (window.__me) subscribeOps();
+            renderApp();
+        }
+        if (picker) { picker.disabled = true; picker.classList.add('opacity-50', 'cursor-not-allowed'); }
+        if (prevBtn) prevBtn.style.display = 'none';
+        if (nextBtn) nextBtn.style.display = 'none';
+        if (badge) badge.classList.remove('hidden');
+    } else {
+        if (picker) { picker.disabled = false; picker.classList.remove('opacity-50', 'cursor-not-allowed'); }
+        if (prevBtn) prevBtn.style.display = '';
+        if (nextBtn) nextBtn.style.display = '';
+        if (badge) badge.classList.add('hidden');
+    }
+}
 async function runDailyMaintenance() {
     try {
         const today = getTodayStr();
@@ -2150,6 +2220,7 @@ function startLivreurSession() {
     attachConfigListeners(false, id);
     subscribeOps();
     switchRole(id, false);
+    setTimeout(applyCourierHistoryRestriction, 100);
     runDailyMaintenance();
     startMidnightWatcher();
 }
@@ -2849,6 +2920,7 @@ window.purgeOldVoiceNotes = purgeOldVoiceNotes;
 
 // ==================== ADMIN DASHBOARD ====================
 function renderAdminDashboard() {
+	updateCouriersHistoryBtn();
     const blCount = (state.blacklist || []).length;
     const badge = document.getElementById('blacklist-badge-count');
     if (badge) badge.textContent = blCount;
@@ -3597,6 +3669,10 @@ function executeDeleteDelivery() {
     toggleConfirmDeleteModal(false);
 }
 function shiftDate(delta) {
+    if (state.currentRole !== 'admin' && state.couriersCanSeeHistory === false) {
+        alert("Accès à l'historique désactivé par l'admin.\nVous ne pouvez consulter que la journée en cours.");
+        return;
+    }
     const base = state.selectedDate || getTodayStr();
     const d = new Date(base + 'T12:00:00');
     d.setDate(d.getDate() + delta);
@@ -3605,12 +3681,20 @@ function shiftDate(delta) {
     handleDateChange();
 }
 function handleDateChange() {
+    if (state.currentRole !== 'admin' && state.couriersCanSeeHistory === false) {
+        const today = getTodayStr();
+        document.getElementById('global-date-picker').value = today;
+        state.selectedDate = today;
+        state.deliveries = [];
+        if (window.__me) subscribeOps();
+        renderApp();
+        return;
+    }
     state.selectedDate = document.getElementById('global-date-picker').value || getTodayStr();
     state.deliveries = [];
     if (window.__me) subscribeOps();
     renderApp();
 }
-
 // ==================== DÉMARRAGE ====================
 let midnightWatcherStarted = false;
 function startMidnightWatcher() {
@@ -3715,7 +3799,7 @@ window.addEventListener('DOMContentLoaded', boot);
     try { var saved = localStorage.getItem(KEY); if (LANGS.indexOf(saved) >= 0) lang = saved; } catch (e) {}
 
     var E = [
-        [`Warda v49 - Gestion de Warda`, `Warda v49 - Warda management`, `وردة v49 - إدارة وردة`],
+        [`Warda v50 - Gestion de Warda`, `Warda v50 - Warda management`, `وردة v50 - إدارة وردة`],
         [`Gestion de la Liste Noire (Clients Bloqués)`, `Blacklist Management (Blocked Clients)`, `إدارة القائمة السوداء (العملاء المحظورون)`],
         [`Ajouter / Modifier un Client Bloqué`, `Add / Edit a Blocked Client`, `إضافة / تعديل عميل محظور`],
         [`Téléphone *`, `Phone *`, `الهاتف *`],
@@ -4077,7 +4161,7 @@ window.addEventListener('DOMContentLoaded', boot);
 	[`Montant à transférer (TND) *`, `Amount to transfer (TND) *`, `المبلغ المراد تحويله (TND) *`],
 	[`🔁 Transfert effectué`, `🔁 Transfer completed`, `🔁 تم التحويل`],
 	[`🔁 Transfert de solde (sortie)`, `🔁 Balance transfer (out)`, `🔁 تحويل رصيد (خروج)`],
-	[`🔁 Transfert de solde (entrée)`, `🔁 Balance transfer (in)`, `🔁 تحويل رصيد (دخول)`]
+	[`🔁 Transfert de solde (entrée)`, `🔁 Balance transfer (in)`, `🔁 تحويل رصيد (دخول)`],
     ];
 
     var P = [
