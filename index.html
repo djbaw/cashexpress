@@ -672,41 +672,41 @@
         </button>
     </div>
 </div>
-                                                <div class="grid grid-cols-2 sm:grid-cols-4 gap-1.5 sm:gap-2">
+                                     <div class="grid grid-cols-2 sm:grid-cols-4 gap-1.5 sm:gap-2">
     <div class="bg-slate-50 p-1.5 sm:p-2 rounded-lg border border-slate-200/80 grid grid-rows-[auto_1fr_auto] gap-1 min-h-[100px] sm:min-h-[110px]">
-        <span class="text-[10px] sm:text-[12px] font-semibold text-slate-400 uppercase">Solde de départ</span>
+        <span class="text-[11px] sm:text-[13px] font-semibold text-slate-400 uppercase">Solde de départ</span>
         <div class="flex items-center">
-            <button id="held-btn" type="button" onclick="openHeldBalanceModal()" class="px-1.5 py-0.5 bg-amber-100 hover:bg-amber-200 text-amber-900 text-[11px] sm:text-[12px] font-bold rounded-md border border-amber-300">✋ Possédé</button>
+            <button id="held-btn" type="button" onclick="openHeldBalanceModal()" class="px-1.5 py-0.5 bg-amber-100 hover:bg-amber-200 text-amber-900 text-[12px] sm:text-[13px] font-bold rounded-md border border-amber-300">✋ Possédé</button>
         </div>
         <div>
-            <p class="text-lg sm:text-xl font-bold text-slate-700" id="livreur-start-balance">0 TND</p>
-            <p id="livreur-start-held" class="hidden text-[10px] sm:text-[12px] font-semibold text-slate-500"></p>
+            <p class="text-xl sm:text-2xl font-bold text-slate-700" id="livreur-start-balance">0 TND</p>
+            <p id="livreur-start-held" class="hidden text-[11px] sm:text-[13px] font-semibold text-slate-500"></p>
         </div>
     </div>
     <div class="bg-amber-50/60 p-1.5 sm:p-2 rounded-lg border border-amber-200 grid grid-rows-[auto_1fr_auto] gap-1 min-h-[100px] sm:min-h-[110px]">
-        <span class="text-[10px] sm:text-[12px] font-semibold text-amber-700 uppercase flex items-center gap-1"><i class="fa-solid fa-coins text-[9px] sm:text-[10px]"></i> Frais du jour</span>
+        <span class="text-[11px] sm:text-[13px] font-semibold text-amber-700 uppercase flex items-center gap-1"><i class="fa-solid fa-coins text-[10px] sm:text-[11px]"></i> Frais du jour</span>
         <div></div>
         <div>
-            <p class="text-lg sm:text-2xl font-black text-amber-800" id="livreur-total-fees">0 TND</p>
+            <p class="text-xl sm:text-3xl font-black text-amber-800" id="livreur-total-fees">0 TND</p>
         </div>
     </div>
     <div class="bg-emerald-50/50 p-1.5 sm:p-2 rounded-lg border border-emerald-100 grid grid-rows-[auto_1fr_auto] gap-1 min-h-[100px] sm:min-h-[110px]">
-        <span class="text-[10px] sm:text-[12px] font-semibold text-emerald-600 uppercase">Solde Réel (En Poche)</span>
+        <span class="text-[11px] sm:text-[13px] font-semibold text-emerald-600 uppercase">Solde Réel (En Poche)</span>
         <div></div>
         <div>
-            <p class="text-lg sm:text-2xl font-black text-emerald-700" id="livreur-real-balance">0 TND</p>
-            <p id="livreur-real-held" class="hidden text-[10px] sm:text-[12px] font-semibold text-emerald-700"></p>
+            <p class="text-xl sm:text-3xl font-black text-emerald-700" id="livreur-real-balance">0 TND</p>
+            <p id="livreur-real-held" class="hidden text-[11px] sm:text-[13px] font-semibold text-emerald-700"></p>
         </div>
     </div>
     <div class="bg-blue-50/50 p-1.5 sm:p-2 rounded-lg border border-blue-100 grid grid-rows-[auto_1fr_auto] gap-1 min-h-[100px] sm:min-h-[110px]">
-        <span class="text-[10px] sm:text-[12px] font-semibold text-blue-600 uppercase">Solde Théorique (À venir)</span>
+        <span class="text-[11px] sm:text-[13px] font-semibold text-blue-600 uppercase">Solde Théorique (À venir)</span>
         <div></div>
         <div>
-            <p class="text-lg sm:text-2xl font-black text-blue-700" id="livreur-theo-balance">0 TND</p>
-            <p id="livreur-theo-held" class="hidden text-[10px] sm:text-[12px] font-semibold text-blue-700"></p>
+            <p class="text-xl sm:text-3xl font-black text-blue-700" id="livreur-theo-balance">0 TND</p>
+            <p id="livreur-theo-held" class="hidden text-[11px] sm:text-[13px] font-semibold text-blue-700"></p>
         </div>
     </div>
-</div>
+</div>                                   
             <div class="grid grid-cols-4 gap-1.5 pt-2 border-t border-slate-100 text-center text-[11px]">
                 <div class="bg-amber-50 px-2 py-1 rounded-lg border border-amber-200 flex items-center justify-between"><span class="font-bold text-amber-800 truncate">⏳ En cours</span><span class="font-black text-amber-900 text-xs ms-1 bg-amber-200/80 px-1.5 py-0.2 rounded" id="livreur-count-pending">0</span></div>
                 <div class="bg-emerald-50 px-2 py-1 rounded-lg border border-emerald-200 flex items-center justify-between"><span class="font-bold text-emerald-800 truncate">🟢 Envoyés</span><span class="font-black text-emerald-900 text-xs ms-1 bg-emerald-200/80 px-1.5 py-0.2 rounded" id="livreur-count-delivered">0</span></div>
