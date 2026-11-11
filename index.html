@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Warda v53 - Gestion de Warda</title>
+<title>Warda v54 - Gestion de Warda</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -395,7 +395,7 @@
     <span id="sync-indicator" class="syncing inline-block w-2.5 h-2.5 rounded-full" title="État de la connexion"></span>
     <span id="admin-presence-dot" class="presence-dot hidden" data-presence="admin" title="Admin hors ligne"></span>
 </h1>
-                <p class="text-xs text-slate-400 hidden sm:block">Gestion de Warda - <span class="text-emerald-400 font-bold">v53</span></p>
+                <p class="text-xs text-slate-400 hidden sm:block">Gestion de Warda - <span class="text-emerald-400 font-bold">v54</span></p>
             </div>
         </div>
         <button id="notif-bell" type="button" onclick="openNotifPanel()" title="Toutes les notifications" class="relative w-11 h-11 bg-slate-800 border border-slate-700 rounded-xl text-slate-200 hover:text-white hover:bg-slate-700 transition order-2 sm:order-3">
@@ -513,19 +513,16 @@
             <div id="admin-card-livreur1" class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-col justify-between relative overflow-hidden">
                 <div class="flex justify-between items-start mb-2">
                     <div>
-                        <div class="flex items-center space-x-1.5">
-                            <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Solde Livreur</span>
-                            <button onclick="openEditLivreurNameModal('livreur1')" class="text-slate-400 hover:text-brand-600 text-xs"><i class="fa-solid fa-user-pen"></i></button>
-                        </div>
-                                                <h3 class="text-lg font-bold text-slate-800">
-    <span class="livreur-name-1">Livreur 1</span>
-    <span class="presence-dot" data-presence="livreur1" title="État de connexion"></span>
-</h3>
-<button id="admin-debt-btn-livreur1" type="button" onclick="openDebtModal('livreur1')" class="hidden mt-1.5 px-2 py-0.5 text-[11px] font-bold rounded-lg border inline-flex items-center gap-1 transition">
-    <i class="fa-solid fa-hand-holding-dollar text-[10px]"></i>
-    <span id="admin-debt-label-livreur1">Dette</span>
-</button>
-                    </div>
+    <h3 class="text-lg font-bold text-slate-800 flex items-center gap-1.5">
+        <button onclick="openEditLivreurNameModal('livreur1')" class="text-slate-400 hover:text-brand-600 text-xs"><i class="fa-solid fa-user-pen"></i></button>
+        <span class="livreur-name-1">Livreur 1</span>
+        <span class="presence-dot" data-presence="livreur1" title="État de connexion"></span>
+    </h3>
+    <button id="admin-debt-btn-livreur1" type="button" onclick="openDebtModal('livreur1')" class="hidden mt-1.5 px-2 py-0.5 text-[11px] font-bold rounded-lg border inline-flex items-center gap-1 transition">
+        <i class="fa-solid fa-hand-holding-dollar text-[10px]"></i>
+        <span id="admin-debt-label-livreur1">Dette</span>
+    </button>
+</div>
                     <button onclick="openStartBalanceModal('livreur1')" class="text-xs font-bold text-brand-600 hover:text-brand-800 bg-brand-50 hover:bg-brand-100 px-2.5 py-1 rounded-lg transition"><i class="fa-solid fa-pen text-[10px] mr-1"></i>Départ</button>
                 </div>
                 <div class="grid grid-cols-2 gap-2 my-2 py-2 border-y border-slate-100 text-sm">
@@ -533,25 +530,22 @@
                     <div><p class="text-xs text-slate-400">Solde Réel</p><p class="font-bold text-slate-700" id="admin-real-livreur1">0 TND</p><p id="admin-real-held-livreur1" class="hidden text-[11px] font-semibold text-slate-500"></p></div>
                 </div>
                 <div class="flex justify-between items-center text-xs text-slate-500">
-                    <span>Solde Départ: <strong id="admin-start-livreur1">0 TND</strong> <span id="admin-start-held-livreur1" class="hidden text-[11px] text-slate-500"></span></span>
-                    <span>Alimentations Validées: <strong id="admin-added-livreur1" class="text-purple-600">+0 TND</strong></span>
+                    <span>Solde de départ: <strong id="admin-start-livreur1">0 TND</strong> <span id="admin-start-held-livreur1" class="hidden text-[11px] text-slate-500"></span></span>
+<span>Alimentation: <strong id="admin-added-livreur1" class="text-purple-600">+0 TND</strong></span>
                 </div>
             </div>
             <div id="admin-card-livreur2" class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-col justify-between relative overflow-hidden">
-                <div class="flex justify-between items-start mb-2">
+                                <div class="flex justify-between items-start mb-2">
                     <div>
-                        <div class="flex items-center space-x-1.5">
-                            <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Solde Livreur</span>
+                        <h3 class="text-lg font-bold text-slate-800 flex items-center gap-1.5">
                             <button onclick="openEditLivreurNameModal('livreur2')" class="text-slate-400 hover:text-brand-600 text-xs"><i class="fa-solid fa-user-pen"></i></button>
-                        </div>
-                                                <h3 class="text-lg font-bold text-slate-800">
-    <span class="livreur-name-2">Livreur 2</span>
-    <span class="presence-dot" data-presence="livreur2" title="État de connexion"></span>
-</h3>
-<button id="admin-debt-btn-livreur2" type="button" onclick="openDebtModal('livreur2')" class="hidden mt-1.5 px-2 py-0.5 text-[11px] font-bold rounded-lg border inline-flex items-center gap-1 transition">
-    <i class="fa-solid fa-hand-holding-dollar text-[10px]"></i>
-    <span id="admin-debt-label-livreur2">Dette</span>
-</button>
+                            <span class="livreur-name-2">Livreur 2</span>
+                            <span class="presence-dot" data-presence="livreur2" title="État de connexion"></span>
+                        </h3>
+                        <button id="admin-debt-btn-livreur2" type="button" onclick="openDebtModal('livreur2')" class="hidden mt-1.5 px-2 py-0.5 text-[11px] font-bold rounded-lg border inline-flex items-center gap-1 transition">
+                            <i class="fa-solid fa-hand-holding-dollar text-[10px]"></i>
+                            <span id="admin-debt-label-livreur2">Dette</span>
+                        </button>
                     </div>
                     <button onclick="openStartBalanceModal('livreur2')" class="text-xs font-bold text-brand-600 hover:text-brand-800 bg-brand-50 hover:bg-brand-100 px-2.5 py-1 rounded-lg transition"><i class="fa-solid fa-pen text-[10px] mr-1"></i>Départ</button>
                 </div>
@@ -560,25 +554,22 @@
                     <div><p class="text-xs text-slate-400">Solde Réel</p><p class="font-bold text-slate-700" id="admin-real-livreur2">0 TND</p><p id="admin-real-held-livreur2" class="hidden text-[11px] font-semibold text-slate-500"></p></div>
                 </div>
                 <div class="flex justify-between items-center text-xs text-slate-500">
-                    <span>Solde Départ: <strong id="admin-start-livreur2">0 TND</strong> <span id="admin-start-held-livreur2" class="hidden text-[11px] text-slate-500"></span></span>
-                    <span>Alimentations Validées: <strong id="admin-added-livreur2" class="text-purple-600">+0 TND</strong></span>
+                                        <span>Solde de départ: <strong id="admin-start-livreur2">0 TND</strong> <span id="admin-start-held-livreur2" class="hidden text-[11px] text-slate-500"></span></span>
+                    <span>Alimentation: <strong id="admin-added-livreur2" class="text-purple-600">+0 TND</strong></span>
                 </div>
             </div>
             <div id="admin-card-livreur3" class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-col justify-between relative overflow-hidden">
-                <div class="flex justify-between items-start mb-2">
+                                <div class="flex justify-between items-start mb-2">
                     <div>
-                        <div class="flex items-center space-x-1.5">
-                            <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Solde Livreur</span>
+                        <h3 class="text-lg font-bold text-slate-800 flex items-center gap-1.5">
                             <button onclick="openEditLivreurNameModal('livreur3')" class="text-slate-400 hover:text-brand-600 text-xs"><i class="fa-solid fa-user-pen"></i></button>
-                        </div>
-                        <h3 class="text-lg font-bold text-slate-800">
-    <span class="livreur-name-3">Livreur 3</span>
-    <span class="presence-dot" data-presence="livreur3" title="État de connexion"></span>
-</h3>
-<button id="admin-debt-btn-livreur3" type="button" onclick="openDebtModal('livreur3')" class="hidden mt-1.5 px-2 py-0.5 text-[11px] font-bold rounded-lg border inline-flex items-center gap-1 transition">
-    <i class="fa-solid fa-hand-holding-dollar text-[10px]"></i>
-    <span id="admin-debt-label-livreur3">Dette</span>
-</button>                        
+                            <span class="livreur-name-3">Livreur 3</span>
+                            <span class="presence-dot" data-presence="livreur3" title="État de connexion"></span>
+                        </h3>
+                        <button id="admin-debt-btn-livreur3" type="button" onclick="openDebtModal('livreur3')" class="hidden mt-1.5 px-2 py-0.5 text-[11px] font-bold rounded-lg border inline-flex items-center gap-1 transition">
+                            <i class="fa-solid fa-hand-holding-dollar text-[10px]"></i>
+                            <span id="admin-debt-label-livreur3">Dette</span>
+                        </button>
                     </div>
                     <button onclick="openStartBalanceModal('livreur3')" class="text-xs font-bold text-brand-600 hover:text-brand-800 bg-brand-50 hover:bg-brand-100 px-2.5 py-1 rounded-lg transition"><i class="fa-solid fa-pen text-[10px] mr-1"></i>Départ</button>
                 </div>
@@ -587,8 +578,8 @@
                     <div><p class="text-xs text-slate-400">Solde Réel</p><p class="font-bold text-slate-700" id="admin-real-livreur3">0 TND</p><p id="admin-real-held-livreur3" class="hidden text-[11px] font-semibold text-slate-500"></p></div>
                 </div>
                 <div class="flex justify-between items-center text-xs text-slate-500">
-                    <span>Solde Départ: <strong id="admin-start-livreur3">0 TND</strong> <span id="admin-start-held-livreur3" class="hidden text-[11px] text-slate-500"></span></span>
-                    <span>Alimentations Validées: <strong id="admin-added-livreur3" class="text-purple-600">+0 TND</strong></span>
+                                        <span>Solde de départ: <strong id="admin-start-livreur3">0 TND</strong> <span id="admin-start-held-livreur3" class="hidden text-[11px] text-slate-500"></span></span>
+                    <span>Alimentation: <strong id="admin-added-livreur3" class="text-purple-600">+0 TND</strong></span>
                 </div>
             </div>
         </div>
@@ -680,10 +671,11 @@
                     <button onclick="openAddCashModal()" class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white font-semibold text-xs rounded-xl shadow-sm transition flex items-center space-x-1.5"><i class="fa-solid fa-hand-holding-dollar"></i><span>+ Ajouter Alimentation</span></button>
                 </div>
             </div>
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200/80"><span class="text-xs font-semibold text-slate-400 uppercase">Solde d'hier (Départ)</span><p class="text-lg font-bold text-slate-700 mt-1" id="livreur-start-balance">0 TND</p><p id="livreur-start-held" class="hidden text-xs font-semibold text-slate-500 mt-0.5"></p><button id="held-btn" type="button" onclick="openHeldBalanceModal()" class="mt-2 px-2.5 py-1 bg-amber-100 hover:bg-amber-200 text-amber-900 text-[11px] font-bold rounded-lg border border-amber-300">✋ Possédé</button></div>
+                        <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
+                <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200/80"><span class="text-xs font-semibold text-slate-400 uppercase">Solde de départ</span><p class="text-lg font-bold text-slate-700 mt-1" id="livreur-start-balance">0 TND</p><p id="livreur-start-held" class="hidden text-xs font-semibold text-slate-500 mt-0.5"></p><button id="held-btn" type="button" onclick="openHeldBalanceModal()" class="mt-2 px-2.5 py-1 bg-amber-100 hover:bg-amber-200 text-amber-900 text-[11px] font-bold rounded-lg border border-amber-300">✋ Possédé</button></div>
                 <div class="bg-emerald-50/50 p-3.5 rounded-xl border border-emerald-100"><span class="text-xs font-semibold text-emerald-600 uppercase">Solde Réel (En Poche)</span><p class="text-xl font-black text-emerald-700 mt-1" id="livreur-real-balance">0 TND</p><p id="livreur-real-held" class="hidden text-xs font-semibold text-emerald-700 mt-0.5"></p></div>
                 <div class="bg-blue-50/50 p-3.5 rounded-xl border border-blue-100"><span class="text-xs font-semibold text-blue-600 uppercase">Solde Théorique (À venir)</span><p class="text-xl font-black text-blue-700 mt-1" id="livreur-theo-balance">0 TND</p><p id="livreur-theo-held" class="hidden text-xs font-semibold text-blue-700 mt-0.5"></p></div>
+                <div class="bg-amber-50/60 p-3.5 rounded-xl border border-amber-200"><span class="text-xs font-semibold text-amber-700 uppercase flex items-center gap-1"><i class="fa-solid fa-coins text-[10px]"></i> Frais du jour</span><p class="text-xl font-black text-amber-800 mt-1" id="livreur-total-fees">0 TND</p><p class="text-[11px] font-semibold text-amber-700 mt-0.5">Cumul des validations</p></div>
             </div>
             <div class="grid grid-cols-4 gap-1.5 pt-2 border-t border-slate-100 text-center text-[11px]">
                 <div class="bg-amber-50 px-2 py-1 rounded-lg border border-amber-200 flex items-center justify-between"><span class="font-bold text-amber-800 truncate">⏳ En cours</span><span class="font-black text-amber-900 text-xs ms-1 bg-amber-200/80 px-1.5 py-0.2 rounded" id="livreur-count-pending">0</span></div>
@@ -719,9 +711,14 @@
             <h3 class="font-bold text-lg"><i class="fa-solid fa-circle-check me-2"></i>Confirmation de Validation</h3>
             <button onclick="toggleConfirmValidationModal(false)" class="text-white/80 hover:text-white transition"><i class="fa-solid fa-xmark text-xl"></i></button>
         </div>
-        <form id="form-confirm-validation" onsubmit="executeConfirmValidation(event)" class="p-6 space-y-4">
+                <form id="form-confirm-validation" onsubmit="executeConfirmValidation(event)" class="p-6 space-y-4">
             <input type="hidden" id="validation-delivery-id" value="">
             <p class="text-sm text-slate-700 font-medium" id="validation-prompt-text">Voulez-vous vraiment valider cette opération ?</p>
+            <div id="validation-fee-container">
+                <label class="block text-xs font-bold text-slate-700 uppercase mb-1" id="validation-fee-label">Frais de livraison (TND)</label>
+                <input type="number" id="input-validation-fee" min="0" max="999" step="0.01" inputmode="decimal" placeholder="20" class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none text-base font-bold text-slate-800">
+                <p class="text-[11px] text-slate-500 mt-1">Max 999 TND · Laissez vide pour la valeur par défaut.</p>
+            </div>
             <div>
                 <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Remarque (Optionnelle)</label>
                 <textarea id="input-validation-remark" rows="2" placeholder="Saisir une remarque si nécessaire..." class="w-full p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none text-sm"></textarea>
@@ -1594,8 +1591,9 @@ function normalizeOp(d, id) {
         remarkLivreur: String(d.remarkLivreur || '').slice(0, 500),
         creationTime: String(d.creationTime || ''),
         actionTime: d.actionTime ? String(d.actionTime) : undefined,
-        timestamp: Number(d.timestamp) || Date.now(),
-        lastBy: 'import', lastAt: Date.now()
+	        timestamp: Number(d.timestamp) || Date.now(),
+        deliveryFee: (typeof d.deliveryFee === 'number' && !isNaN(d.deliveryFee)) ? Number(d.deliveryFee) : undefined,
+        lastBy: 'import', lastAt: Date.now()        
     });
 }
 
@@ -3625,6 +3623,12 @@ function renderLivreurDashboard(livreurId) {
     document.getElementById('livreur-real-balance').textContent = `${real.toLocaleString('fr-FR')} TND`;
     document.getElementById('livreur-theo-balance').textContent = `${theo.toLocaleString('fr-FR')} TND`;
     applyHeldLinesLivreur(livreurId, date, start);
+	    // 🆕 Total des frais de livraison du jour (livreur uniquement)
+    const totalFees = state.deliveries
+        .filter(d => d.date === date && d.livreurId === livreurId && d.status === 'delivered' && typeof d.deliveryFee === 'number')
+        .reduce((s, d) => s + Number(d.deliveryFee), 0);
+    const totalFeesEl = document.getElementById('livreur-total-fees');
+    if (totalFeesEl) totalFeesEl.textContent = `${totalFees.toLocaleString('fr-FR')} TND`;
 
     let countPending = 0, countDelivered = 0, countCancelled = 0, countCash = 0;
     const search = (document.getElementById('global-search-input').value || '').toLowerCase().trim();
@@ -3676,8 +3680,9 @@ function renderLivreurDashboard(livreurId) {
             <div class="flex items-center justify-between gap-2 border-b border-slate-200/60 pb-1.5">
                 <div class="flex items-center space-x-1.5 flex-wrap gap-y-1">
                     <span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-700 text-white">#${cardNumber}</span>
-                    ${typeBadge}${statusBadge}
+                                        ${typeBadge}${statusBadge}
                     <span class="text-[11px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">🕒 ${cTime}${d.actionTime ? ' ➔ ' + d.actionTime : ''}</span>
+                    ${d.status === 'delivered' && typeof d.deliveryFee === 'number' && d.deliveryFee > 0 ? `<span class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200" title="Frais"><i class="fa-solid fa-coins text-[9px]"></i> ${Number(d.deliveryFee).toLocaleString('fr-FR')} TND</span>` : ''}
                 </div>
                 <div class="text-right shrink-0"><span class="text-lg font-black ${isCash ? 'text-purple-700' : (d.status==='cancelled'?'text-slate-400 strikethrough-text':'text-slate-900')}">${isCash ? '+' : ''}${Number(d.amount).toLocaleString('fr-FR')}</span> <span class="text-[11px] font-bold text-slate-500">TND</span>${(isCash && d.status === 'pending') ? `<button type="button" onclick="promptEditAmount('${d.id}')" title="Modifier le montant de l'alimentation" class="ms-1 px-1.5 py-0.5 bg-purple-100 hover:bg-purple-200 text-purple-800 rounded text-[10px] font-bold border border-purple-200"><i class="fa-solid fa-pen text-[9px]"></i> Modifier</button>` : ''}</div>
             </div>
@@ -3775,8 +3780,26 @@ function openConfirmValidationModal(deliveryId) {
     if (!del) return;
     document.getElementById('validation-delivery-id').value = deliveryId;
     const isAdmin = state.currentRole === 'admin';
+    const isCash = del.type === 'SOLDE_RECU';
     document.getElementById('input-validation-remark').value = isAdmin ? (del.remarkAdmin || '') : (del.remarkLivreur || '');
     document.getElementById('validation-prompt-text').textContent = `Confirmer la validation de "${del.clientName}" (${del.amount} TND) ?`;
+
+    // 🆕 Frais de livraison : champ visible uniquement côté livreur
+    const feeContainer = document.getElementById('validation-fee-container');
+    const feeLabel = document.getElementById('validation-fee-label');
+    const feeInput = document.getElementById('input-validation-fee');
+    if (feeContainer && feeLabel && feeInput) {
+        if (isAdmin) {
+            feeContainer.classList.add('hidden');
+        } else {
+            feeContainer.classList.remove('hidden');
+            feeLabel.textContent = isCash ? "Frais d'alimentation (TND)" : 'Frais de livraison (TND)';
+            // Pré-remplir : valeur existante (éventuelle re-validation), sinon défaut 20 (LIVR) / 0 (ALIM)
+            if (typeof del.deliveryFee === 'number') feeInput.value = del.deliveryFee;
+            else feeInput.value = isCash ? 0 : 20;
+        }
+    }
+
     toggleConfirmValidationModal(true);
 }
 function toggleConfirmValidationModal(show) { const m = document.getElementById('modal-confirm-validation'); if (show) m.classList.remove('hidden'); else m.classList.add('hidden'); }
@@ -3786,10 +3809,21 @@ function executeConfirmValidation(e) {
     const remark = document.getElementById('input-validation-remark').value.trim();
     const del = state.deliveries.find(d => d.id === id);
     if (del) {
+        const isCash = del.type === 'SOLDE_RECU';
+        const isAdminValidating = state.currentRole === 'admin';
         const patch = { status: 'delivered', timestamp: new Date().getTime(), actionTime: getTimeStr() };
-        if (remark) { if (state.currentRole === 'admin') patch.remarkAdmin = remark; else patch.remarkLivreur = remark; }
+
+        // 🆕 Frais : uniquement quand le livreur valide (admin ne touche pas)
+        if (!isAdminValidating) {
+            let fee = parseFloat(document.getElementById('input-validation-fee').value);
+            if (isNaN(fee) || fee < 0) fee = isCash ? 0 : 20;
+            fee = Math.min(999, Math.round(fee * 100) / 100);
+            patch.deliveryFee = fee;
+        }
+
+        if (remark) { if (isAdminValidating) patch.remarkAdmin = remark; else patch.remarkLivreur = remark; }
         patchOp(id, patch);
-        showToast(`🟢 Confirmation`, `${del.type === 'SOLDE_RECU' ? 'Alimentation validée' : 'Livraison validée'} pour ${del.clientName}.`);
+        showToast(`🟢 Confirmation`, `${isCash ? 'Alimentation validée' : 'Livraison validée'} pour ${del.clientName}.`);
     }
     toggleConfirmValidationModal(false);
 }
@@ -4345,7 +4379,7 @@ window.addEventListener('DOMContentLoaded', boot);
     try { var saved = localStorage.getItem(KEY); if (LANGS.indexOf(saved) >= 0) lang = saved; } catch (e) {}
 
     var E = [
-        [`Warda v53 - Gestion de Warda`, `Warda v53 - Warda management`, `وردة v53 - إدارة وردة`],
+        [`Warda v54 - Gestion de Warda`, `Warda v54 - Warda management`, `وردة v54 - إدارة وردة`],
         [`Gestion de la Liste Noire (Clients Bloqués)`, `Blacklist Management (Blocked Clients)`, `إدارة القائمة السوداء (العملاء المحظورون)`],
         [`Ajouter / Modifier un Client Bloqué`, `Add / Edit a Blocked Client`, `إضافة / تعديل عميل محظور`],
         [`Téléphone *`, `Phone *`, `الهاتف *`],
@@ -4439,8 +4473,8 @@ window.addEventListener('DOMContentLoaded', boot);
         [`Départ`, `Opening`, `البداية`],
         [`Solde Théorique`, `Theoretical Balance`, `الرصيد النظري`],
         [`Solde Réel`, `Actual Balance`, `الرصيد الفعلي`],
-        [`Solde Départ:`, `Opening Balance:`, `رصيد البداية:`],
-        [`Alimentations Validées:`, `Validated Top-ups:`, `التغذيات المؤكدة:`],
+	[`Solde de départ:`, `Opening balance:`, `رصيد البداية:`],
+	[`Alimentation:`, `Top-ups:`, `تغذية:`],
         [`En cours`, `Pending`, `قيد التنفيذ`],
         [`Envoyés / Validés`, `Sent / Validated`, `المُرسَلة / المؤكَّدة`],
         [`Annulés`, `Cancelled`, `الملغاة`],
@@ -4470,7 +4504,7 @@ window.addEventListener('DOMContentLoaded', boot);
         [`Espace Livreur`, `Courier Space`, `فضاء الموزّع`],
         [`Gérez vos livraisons et enregistrez vos alimentations de caisse.`, `Manage your deliveries and record your cash top-ups.`, `أدِر توصيلاتك وسجّل تغذيات الصندوق.`],
         [`+ Ajouter Alimentation`, `+ Add Top-up`, `+ إضافة تغذية`],
-        [`Solde d'hier (Départ)`, `Yesterday's balance (Opening)`, `رصيد أمس (البداية)`],
+        [`Solde de départ`, `Opening balance`, `رصيد البداية`],
         [`✋ Possédé`, `✋ Held`, `✋ بحوزتي`],
         [`Solde Réel (En Poche)`, `Actual Balance (In Hand)`, `الرصيد الفعلي (في الجيب)`],
         [`Calculé (Alim. Validées - Livraisons Effectuées)`, `Calculated (Validated top-ups - Completed deliveries)`, `محسوب (التغذيات المؤكدة - التوصيلات المنجزة)`],
