@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Warda v52 - Gestion de Warda</title>
+<title>Warda v53 - Gestion de Warda</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -333,7 +333,47 @@
                     <button type="submit" class="px-5 py-2.5 bg-amber-600 hover:bg-amber-700 text-white font-semibold text-sm rounded-xl shadow-md transition">Enregistrer</button>
                 </div>
             </div>
-        </form>
+         </form>
+    </div>
+</div>
+
+<!-- MODAL: DEBT MANAGEMENT -->
+<div id="modal-debt" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden transform transition-all">
+        <div class="bg-rose-700 px-6 py-4 text-white flex justify-between items-center">
+            <h3 class="font-bold text-lg"><i class="fa-solid fa-hand-holding-dollar me-2"></i>Gestion de la dette</h3>
+            <button type="button" onclick="closeDebtModal()" class="text-white/80 hover:text-white transition"><i class="fa-solid fa-xmark text-xl"></i></button>
+        </div>
+        <div class="p-6 space-y-4">
+            <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 text-center">
+                <p class="text-xs font-bold text-slate-500 uppercase tracking-wider" id="debt-livreur-name">Livreur</p>
+                <p class="text-3xl font-black text-slate-900 mt-1" id="debt-current-value">0 TND</p>
+                <p class="text-xs font-semibold text-slate-500 mt-1" id="debt-current-label">Aucune dette</p>
+            </div>
+            <div class="space-y-2">
+                <label class="block text-xs font-bold text-slate-700 uppercase">Ajouter un montant (TND)</label>
+                <div class="flex items-center gap-2">
+                    <input type="number" id="debt-input-amount" step="0.01" placeholder="ex: 100 ou -50" class="flex-1 px-3.5 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-rose-500 focus:outline-none text-base font-bold text-slate-800">
+                    <button type="button" onclick="handleAddDebtAmount()" class="px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-xl shadow-md transition whitespace-nowrap">+ Ajouter</button>
+                </div>
+                <p class="text-[11px] text-slate-500">Positif = le livreur doit à l'Admin · Négatif = l'Admin doit au livreur.</p>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+                <button type="button" onclick="handleDebtUseRealBalance()" class="px-3 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-800 font-bold text-[11px] rounded-xl border border-indigo-200 transition">
+                    <i class="fa-solid fa-wallet text-[10px] me-1"></i>Utiliser solde réel
+                </button>
+                <button type="button" onclick="handleDebtReset()" class="px-3 py-2 bg-slate-50 hover:bg-slate-100 text-slate-700 font-bold text-[11px] rounded-xl border border-slate-200 transition">
+                    <i class="fa-solid fa-rotate-left text-[10px] me-1"></i>Remettre à zéro
+                </button>
+            </div>
+            <div class="bg-amber-50 p-3 rounded-xl border border-amber-200">
+                <p class="text-xs font-bold text-amber-900" id="debt-preview">Nouvelle dette : 0 TND</p>
+            </div>
+            <div class="pt-3 flex justify-end space-x-3 border-t border-slate-100">
+                <button type="button" onclick="closeDebtModal()" class="px-4 py-2.5 text-slate-600 hover:bg-slate-100 font-semibold text-sm rounded-xl transition">Annuler</button>
+                <button type="button" onclick="handleConfirmDebt()" class="px-5 py-2.5 bg-rose-700 hover:bg-rose-800 text-white font-semibold text-sm rounded-xl shadow-md transition">Confirmer</button>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -355,7 +395,7 @@
     <span id="sync-indicator" class="syncing inline-block w-2.5 h-2.5 rounded-full" title="État de la connexion"></span>
     <span id="admin-presence-dot" class="presence-dot hidden" data-presence="admin" title="Admin hors ligne"></span>
 </h1>
-                <p class="text-xs text-slate-400 hidden sm:block">Gestion de Warda - <span class="text-emerald-400 font-bold">v52</span></p>
+                <p class="text-xs text-slate-400 hidden sm:block">Gestion de Warda - <span class="text-emerald-400 font-bold">v53</span></p>
             </div>
         </div>
         <button id="notif-bell" type="button" onclick="openNotifPanel()" title="Toutes les notifications" class="relative w-11 h-11 bg-slate-800 border border-slate-700 rounded-xl text-slate-200 hover:text-white hover:bg-slate-700 transition order-2 sm:order-3">
@@ -477,10 +517,14 @@
                             <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Solde Livreur</span>
                             <button onclick="openEditLivreurNameModal('livreur1')" class="text-slate-400 hover:text-brand-600 text-xs"><i class="fa-solid fa-user-pen"></i></button>
                         </div>
-                        <h3 class="text-lg font-bold text-slate-800">
+                                                <h3 class="text-lg font-bold text-slate-800">
     <span class="livreur-name-1">Livreur 1</span>
     <span class="presence-dot" data-presence="livreur1" title="État de connexion"></span>
 </h3>
+<button id="admin-debt-btn-livreur1" type="button" onclick="openDebtModal('livreur1')" class="hidden mt-1.5 px-2 py-0.5 text-[11px] font-bold rounded-lg border inline-flex items-center gap-1 transition">
+    <i class="fa-solid fa-hand-holding-dollar text-[10px]"></i>
+    <span id="admin-debt-label-livreur1">Dette</span>
+</button>
                     </div>
                     <button onclick="openStartBalanceModal('livreur1')" class="text-xs font-bold text-brand-600 hover:text-brand-800 bg-brand-50 hover:bg-brand-100 px-2.5 py-1 rounded-lg transition"><i class="fa-solid fa-pen text-[10px] mr-1"></i>Départ</button>
                 </div>
@@ -500,10 +544,14 @@
                             <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Solde Livreur</span>
                             <button onclick="openEditLivreurNameModal('livreur2')" class="text-slate-400 hover:text-brand-600 text-xs"><i class="fa-solid fa-user-pen"></i></button>
                         </div>
-                        <h3 class="text-lg font-bold text-slate-800">
+                                                <h3 class="text-lg font-bold text-slate-800">
     <span class="livreur-name-2">Livreur 2</span>
     <span class="presence-dot" data-presence="livreur2" title="État de connexion"></span>
 </h3>
+<button id="admin-debt-btn-livreur2" type="button" onclick="openDebtModal('livreur2')" class="hidden mt-1.5 px-2 py-0.5 text-[11px] font-bold rounded-lg border inline-flex items-center gap-1 transition">
+    <i class="fa-solid fa-hand-holding-dollar text-[10px]"></i>
+    <span id="admin-debt-label-livreur2">Dette</span>
+</button>
                     </div>
                     <button onclick="openStartBalanceModal('livreur2')" class="text-xs font-bold text-brand-600 hover:text-brand-800 bg-brand-50 hover:bg-brand-100 px-2.5 py-1 rounded-lg transition"><i class="fa-solid fa-pen text-[10px] mr-1"></i>Départ</button>
                 </div>
@@ -527,6 +575,10 @@
     <span class="livreur-name-3">Livreur 3</span>
     <span class="presence-dot" data-presence="livreur3" title="État de connexion"></span>
 </h3>
+<button id="admin-debt-btn-livreur3" type="button" onclick="openDebtModal('livreur3')" class="hidden mt-1.5 px-2 py-0.5 text-[11px] font-bold rounded-lg border inline-flex items-center gap-1 transition">
+    <i class="fa-solid fa-hand-holding-dollar text-[10px]"></i>
+    <span id="admin-debt-label-livreur3">Dette</span>
+</button>                        
                     </div>
                     <button onclick="openStartBalanceModal('livreur3')" class="text-xs font-bold text-brand-600 hover:text-brand-800 bg-brand-50 hover:bg-brand-100 px-2.5 py-1 rounded-lg transition"><i class="fa-solid fa-pen text-[10px] mr-1"></i>Départ</button>
                 </div>
@@ -618,6 +670,10 @@
                     <div class="inline-flex items-center space-x-2 flex-wrap gap-y-1">
     <span class="w-3 h-3 rounded-full bg-emerald-500 animate-pulse"></span>
     <h2 class="text-2xl font-bold text-slate-900" id="livreur-view-title">Espace Livreur</h2>
+    <span id="livreur-debt-badge" class="hidden px-2.5 py-1 text-xs font-bold rounded-lg border inline-flex items-center gap-1">
+        <i class="fa-solid fa-hand-holding-dollar text-[10px]"></i>
+        <span id="livreur-debt-label">Dette</span>
+    </span>
 </div>
                 </div>
                 <div class="flex items-center space-x-2">
@@ -1593,7 +1649,7 @@ function onListenerError(err) {
 function mergeLivreur(id, v) {
     if (!v) return;
     const prev = state.livreurs[id] || { id };
-    state.livreurs[id] = { id, name: v.name || prev.name || DEFAULT_NAMES[id], token: v.token, startBalances: v.startBalances || {}, heldBalances: v.heldBalances || {} };
+        state.livreurs[id] = { id, name: v.name || prev.name || DEFAULT_NAMES[id], token: v.token, startBalances: v.startBalances || {}, heldBalances: v.heldBalances || {}, debt: v.debt || {} };
 }
 function addCfgListener(path, handler) {
     const ref = db.ref(path);
@@ -2853,7 +2909,12 @@ async function carryOverStartBalances() {
             .concat(LIVREUR_IDS.map(id => db.ref(CFG_PATH + '/livreurs/' + id + '/startBalances/' + today).once('value'))));
         const needAdmin = tiny[0].val() === null;
         const needLiv = LIVREUR_IDS.filter((id, i) => tiny[i + 1].val() === null);
-        if (!needAdmin && needLiv.length === 0) return true;      // jamais d'écrasement d'un solde déjà saisi
+
+        // Dette : même logique de report
+        const debtTiny = await Promise.all(LIVREUR_IDS.map(id => db.ref(CFG_PATH + '/livreurs/' + id + '/debt/' + today).once('value')));
+        const needDebt = LIVREUR_IDS.filter((id, i) => debtTiny[i].val() === null);
+
+        if (!needAdmin && needLiv.length === 0 && needDebt.length === 0) return true;
 
         // 2) Sinon seulement : lecture de la configuration
         const cfg = (await db.ref(CFG_PATH).once('value')).val() || {};
@@ -2875,35 +2936,139 @@ async function carryOverStartBalances() {
                 if (dd && (!prevDate || dd > prevDate)) prevDate = dd;
             });
         } catch (e) { console.warn('Dernière opération introuvable :', e); }
-        if (!prevDate) return true;      // aucune activité avant aujourd'hui : rien à reporter
+        if (!prevDate && needDebt.length === 0) return true;
 
-        // Solde réel de fin de journée = départ + alimentations validées - livraisons validées
-        const ops = await fetchOpsRange(prevDate, prevDate);
-        const sumOf = (list, type) => list.filter(d => d.type === type && d.status === 'delivered').reduce((t, d) => t + (Number(d.amount) || 0), 0);
         const r2 = v => Math.round(v * 100) / 100;
         const setIfEmpty = (path, value) => db.ref(path).transaction(cur => (cur === null || cur === undefined) ? value : undefined);
         let wrote = false;
 
-        if (needAdmin) {
-            const real = (Number(adm[prevDate]) || 0) + sumOf(ops, 'SOLDE_RECU') - sumOf(ops, 'LIVRAISON');
-            const res = await setIfEmpty(CFG_PATH + '/adminStartBalances/' + today, r2(real));
-            if (res && res.committed) wrote = true;
+        if (prevDate) {
+            const ops = await fetchOpsRange(prevDate, prevDate);
+            const sumOf = (list, type) => list.filter(d => d.type === type && d.status === 'delivered').reduce((t, d) => t + (Number(d.amount) || 0), 0);
+            if (needAdmin) {
+                const real = (Number(adm[prevDate]) || 0) + sumOf(ops, 'SOLDE_RECU') - sumOf(ops, 'LIVRAISON');
+                const res = await setIfEmpty(CFG_PATH + '/adminStartBalances/' + today, r2(real));
+                if (res && res.committed) wrote = true;
+            }
+            for (const id of needLiv) {
+                const mine = ops.filter(d => d.livreurId === id);
+                const base = Number(((livs[id] && livs[id].startBalances) || {})[prevDate]) || 0;
+                const real = base + sumOf(mine, 'SOLDE_RECU') - sumOf(mine, 'LIVRAISON');
+                const res = await setIfEmpty(CFG_PATH + '/livreurs/' + id + '/startBalances/' + today, r2(real));
+                if (res && res.committed) wrote = true;
+            }
         }
-        for (const id of needLiv) {
-            const mine = ops.filter(d => d.livreurId === id);
-            const base = Number(((livs[id] && livs[id].startBalances) || {})[prevDate]) || 0;
-            const real = base + sumOf(mine, 'SOLDE_RECU') - sumOf(mine, 'LIVRAISON');
-            const res = await setIfEmpty(CFG_PATH + '/livreurs/' + id + '/startBalances/' + today, r2(real));
-            if (res && res.committed) wrote = true;
+
+        // 🆕 Report de la dette : la valeur du dernier jour connu devient celle d'aujourd'hui
+        for (const id of needDebt) {
+            const debts = (livs[id] && livs[id].debt) || {};
+            const prevDays = Object.keys(debts).filter(k => k < today).sort();
+            if (prevDays.length > 0) {
+                const lastDate = prevDays[prevDays.length - 1];
+                const prevValue = Number(debts[lastDate]) || 0;
+                const res = await setIfEmpty(CFG_PATH + '/livreurs/' + id + '/debt/' + today, prevValue);
+                if (res && res.committed) wrote = true;
+            }
         }
-        if (wrote && window.__me === 'admin') showToast("🔁 Soldes reportés", `Les soldes de départ d'aujourd'hui reprennent les soldes réels du ${prevDate}.`);
+
+        if (wrote && window.__me === 'admin') showToast("🔁 Soldes reportés", `Les soldes et dettes d'aujourd'hui reprennent les valeurs de la veille.`);
         return true;
     } catch (e) {
         console.warn('Report du solde impossible :', e);
         return false;
     }
 }
+// ==================== GESTION DE LA DETTE ====================
+let _debtBuffer = 0;
+let _debtLivreurId = null;
 
+function getDebt(livreurId, date) {
+    const l = state.livreurs[livreurId];
+    if (!l || !l.debt) return 0;
+    const v = l.debt[date];
+    return (v === undefined || v === null || isNaN(Number(v))) ? 0 : Number(v);
+}
+function fmtDebt(v) {
+    const n = Number(v) || 0;
+    if (Math.abs(n) < 0.005) return '0 TND';
+    const sign = n > 0 ? '+' : '';
+    return sign + n.toLocaleString('fr-FR') + ' TND';
+}
+function debtLabel(v) {
+    const n = Number(v) || 0;
+    if (Math.abs(n) < 0.005) return 'Aucune dette';
+    if (n > 0) return "Le livreur doit à l'Admin";
+    return "L'Admin doit au livreur";
+}
+
+function openDebtModal(livreurId) {
+    if (state.currentRole !== 'admin' || !isAdminAuthenticated) return;
+    const date = state.selectedDate || getTodayStr();
+    _debtLivreurId = livreurId;
+    _debtBuffer = getDebt(livreurId, date);
+    document.getElementById('debt-livreur-name').textContent = 'Dette — ' + (state.livreurs[livreurId]?.name || livreurId);
+    document.getElementById('debt-input-amount').value = '';
+    updateDebtPreviewUI();
+    document.getElementById('modal-debt').classList.remove('hidden');
+}
+function closeDebtModal() {
+    document.getElementById('modal-debt').classList.add('hidden');
+    _debtBuffer = 0;
+    _debtLivreurId = null;
+}
+function updateDebtPreviewUI() {
+    const curVal = document.getElementById('debt-current-value');
+    curVal.textContent = fmtDebt(_debtBuffer);
+    curVal.className = 'text-3xl font-black mt-1 ' + (_debtBuffer > 0.005 ? 'text-red-700' : _debtBuffer < -0.005 ? 'text-blue-700' : 'text-slate-900');
+    document.getElementById('debt-current-label').textContent = debtLabel(_debtBuffer);
+    document.getElementById('debt-preview').textContent = 'Nouvelle dette : ' + fmtDebt(_debtBuffer) + ' — ' + debtLabel(_debtBuffer);
+}
+function handleAddDebtAmount() {
+    const inp = document.getElementById('debt-input-amount');
+    const v = parseFloat(inp.value);
+    if (isNaN(v) || Math.abs(v) < 0.005) { alert("Montant invalide."); return; }
+    _debtBuffer = Math.round((_debtBuffer + v) * 100) / 100;
+    inp.value = '';
+    updateDebtPreviewUI();
+}
+function handleDebtUseRealBalance() {
+    const date = state.selectedDate || getTodayStr();
+    const real = calculateRealBalance(_debtLivreurId, date);
+    if (Math.abs(real) < 0.005) { alert("Le solde réel est 0. Rien à ajouter."); return; }
+    const fmt = x => Number(x).toLocaleString('fr-FR');
+    const msg = `Ajouter le solde réel actuel (${fmt(real)} TND) à la dette ?\n\n` +
+        `Solde réel négatif = le livreur a avancé du cash (Admin doit).\n` +
+        `Solde réel positif = le livreur a du cash en main (à reverser).\n\n` +
+        `Nouvelle dette : ${fmt(_debtBuffer + real)} TND`;
+    if (!confirm(msg)) return;
+    _debtBuffer = Math.round((_debtBuffer + real) * 100) / 100;
+    updateDebtPreviewUI();
+}
+function handleDebtReset() {
+    if (!confirm("Remettre la dette à zéro ?")) return;
+    _debtBuffer = 0;
+    updateDebtPreviewUI();
+}
+async function handleConfirmDebt() {
+    if (!_debtLivreurId) return;
+    const date = state.selectedDate || getTodayStr();
+    const value = Math.round(_debtBuffer * 100) / 100;
+    try {
+        await db.ref(CFG_PATH + '/livreurs/' + _debtLivreurId + '/debt/' + date).set(value);
+        if (!state.livreurs[_debtLivreurId].debt) state.livreurs[_debtLivreurId].debt = {};
+        state.livreurs[_debtLivreurId].debt[date] = value;
+        if (notifMode !== 'local' && Math.abs(value) > 0.005) {
+            sendNotification(_debtLivreurId, '💰 Dette mise à jour',
+                `Admin a mis à jour votre dette : ${fmtDebt(value)} (${debtLabel(value)})`);
+        }
+        showToast("Dette enregistrée", `${state.livreurs[_debtLivreurId]?.name || _debtLivreurId} — ${fmtDebt(value)}`);
+        closeDebtModal();
+        renderApp();
+    } catch (e) {
+        console.error(e);
+        alert("❌ Échec de l'enregistrement de la dette.");
+    }
+}
 // ==================== RENDER ====================
 function renderApp() {
     if (appBlocked || !document.getElementById('view-admin')) return;
@@ -3275,7 +3440,30 @@ function renderAdminDashboard() {
     document.getElementById('admin-remaining-starts').textContent = `${remainingStart.toLocaleString('fr-FR')} TND`;
     let globalAddedDelivered = 0, globalAddedTheo = 0, globalDelivered = 0, globalDeliveriesTheo = 0;
     let countPending = 0, countDelivered = 0, countCancelled = 0, countCash = 0;
-    ['livreur1', 'livreur2', 'livreur3'].forEach(id => {
+        ['livreur1', 'livreur2', 'livreur3'].forEach(id => {
+                // 🆕 Bouton Dette : TOUJOURS visible pour l'admin
+        const debtVal = getDebt(id, date);
+        const debtBtn = document.getElementById('admin-debt-btn-' + id);
+        const debtLbl = document.getElementById('admin-debt-label-' + id);
+        if (debtBtn && debtLbl) {
+            debtBtn.classList.remove('hidden');   // ← toujours affiché pour admin
+            const hasDebt = Math.abs(debtVal) > 0.005;
+            // Reset des classes de couleur
+            debtBtn.classList.remove(
+                'bg-red-50', 'hover:bg-red-100', 'text-red-800', 'border-red-300',
+                'bg-blue-50', 'hover:bg-blue-100', 'text-blue-800', 'border-blue-300',
+                'bg-slate-50', 'hover:bg-slate-100', 'text-slate-500', 'border-slate-200'
+            );
+            if (hasDebt) {
+                debtLbl.textContent = (debtVal > 0 ? 'Dette : ' : 'Admin doit : ') + fmtDebt(Math.abs(debtVal));
+                if (debtVal > 0) debtBtn.classList.add('bg-red-50', 'hover:bg-red-100', 'text-red-800', 'border-red-300');
+                else debtBtn.classList.add('bg-blue-50', 'hover:bg-blue-100', 'text-blue-800', 'border-blue-300');
+            } else {
+                debtLbl.textContent = 'Gérer dette';
+                debtBtn.classList.add('bg-slate-50', 'hover:bg-slate-100', 'text-slate-500', 'border-slate-200');
+            }
+        }
+
         const theo = calculateTheoreticalBalance(id, date);
         const real = calculateRealBalance(id, date);
         const start = getStartBalance(id, date);
@@ -3415,6 +3603,21 @@ function renderLivreurDashboard(livreurId) {
     if (!livreur) return;
     const date = state.selectedDate;
     document.getElementById('livreur-view-title').textContent = `Espace : ${livreur.name}`;
+        // 🆕 Affichage conditionnel du badge Dette
+    const debtVal = getDebt(livreurId, date);
+    const debtBadge = document.getElementById('livreur-debt-badge');
+    const debtLbl = document.getElementById('livreur-debt-label');
+    if (debtBadge && debtLbl) {
+        const hasDebt = Math.abs(debtVal) > 0.005;
+        debtBadge.classList.toggle('hidden', !hasDebt);
+        if (hasDebt) {
+            debtLbl.textContent = (debtVal > 0 ? 'Dette : ' : 'Admin doit : ') + fmtDebt(Math.abs(debtVal));
+            debtBadge.classList.remove('bg-red-50', 'text-red-800', 'border-red-300', 'bg-blue-50', 'text-blue-800', 'border-blue-300');
+            if (debtVal > 0) debtBadge.classList.add('bg-red-50', 'text-red-800', 'border-red-300');
+            else debtBadge.classList.add('bg-blue-50', 'text-blue-800', 'border-blue-300');
+        }
+    }
+
     const start = getStartBalance(livreurId, date);
     const theo = calculateTheoreticalBalance(livreurId, date);
     const real = calculateRealBalance(livreurId, date);
@@ -4142,7 +4345,7 @@ window.addEventListener('DOMContentLoaded', boot);
     try { var saved = localStorage.getItem(KEY); if (LANGS.indexOf(saved) >= 0) lang = saved; } catch (e) {}
 
     var E = [
-        [`Warda v52 - Gestion de Warda`, `Warda v52 - Warda management`, `وردة v52 - إدارة وردة`],
+        [`Warda v53 - Gestion de Warda`, `Warda v53 - Warda management`, `وردة v53 - إدارة وردة`],
         [`Gestion de la Liste Noire (Clients Bloqués)`, `Blacklist Management (Blocked Clients)`, `إدارة القائمة السوداء (العملاء المحظورون)`],
         [`Ajouter / Modifier un Client Bloqué`, `Add / Edit a Blocked Client`, `إضافة / تعديل عميل محظور`],
         [`Téléphone *`, `Phone *`, `الهاتف *`],
