@@ -672,26 +672,39 @@
         </button>
     </div>
 </div>
-                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-1.5 sm:gap-2">
-    <div class="bg-slate-50 p-1.5 sm:p-2 rounded-lg border border-slate-200/80">
+                                                <div class="grid grid-cols-2 sm:grid-cols-4 gap-1.5 sm:gap-2">
+    <div class="bg-slate-50 p-1.5 sm:p-2 rounded-lg border border-slate-200/80 grid grid-rows-[auto_1fr_auto] gap-1 min-h-[100px] sm:min-h-[110px]">
         <span class="text-[10px] sm:text-[12px] font-semibold text-slate-400 uppercase">Solde de départ</span>
-        <p class="text-lg sm:text-xl font-bold text-slate-700 mt-0.5" id="livreur-start-balance">0 TND</p>
-        <p id="livreur-start-held" class="hidden text-[10px] sm:text-[12px] font-semibold text-slate-500 mt-0.5"></p>
-        <button id="held-btn" type="button" onclick="openHeldBalanceModal()" class="mt-1 px-1.5 py-0.5 bg-amber-100 hover:bg-amber-200 text-amber-900 text-[11px] sm:text-[12px] font-bold rounded-md border border-amber-300">✋ Possédé</button>
+        <div class="flex items-center">
+            <button id="held-btn" type="button" onclick="openHeldBalanceModal()" class="px-1.5 py-0.5 bg-amber-100 hover:bg-amber-200 text-amber-900 text-[11px] sm:text-[12px] font-bold rounded-md border border-amber-300">✋ Possédé</button>
+        </div>
+        <div>
+            <p class="text-lg sm:text-xl font-bold text-slate-700" id="livreur-start-balance">0 TND</p>
+            <p id="livreur-start-held" class="hidden text-[10px] sm:text-[12px] font-semibold text-slate-500"></p>
+        </div>
     </div>
-    <div class="bg-amber-50/60 p-1.5 sm:p-2 rounded-lg border border-amber-200">
+    <div class="bg-amber-50/60 p-1.5 sm:p-2 rounded-lg border border-amber-200 grid grid-rows-[auto_1fr_auto] gap-1 min-h-[100px] sm:min-h-[110px]">
         <span class="text-[10px] sm:text-[12px] font-semibold text-amber-700 uppercase flex items-center gap-1"><i class="fa-solid fa-coins text-[9px] sm:text-[10px]"></i> Frais du jour</span>
-        <p class="text-lg sm:text-2xl font-black text-amber-800 mt-0.5" id="livreur-total-fees">0 TND</p>
+        <div></div>
+        <div>
+            <p class="text-lg sm:text-2xl font-black text-amber-800" id="livreur-total-fees">0 TND</p>
+        </div>
     </div>
-    <div class="bg-emerald-50/50 p-1.5 sm:p-2 rounded-lg border border-emerald-100">
+    <div class="bg-emerald-50/50 p-1.5 sm:p-2 rounded-lg border border-emerald-100 grid grid-rows-[auto_1fr_auto] gap-1 min-h-[100px] sm:min-h-[110px]">
         <span class="text-[10px] sm:text-[12px] font-semibold text-emerald-600 uppercase">Solde Réel (En Poche)</span>
-        <p class="text-lg sm:text-2xl font-black text-emerald-700 mt-0.5" id="livreur-real-balance">0 TND</p>
-        <p id="livreur-real-held" class="hidden text-[10px] sm:text-[12px] font-semibold text-emerald-700 mt-0.5"></p>
+        <div></div>
+        <div>
+            <p class="text-lg sm:text-2xl font-black text-emerald-700" id="livreur-real-balance">0 TND</p>
+            <p id="livreur-real-held" class="hidden text-[10px] sm:text-[12px] font-semibold text-emerald-700"></p>
+        </div>
     </div>
-    <div class="bg-blue-50/50 p-1.5 sm:p-2 rounded-lg border border-blue-100">
+    <div class="bg-blue-50/50 p-1.5 sm:p-2 rounded-lg border border-blue-100 grid grid-rows-[auto_1fr_auto] gap-1 min-h-[100px] sm:min-h-[110px]">
         <span class="text-[10px] sm:text-[12px] font-semibold text-blue-600 uppercase">Solde Théorique (À venir)</span>
-        <p class="text-lg sm:text-2xl font-black text-blue-700 mt-0.5" id="livreur-theo-balance">0 TND</p>
-        <p id="livreur-theo-held" class="hidden text-[10px] sm:text-[12px] font-semibold text-blue-700 mt-0.5"></p>
+        <div></div>
+        <div>
+            <p class="text-lg sm:text-2xl font-black text-blue-700" id="livreur-theo-balance">0 TND</p>
+            <p id="livreur-theo-held" class="hidden text-[10px] sm:text-[12px] font-semibold text-blue-700"></p>
+        </div>
     </div>
 </div>
             <div class="grid grid-cols-4 gap-1.5 pt-2 border-t border-slate-100 text-center text-[11px]">
