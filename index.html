@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Warda v48 - Gestion de Warda</title>
+<title>Warda v49 - Gestion de Warda</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -319,7 +319,7 @@
                     Warda
                     <span id="sync-indicator" class="syncing inline-block w-2.5 h-2.5 rounded-full" title="État de la connexion"></span>
                 </h1>
-                <p class="text-xs text-slate-400 hidden sm:block">Gestion de Warda - <span class="text-emerald-400 font-bold">v48</span></p>
+                <p class="text-xs text-slate-400 hidden sm:block">Gestion de Warda - <span class="text-emerald-400 font-bold">v49</span></p>
             </div>
         </div>
         <button id="notif-bell" type="button" onclick="openNotifPanel()" title="Toutes les notifications" class="relative w-11 h-11 bg-slate-800 border border-slate-700 rounded-xl text-slate-200 hover:text-white hover:bg-slate-700 transition order-2 sm:order-3">
@@ -1051,6 +1051,8 @@ const db = firebase.database();
 const ROOT = 'cashexpress';
 const OPS_PATH = ROOT + '/ops';
 const CFG_PATH = ROOT + '/config';
+const CLIENTS_PATH = ROOT + '/clients';      // fiches clients (conservées)
+const VOICE_PATH = ROOT + '/voiceData';      // fichiers audio (séparés des opérations)
 const NOTIF_PATH = ROOT + '/notifs';
 const LEGACY_PATH = ROOT + '/state';
 
@@ -1340,6 +1342,30 @@ function dbSet(path, val) { return db.ref(path).set(val).catch(handleWriteError)
 function dbUpdate(path, patch) { return db.ref(path).update(patch).catch(handleWriteError); }
 function dbRemove(path) { return db.ref(path).remove().catch(handleWriteError); }
 
+// ==================== ANNUAIRE CLIENTS (conservé même quand les opérations sont supprimées) ====================
+function clientKey(phone) {
+    let n = normalizePhone(phone);
+    if (n.startsWith('+216') && n.length === 12) n = n.slice(4);      // +216 21 345 678 -> 21345678
+    return /^\+?[0-9]{8,20}$/.test(n) ? n : null;
+}
+function clientRecord(o) {
+    return cleanObj({
+        name: String(o.clientName || '').trim().slice(0, 300),
+        phone: String(o.phone || '').trim().slice(0, 60),
+        phone2: String(o.phone2 || '').trim().slice(0, 60),
+        address: String(o.address || '').trim().slice(0, 500),
+        location: String(o.location || '').trim().slice(0, 500),
+        remark: String(o.remarkAdmin || '').replace(/\[Reporté du [^\]]*\]\s*/g, '').trim().slice(0, 500),
+        updatedAt: Date.now()
+    });
+}
+function upsertClient(o) {
+    if (!o || o.type !== 'LIVRAISON') return;       // seulement les clients de livraison (jamais de montant ni de solde)
+    const key = clientKey(o.phone);
+    if (!key) return;
+    db.ref(CLIENTS_PATH + '/' + key).update(clientRecord(o)).catch(e => console.warn('Fiche client non enregistrée :', e));
+}
+
 function writeOp(op) {
     const o = cleanObj(Object.assign({}, op, {
         phoneClean: normalizePhone(op.phone),
@@ -1347,11 +1373,16 @@ function writeOp(op) {
     }));
     delete o.id;
     notifyOp(null, op);
+    upsertClient(op);
     return dbSet(OPS_PATH + '/' + op.id, o);
 }
 function patchOp(id, patch) {
     const _before = state.deliveries.find(d => d.id === id);
-    if (_before) notifyOp(_before, Object.assign({}, _before, patch));
+    if (_before) {
+        const _after = Object.assign({}, _before, patch);
+        notifyOp(_before, _after);
+        if (['clientName', 'phone', 'phone2', 'address', 'location', 'remarkAdmin'].some(k => k in patch)) upsertClient(_after);
+    }
     return dbUpdate(OPS_PATH + '/' + id, Object.assign({}, patch, { lastBy: window.__me, lastAt: Date.now() }));
 }
 function deleteOp(id) {
@@ -1524,11 +1555,10 @@ function startNotifs() {
             playNotificationSound(getNotifSoundType(topNotif.title));
             try { if (navigator.vibrate) navigator.vibrate([150, 80, 150]); } catch (e) {}
         }
-        if (arr.length > 200) {
-            const u = {};
-            arr.filter(n => n.ack).slice(0, arr.length - 200).forEach(n => { u[NOTIF_PATH + '/' + window.__me + '/' + n.id] = null; });
-            if (Object.keys(u).length) db.ref().update(u).catch(() => {});
-        }
+        const _weekAgo = Date.now() - 7 * 86400000;
+        const _drop = new Set(arr.filter(n => n.ack && n.at < _weekAgo).map(n => n.id));
+        if (arr.length - _drop.size > 60) arr.filter(n => n.ack && !_drop.has(n.id)).slice(0, arr.length - _drop.size - 60).forEach(n => _drop.add(n.id));
+        if (_drop.size) { const u = {}; _drop.forEach(id => { u[NOTIF_PATH + '/' + window.__me + '/' + id] = null; }); db.ref().update(u).catch(() => {}); }
     };
     notifRef.on('value', notifHandler, (err) => {
         console.warn('Notifications serveur indisponibles — mode local :', err);
@@ -1899,32 +1929,38 @@ function handleExcelImport(e) {
 }
 
 // ==================== ROLLOVER ====================
-async function checkAndExecuteDailyRollover() {
+async function checkAndExecuteDailyRollover(all) {
     try {
         const today = getTodayStr();
-        const snap = await db.ref(OPS_PATH).orderByChild('status').equalTo('pending').once('value');
+        const dayStr = (back) => { const d = new Date(); d.setHours(12, 0, 0, 0); d.setDate(d.getDate() - back); return toLocalDateStr(d); };
+        const ageDays = (a, b) => Math.round((new Date(b + 'T12:00:00') - new Date(a + 'T12:00:00')) / 86400000);
+        // Seulement les 8 derniers jours (au lieu de tout l'historique des opérations « En cours »)
+        const snap = await db.ref(OPS_PATH).orderByChild('date').startAt(dayStr(8)).endAt(dayStr(1)).once('value');
         const todo = [];
-                snap.forEach(ch => {
+        snap.forEach(ch => {
             const d = ch.val();
             if (!d || !VALID_ID.test(ch.key) || !d.date || d.date >= today) return;
-            if (d.carriedTo) return;
+            if (d.status !== 'pending' || d.carriedTo) return;
             if (d.type !== 'LIVRAISON') return;
-            if (window.__me !== 'admin' && d.livreurId !== window.__me) return;
+            if (!all && window.__me !== 'admin' && d.livreurId !== window.__me) return;
+            if (ageDays(d.origDate || d.date, today) > 7) return;      // plus de report après 7 jours
             todo.push([ch.key, d]);
         });
         for (const [key, d] of todo.slice(0, 200)) {
             const root = String(d.origId || key).slice(0, 60);
             const copyId = ('rep-' + root + '-' + today).replace(/[^A-Za-z0-9_-]/g, '_');
             const ra = d.remarkAdmin || '';
-                        const copy = cleanObj(Object.assign({}, d, {
+            const copy = cleanObj(Object.assign({}, d, {
                 date: today,
                 status: 'pending',
                 type: 'LIVRAISON',
                 actionTime: undefined,
                 carriedTo: undefined,
                 voiceRemarks: undefined,
+                voiceMeta: undefined,
                 remarkAdmin: ra.includes('[Reporté') ? ra : `[Reporté du ${d.date}] ${ra}`.trim(),
                 origId: d.origId || key,
+                origDate: d.origDate || d.date,
                 reportedFrom: d.date,
                 timestamp: Date.now(),
                 lastBy: 'system',
@@ -1933,7 +1969,92 @@ async function checkAndExecuteDailyRollover() {
             await db.ref(OPS_PATH + '/' + copyId).transaction(cur => (cur === null || cur === undefined) ? copy : undefined);
             await db.ref(OPS_PATH + '/' + key).update({ carriedTo: copyId });
         }
-    } catch (e) { console.warn('Report quotidien impossible :', e); }
+        return true;
+    } catch (e) {
+        console.warn('Report quotidien impossible :', e);
+        return false;
+    }
+}
+
+// ==================== MAINTENANCE QUOTIDIENNE (une seule fois par jour, tous appareils confondus) ====================
+// Fiches clients : sauvegarde unique de tous les clients déjà présents dans les opérations (avant toute suppression)
+async function backfillClientsOnce() {
+    try {
+        const done = (await db.ref(CFG_PATH + '/clientsBackfilled').once('value')).val();
+        if (done) return true;
+        const snap = await db.ref(OPS_PATH).orderByChild('date').once('value');      // historique complet, UNE seule fois
+        const best = {};
+        const cleanVoices = {};
+        const voiceCutoff = dayAgoStr(2);
+        snap.forEach(ch => {
+            const d = ch.val();
+            if (!d) return;
+            if (d.voiceRemarks && d.date && d.date <= voiceCutoff && VALID_ID.test(ch.key)) cleanVoices[OPS_PATH + '/' + ch.key + '/voiceRemarks'] = null;
+            if (d.type !== 'LIVRAISON') return;
+            const key = clientKey(d.phone);
+            if (!key) return;
+            const ts = Number(d.timestamp) || 0;
+            if (!best[key] || ts >= best[key].ts) best[key] = { ts, rec: clientRecord(d) };
+        });
+        const keys = Object.keys(best);
+        for (let i = 0; i < keys.length; i += 100) {
+            const u = {};
+            keys.slice(i, i + 100).forEach(k => { u[CLIENTS_PATH + '/' + k] = best[k].rec; });
+            await db.ref().update(u);
+        }
+        if (Object.keys(cleanVoices).length) await db.ref().update(cleanVoices);
+        await db.ref(CFG_PATH + '/clientsBackfilled').set(true);
+        return true;
+    } catch (e) {
+        console.warn('Sauvegarde des fiches clients impossible :', e);
+        return false;
+    }
+}
+function dayAgoStr(back) { const d = new Date(); d.setHours(12, 0, 0, 0); d.setDate(d.getDate() - back); return toLocalDateStr(d); }
+
+// Suppression des opérations de plus de 30 jours (les fiches clients restent). Jamais avant la sauvegarde des fiches.
+async function purgeOldOperations() {
+    try {
+        const flag = (await db.ref(CFG_PATH + '/clientsBackfilled').once('value')).val();
+        if (!flag) return false;
+        const cutoff = dayAgoStr(31);
+        const snap = await db.ref(OPS_PATH).orderByChild('date').endAt(cutoff).once('value');
+        const keys = [];
+        snap.forEach(ch => { if (VALID_ID.test(ch.key)) keys.push(ch.key); });
+        for (let i = 0; i < keys.length; i += 200) {
+            const u = {};
+            keys.slice(i, i + 200).forEach(k => { u[OPS_PATH + '/' + k] = null; });
+            await db.ref().update(u);
+        }
+        return true;
+    } catch (e) {
+        console.warn('Purge des anciennes opérations impossible :', e);
+        return false;
+    }
+}
+
+async function runDailyMaintenance() {
+    try {
+        const today = getTodayStr();
+        // Tâches légères (report des soldes et des opérations) : le premier appareil du jour les fait pour tout le monde
+        const light = await db.ref(CFG_PATH + '/maintDone').transaction(cur => cur === today ? undefined : today);
+        if (light && light.committed) {
+            const r1 = await carryOverStartBalances();
+            const r2 = await checkAndExecuteDailyRollover(true);
+            if (r1 === false || r2 === false) await db.ref(CFG_PATH + '/maintDone').set(null).catch(() => {});   // échec : un autre appareil réessaiera
+        }
+        // Tâches lourdes (sauvegarde clients, purge) : seulement depuis l'appareil Admin, une fois par jour
+        if (window.__me === 'admin') {
+            const heavy = await db.ref(CFG_PATH + '/cleanDone').transaction(cur => cur === today ? undefined : today);
+            if (heavy && heavy.committed) {
+                await backfillClientsOnce();
+                await purgeOldOperations();
+                await purgeOldVoiceNotes();
+            }
+        }
+    } catch (e) {
+        console.warn('Maintenance quotidienne impossible :', e);
+    }
 }
 
 // ==================== TOAST ====================
@@ -2029,9 +2150,7 @@ function startLivreurSession() {
     attachConfigListeners(false, id);
     subscribeOps();
     switchRole(id, false);
-    checkAndExecuteDailyRollover();
-    carryOverStartBalances();
-    purgeOldVoiceNotes();
+    runDailyMaintenance();
     startMidnightWatcher();
 }
 async function verifyLivreurPIN(e) {
@@ -2334,13 +2453,19 @@ function resetHeldBalance() {
 async function carryOverStartBalances() {
     try {
         const today = getTodayStr();
+        // 1) Lectures minuscules : si tous les soldes du jour existent déjà, on s'arrête (aucun téléchargement inutile)
+        const tiny = await Promise.all([db.ref(CFG_PATH + '/adminStartBalances/' + today).once('value')]
+            .concat(LIVREUR_IDS.map(id => db.ref(CFG_PATH + '/livreurs/' + id + '/startBalances/' + today).once('value'))));
+        const needAdmin = tiny[0].val() === null;
+        const needLiv = LIVREUR_IDS.filter((id, i) => tiny[i + 1].val() === null);
+        if (!needAdmin && needLiv.length === 0) return true;      // jamais d'écrasement d'un solde déjà saisi
+
+        // 2) Sinon seulement : lecture de la configuration
         const cfg = (await db.ref(CFG_PATH).once('value')).val() || {};
         const adm = cfg.adminStartBalances || {};
         const livs = cfg.livreurs || {};
-        const has = (o, k) => !!o && o[k] !== undefined && o[k] !== null;
-        const needAdmin = !has(adm, today);
-        const needLiv = LIVREUR_IDS.filter(id => !has(livs[id] && livs[id].startBalances, today));
-        if (!needAdmin && needLiv.length === 0) return;
+
+        // Dernier jour d'activité avant aujourd'hui : un solde de départ (admin ou livreur) OU une opération
         const lastKey = (o) => Object.keys(o || {}).filter(k => k < today).sort().pop() || null;
         let prevDate = lastKey(adm);
         LIVREUR_IDS.forEach(id => {
@@ -2355,12 +2480,15 @@ async function carryOverStartBalances() {
                 if (dd && (!prevDate || dd > prevDate)) prevDate = dd;
             });
         } catch (e) { console.warn('Dernière opération introuvable :', e); }
-        if (!prevDate) return;
+        if (!prevDate) return true;      // aucune activité avant aujourd'hui : rien à reporter
+
+        // Solde réel de fin de journée = départ + alimentations validées - livraisons validées
         const ops = await fetchOpsRange(prevDate, prevDate);
         const sumOf = (list, type) => list.filter(d => d.type === type && d.status === 'delivered').reduce((t, d) => t + (Number(d.amount) || 0), 0);
         const r2 = v => Math.round(v * 100) / 100;
         const setIfEmpty = (path, value) => db.ref(path).transaction(cur => (cur === null || cur === undefined) ? value : undefined);
         let wrote = false;
+
         if (needAdmin) {
             const real = (Number(adm[prevDate]) || 0) + sumOf(ops, 'SOLDE_RECU') - sumOf(ops, 'LIVRAISON');
             const res = await setIfEmpty(CFG_PATH + '/adminStartBalances/' + today, r2(real));
@@ -2374,7 +2502,11 @@ async function carryOverStartBalances() {
             if (res && res.committed) wrote = true;
         }
         if (wrote && window.__me === 'admin') showToast("🔁 Soldes reportés", `Les soldes de départ d'aujourd'hui reprennent les soldes réels du ${prevDate}.`);
-    } catch (e) { console.warn('Report du solde impossible :', e); }
+        return true;
+    } catch (e) {
+        console.warn('Report du solde impossible :', e);
+        return false;
+    }
 }
 
 // ==================== RENDER ====================
@@ -2474,26 +2606,24 @@ function handlePhoneLookupAndBlacklist(phone) {
 let _histTimer = null;
 function handlePhoneHistoryLookup(phone) {
     clearTimeout(_histTimer);
-    const cleaned = normalizePhone(phone);
+    const key = clientKey(phone);
     const alertBox = document.getElementById('history-alert');
-    if (cleaned.length < 8) { alertBox.classList.add('hidden'); return; }
+    if (!key) { alertBox.classList.add('hidden'); return; }
     _histTimer = setTimeout(async () => {
         try {
-            const snap = await db.ref(OPS_PATH).orderByChild('phoneClean').equalTo(cleaned).limitToLast(20).once('value');
-            const stillTyped = normalizePhone(document.getElementById('input-phone').value || '');
-            if (stillTyped !== cleaned) return;
-            const list = [];
-            snap.forEach(ch => { const v = ch.val(); if (v && (v.clientName || v.location || v.address)) list.push(v); });
-            list.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
-            const prev = list[0];
-            if (prev) {
-                if (prev.clientName) document.getElementById('input-client-name').value = prev.clientName;
-                if (prev.address) document.getElementById('input-address').value = prev.address;
-                if (prev.location) document.getElementById('input-location').value = prev.location;
-                if (prev.remarkAdmin) document.getElementById('input-remark-admin').value = prev.remarkAdmin;
+            const snap = await db.ref(CLIENTS_PATH + '/' + key).once('value');
+            if (clientKey(document.getElementById('input-phone').value || '') !== key) return;
+            const c = snap.val();
+            if (c && (c.name || c.address || c.location)) {
+                if (c.name) document.getElementById('input-client-name').value = c.name;
+                const p2 = document.getElementById('input-phone2');
+                if (c.phone2 && p2 && !p2.value) p2.value = c.phone2;
+                if (c.address) document.getElementById('input-address').value = c.address;
+                if (c.location) document.getElementById('input-location').value = c.location;
+                if (c.remark) document.getElementById('input-remark-admin').value = c.remark;
                 alertBox.classList.remove('hidden');
             } else alertBox.classList.add('hidden');
-        } catch (err) { console.warn('Historique indisponible :', err); alertBox.classList.add('hidden'); }
+        } catch (err) { console.warn('Fiche client indisponible :', err); alertBox.classList.add('hidden'); }
     }, 500);
 }
 
@@ -2515,7 +2645,7 @@ async function startVoiceRecording(opId) {
         return;
     }
     const op = state.deliveries.find(d => d.id === opId);
-    const existing = op && op.voiceRemarks ? op.voiceRemarks : {};
+    const existing = Object.assign({}, op && op.voiceRemarks, op && op.voiceMeta);
     const mine = Object.values(existing).filter(v => v.by === window.__me).length;
     if (mine >= MAX_VOICE_PER_PERSON) {
         alert(`⚠️ Maximum ${MAX_VOICE_PER_PERSON} messages vocaux par opération.\nSupprimez-en un (×) avant d'en ajouter un autre.`);
@@ -2531,7 +2661,7 @@ async function startVoiceRecording(opId) {
         return;
     }
     const mime = _vrPickMime();
-    const opts = { audioBitsPerSecond: 32000 };
+    const opts = { audioBitsPerSecond: 16000 };
     if (mime) opts.mimeType = mime;
     let rec;
     try { rec = new MediaRecorder(stream, opts); }
@@ -2547,7 +2677,7 @@ async function startVoiceRecording(opId) {
     _vr.timer = setInterval(() => {
         const s = Math.floor((Date.now() - _vr.startTime) / 1000);
         document.getElementById('voice-timer').textContent = s + 's';
-        if (s >= 60) stopVoiceRecording(false);
+        if (s >= 30) stopVoiceRecording(false);
     }, 250);
 
     rec.start();
@@ -2584,7 +2714,7 @@ async function _vrFinalize(mimeType) {
     _vr.active = false;
     if (cancel || !chunks.length) return;
     const blob = new Blob(chunks, { type: mimeType });
-    if (blob.size > 400000) { alert("⚠️ Message trop long (~60s max)."); return; }
+    if (blob.size > 200000) { alert("⚠️ Message trop long (30 s maximum)."); return; }
     const b64 = await new Promise(res => {
         const r = new FileReader();
         r.onloadend = () => res(String(r.result).split(',')[1] || '');
@@ -2592,9 +2722,14 @@ async function _vrFinalize(mimeType) {
     });
     if (!b64) return;
     const id = 'v' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
-    const payload = { data: b64, mimeType, duration: dur, at: Date.now(), by: window.__me || 'admin' };
+    const op = state.deliveries.find(d => d.id === opId);
+    const by = window.__me || 'admin';
     try {
-        await db.ref(OPS_PATH + '/' + opId + '/voiceRemarks/' + id).set(payload);
+        // L'audio va dans « voiceData » ; l'opération ne garde qu'un petit résumé (durée, auteur) : elle reste légère à télécharger
+        const u = {};
+        u[VOICE_PATH + '/' + id] = { data: b64, mimeType, duration: dur, at: Date.now(), by, opId, date: (op && op.date) || getTodayStr() };
+        u[OPS_PATH + '/' + opId + '/voiceMeta/' + id] = { duration: dur, at: Date.now(), by };
+        await db.ref().update(u);
         showToast("🎤 Vocal envoyé", `${dur}s enregistrés.`);
         notifyVoiceNote(opId, 'add', dur);
     } catch (e) {
@@ -2604,14 +2739,27 @@ async function _vrFinalize(mimeType) {
 }
 
 let _vrAudio = null, _vrBtn = null;
-function playVoiceNote(ev, opId, voiceId) {
+const _vCache = new Map();
+async function playVoiceNote(ev, opId, voiceId) {
     if (ev) ev.stopPropagation();
-    const op = state.deliveries.find(d => d.id === opId);
-    const v = op && op.voiceRemarks && op.voiceRemarks[voiceId];
-    if (!v) return;
     const pill = ev && ev.currentTarget;
     if (_vrBtn === pill && _vrAudio) { _vrAudio.pause(); _vrReset(); return; }
     _vrReset();
+    const op = state.deliveries.find(d => d.id === opId);
+    let v = op && op.voiceRemarks && op.voiceRemarks[voiceId];            // ancien format : audio dans l'opération
+    if (!v || !v.data) {
+        v = _vCache.get(voiceId);
+        if (!v) {
+            if (pill) pill.classList.add('playing');
+            try { v = (await db.ref(VOICE_PATH + '/' + voiceId).once('value')).val(); } catch (e) { v = null; }
+            if (v && v.data) _vCache.set(voiceId, v);
+        }
+    }
+    if (!v || !v.data) {
+        if (pill) pill.classList.remove('playing');
+        alert("Ce message vocal n'est plus disponible.");
+        return;
+    }
     const audio = new Audio('data:' + v.mimeType + ';base64,' + v.data);
     _vrAudio = audio; _vrBtn = pill;
     if (pill) { pill.classList.add('playing'); const i = pill.querySelector('i'); if (i) i.className = 'fa-solid fa-pause'; }
@@ -2631,12 +2779,17 @@ function _vrReset() {
 function deleteVoiceNote(ev, opId, voiceId) {
     ev.stopPropagation();
     const op = state.deliveries.find(d => d.id === opId);
-    const v = op && op.voiceRemarks && op.voiceRemarks[voiceId];
+    const v = op && ((op.voiceMeta && op.voiceMeta[voiceId]) || (op.voiceRemarks && op.voiceRemarks[voiceId]));
     if (!v) return;
     const canDel = window.__me === 'admin' || v.by === window.__me;
     if (!canDel) return;
     if (!confirm("Supprimer ce message vocal ?")) return;
-        db.ref(OPS_PATH + '/' + opId + '/voiceRemarks/' + voiceId).remove()
+    const u = {};
+    u[VOICE_PATH + '/' + voiceId] = null;
+    u[OPS_PATH + '/' + opId + '/voiceMeta/' + voiceId] = null;
+    u[OPS_PATH + '/' + opId + '/voiceRemarks/' + voiceId] = null;     // ancien format
+    _vCache.delete(voiceId);
+    db.ref().update(u)
         .then(() => notifyVoiceNote(opId, 'delete', 0))
         .catch(e => console.warn(e));
     showToast("Vocal supprimé", "Message retiré.");
@@ -2647,41 +2800,46 @@ function _vBtn(opId, size) {
     }
     return `<button type="button" onclick="startVoiceRecording('${opId}')" title="Enregistrer un vocal" class="mic-btn inline-flex items-center justify-center align-middle w-7 h-7 rounded-full bg-indigo-100 hover:bg-indigo-200 text-indigo-700 shrink-0"><i class="fa-solid fa-microphone text-[11px]"></i></button>`;
 }
+function voiceAll(op) {
+    return Object.assign({}, op && op.voiceRemarks, op && op.voiceMeta);
+}
+function voiceCount(op) {
+    return Object.keys(voiceAll(op)).length;
+}
 function _vList(opId, op) {
-    const vr = op && op.voiceRemarks ? op.voiceRemarks : {};
-    const ids = Object.keys(vr).sort((a, b) => (vr[a].at || 0) - (vr[b].at || 0));
+    const vr = voiceAll(op);
+    const ids = Object.keys(vr).filter(id => VALID_ID.test(id)).sort((a, b) => (vr[a].at || 0) - (vr[b].at || 0));
     if (!ids.length) return '';
     return ids.map(id => {
         const v = vr[id];
-        const mm = Math.floor(v.duration / 60), ss = String(v.duration % 60).padStart(2, '0');
+        const dur = Number(v.duration) || 0;
+        const mm = Math.floor(dur / 60), ss = String(dur % 60).padStart(2, '0');
         const who = v.by === 'admin' ? '👑' : '🛵';
         const canDel = window.__me === 'admin' || v.by === window.__me;
         return `<span class="voice-pill" onclick="playVoiceNote(event,'${opId}','${id}')"><i class="fa-solid fa-play"></i>${who} ${mm}:${ss}${canDel ? `<span class="del" onclick="deleteVoiceNote(event,'${opId}','${id}')"><i class="fa-solid fa-xmark"></i></span>` : ''}</span>`;
     }).join(' ');
 }
 
+// Vocaux : suppression après 2 jours, en ne lisant QUE les fichiers audio concernés (plus aucune lecture de l'historique)
 async function purgeOldVoiceNotes() {
     try {
-        const today = getTodayStr();
-        const d = new Date(today + 'T12:00:00');
-        d.setDate(d.getDate() - 2);
-        const cutoff = toLocalDateStr(d);
-        const snap = await db.ref(OPS_PATH).orderByChild('date').endAt(cutoff).once('value');
-        const updates = {};
-        let count = 0;
+        const cutoff = Date.now() - 2 * 86400000;
+        const snap = await db.ref(VOICE_PATH).orderByChild('at').endAt(cutoff).once('value');
+        const u = {};
+        let n = 0;
         snap.forEach(ch => {
+            if (!VALID_ID.test(ch.key)) return;
             const v = ch.val();
-            if (!v) return;
-            if (v.voiceRemarks && Object.keys(v.voiceRemarks).length) {
-                updates[OPS_PATH + '/' + ch.key + '/voiceRemarks'] = null;
-                count += Object.keys(v.voiceRemarks).length;
-            }
+            u[VOICE_PATH + '/' + ch.key] = null;
+            if (v && v.opId && VALID_ID.test(v.opId)) u[OPS_PATH + '/' + v.opId + '/voiceMeta/' + ch.key] = null;
+            n++;
         });
-        if (Object.keys(updates).length) {
-            await db.ref().update(updates);
-            console.log(`🧹 ${count} vocal(aux) purgé(s) — ops antérieures au ${cutoff}`);
-        }
-    } catch (e) { console.warn('Purge des vocaux impossible :', e); }
+        if (n) await db.ref().update(u);
+        return true;
+    } catch (e) {
+        console.warn('Purge des vocaux impossible :', e);
+        return false;
+    }
 }
 window.startVoiceRecording = startVoiceRecording;
 window.stopVoiceRecording = stopVoiceRecording;
@@ -2818,7 +2976,7 @@ function renderAdminTable() {
                     ${statusBadge}
                     ${d.remarkAdmin ? `<p class="text-[11px] text-brand-700 bg-brand-50 p-1 rounded border border-brand-100">👑 <strong>Admin:</strong> « ${esc(d.remarkAdmin)} »</p>` : ''}
                     ${d.remarkLivreur ? `<p class="text-[11px] text-amber-800 bg-amber-50 p-1 rounded border border-amber-100">🛵 <strong>Livreur:</strong> « ${esc(d.remarkLivreur)} »</p>` : ''}
-   ${Object.keys(d.voiceRemarks || {}).length ? `<div class="flex items-center gap-1.5 flex-wrap mt-1">${_vList(d.id, d)}</div>` : ''}                 
+   ${voiceCount(d) ? `<div class="flex items-center gap-1.5 flex-wrap mt-1">${_vList(d.id, d)}</div>` : ''}                 
                 </div>
             </td>
                         <td class="p-3.5">
@@ -2926,11 +3084,11 @@ function renderLivreurDashboard(livreurId) {
 ${_vBtn(d.id)}
 </div>
             </div>
-            ${(d.remarkAdmin || d.remarkLivreur || Object.keys(d.voiceRemarks || {}).length) ? `
+            ${(d.remarkAdmin || d.remarkLivreur || voiceCount(d)) ? `
 <div class="text-[11px] pt-1.5 border-t border-slate-200/60 space-y-0.5">
     ${d.remarkAdmin ? `<p class="text-brand-800 bg-brand-50/80 px-2 py-0.5 rounded">👑 <strong>Admin:</strong> ${esc(d.remarkAdmin)}</p>` : ''}
     ${d.remarkLivreur ? `<p class="text-amber-900 bg-amber-50/80 px-2 py-0.5 rounded">🛵 <strong>Remarque:</strong> ${esc(d.remarkLivreur)}</p>` : ''}
-    ${Object.keys(d.voiceRemarks || {}).length ? `<div class="flex items-center gap-1.5 flex-wrap pt-1">${_vList(d.id, d)}</div>` : ''}
+    ${voiceCount(d) ? `<div class="flex items-center gap-1.5 flex-wrap pt-1">${_vList(d.id, d)}</div>` : ''}
 </div>` : ''}`;
         cardsContainer.appendChild(card);
     });
@@ -3471,9 +3629,7 @@ function startMidnightWatcher() {
                 state.deliveries = [];
                 subscribeOps();
             }
-            checkAndExecuteDailyRollover();
-            carryOverStartBalances();
-            purgeOldVoiceNotes();
+            runDailyMaintenance();
             renderApp();
         }
         window.__lastToday = t;
@@ -3491,9 +3647,7 @@ async function startAdminSession() {
     attachConfigListeners(true);
     subscribeOps();
     switchRole('admin', true);
-    checkAndExecuteDailyRollover();
-    carryOverStartBalances();
-    purgeOldVoiceNotes();
+    runDailyMaintenance();
     startMidnightWatcher();
 }
 
@@ -3561,7 +3715,7 @@ window.addEventListener('DOMContentLoaded', boot);
     try { var saved = localStorage.getItem(KEY); if (LANGS.indexOf(saved) >= 0) lang = saved; } catch (e) {}
 
     var E = [
-        [`Warda v48 - Gestion de Warda`, `Warda v48 - Warda management`, `وردة v48 - إدارة وردة`],
+        [`Warda v49 - Gestion de Warda`, `Warda v49 - Warda management`, `وردة v49 - إدارة وردة`],
         [`Gestion de la Liste Noire (Clients Bloqués)`, `Blacklist Management (Blocked Clients)`, `إدارة القائمة السوداء (العملاء المحظورون)`],
         [`Ajouter / Modifier un Client Bloqué`, `Add / Edit a Blocked Client`, `إضافة / تعديل عميل محظور`],
         [`Téléphone *`, `Phone *`, `الهاتف *`],
