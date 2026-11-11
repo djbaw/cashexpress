@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Warda v51 - Gestion de Warda</title>
+<title>Warda v52 - Gestion de Warda</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -77,7 +77,22 @@
         .voice-pill .del { margin-inline-start:4px; opacity:.55; font-size:10px; cursor:pointer; }
         .voice-pill .del:hover { opacity:1; color:#b91c1c; }
         .voice-pill.playing .del:hover { color:#fff; }
-/* ===== PRÉSENCE EN LIGNE ===== */
+/* ===== NOTIFICATIONS : swipe + masquer ===== */
+.notif-card {
+    position: relative;
+    touch-action: pan-y;
+    will-change: transform, opacity;
+    user-select: none;
+}
+.notif-card.swipe-out {
+    transition: transform .25s ease-out, opacity .25s ease-out;
+    transform: translateX(-120%) !important;
+    opacity: 0 !important;
+}
+.notif-dismiss-all {
+    transition: background .15s;
+}
+/* ===== PRÉSENCE EN LIGNE ===== */        
 .presence-dot {
     display: inline-block;
     width: 9px;
@@ -336,10 +351,11 @@
             <div class="bg-rose-400 p-2 rounded-lg text-white font-bold"><i class="fa-solid me-1 fa-spa text-xl"></i></div>
             <div>
                 <h1 class="font-bold text-lg leading-tight tracking-tight flex items-center gap-2">
-                    Warda
-                    <span id="sync-indicator" class="syncing inline-block w-2.5 h-2.5 rounded-full" title="État de la connexion"></span>
-                </h1>
-                <p class="text-xs text-slate-400 hidden sm:block">Gestion de Warda - <span class="text-emerald-400 font-bold">v51</span></p>
+    Warda
+    <span id="sync-indicator" class="syncing inline-block w-2.5 h-2.5 rounded-full" title="État de la connexion"></span>
+    <span id="admin-presence-dot" class="presence-dot hidden" data-presence="admin" title="Admin hors ligne"></span>
+</h1>
+                <p class="text-xs text-slate-400 hidden sm:block">Gestion de Warda - <span class="text-emerald-400 font-bold">v52</span></p>
             </div>
         </div>
         <button id="notif-bell" type="button" onclick="openNotifPanel()" title="Toutes les notifications" class="relative w-11 h-11 bg-slate-800 border border-slate-700 rounded-xl text-slate-200 hover:text-white hover:bg-slate-700 transition order-2 sm:order-3">
@@ -602,7 +618,6 @@
                     <div class="inline-flex items-center space-x-2 flex-wrap gap-y-1">
     <span class="w-3 h-3 rounded-full bg-emerald-500 animate-pulse"></span>
     <h2 class="text-2xl font-bold text-slate-900" id="livreur-view-title">Espace Livreur</h2>
-    <span id="admin-presence-badge" class="hidden inline-flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1 rounded-lg border"></span>
 </div>
                 </div>
                 <div class="flex items-center space-x-2">
@@ -1200,17 +1215,36 @@ function autoUnlockOnFirstInteraction() {
 /* Détecte le type de notification à partir du titre */
 function getNotifSoundType(title) {
     const t = String(title || '');
-    if (/✅|🟢|🟣|Autorisé|modifié|enregistré|Réussie|effectué|ajouté|copié|reportés/.test(t)) return 'success';
-    if (/🔴|↩️|❌|refusé|échoué|impossible|bloqué|Incorrect|Trop d'essais/i.test(t)) return 'error';
-    if (/💰|🔁|Transfert/.test(t)) return 'money';
-    if (/🎤|Vocal/.test(t)) return 'voice';
-    if (/💬|📞|🏠|📍|✏️|👤|Remarque/.test(t)) return 'remark';
+    // ===== SONORITÉS SYMBOLIQUES IDENTIFIÉES =====
+    if (/🎧|Vocal écouté/i.test(t)) return 'voice_read';
+    if (/✅|Validation|Validé|Validée|🟢 Confirmation|Alimentation validée|Livraison validée/i.test(t)) return 'validate';
+    if (/🔄|Remise en cours|Remettre en cours|Remis en cours/i.test(t)) return 'reset';
+    if (/🔴 Annulation|Annulé|Annulée|Opération retirée|Ligne supprimée|Blacklisté|Révoqué/i.test(t)) return 'cancel';
+    if (/💰|Solde de départ|Soldes reportés|Solde Livreur|Solde Admin|Solde possédé|Transfert|🔁/i.test(t)) return 'balance';
+    if (/💬|Remarque/i.test(t)) return 'remark';
+    if (/👤|📞|🏠|📍|✏️|Nom du client|Nom modifié|Téléphone|Adresse|Localisation|Montant modifié/i.test(t)) return 'modification';
+    // ===== AUTRES =====
+    if (/🎤|Nouveau vocal|Vocal retiré|Vocal supprimé/i.test(t)) return 'voice';
+    if (/🔔|Nouvelle|Nouveautés/i.test(t)) return 'new_op';
+    if (/🔴|↩️|refusé|échoué|impossible|Incorrect|Bloqué/i.test(t)) return 'error';
+    if (/🔒|PIN|Autorisé|Réussie|Importation|Extraction|Lien copié|Client retiré|mise à jour|ajoutée/i.test(t)) return 'success';
     return 'info';
 }
+/* Anti-spam : évite qu'un même type se répète en rafale */
+const _soundDedup = { modification: 500, remark: 500, voice_read: 1000, voice: 400 };
+window._lastSoundAt = window._lastSoundAt || {};
 
 /* Sons différents selon le type */
 function playNotificationSound(type) {
     try {
+        // 🛡️ Anti-spam par type
+        const now = Date.now();
+        if (_soundDedup[type]) {
+            const last = window._lastSoundAt[type] || 0;
+            if (now - last < _soundDedup[type]) return;
+            window._lastSoundAt[type] = now;
+        }
+
         const AudioContext = window.AudioContext || window.webkitAudioContext;
         if (!AudioContext) return;
         if (!window._cashAudioCtx || window._cashAudioCtx.state === 'closed') {
@@ -1219,52 +1253,112 @@ function playNotificationSound(type) {
         const ctx = window._cashAudioCtx;
         if (ctx.state === 'suspended') ctx.resume();
 
-        // Chaque note = [fréquence Hz, délai ms, durée ms, gain]
+        // Chaîne maître : gain boosté + compresseur (volume fort sans distorsion)
+        if (!window._notifMaster || window._notifMaster.context !== ctx) {
+            window._notifMaster = ctx.createGain();
+            window._notifMaster.gain.value = 1.4;
+            const comp = ctx.createDynamicsCompressor();
+            comp.threshold.value = -18;
+            comp.knee.value = 12;
+            comp.ratio.value = 12;
+            comp.attack.value = 0.002;
+            comp.release.value = 0.2;
+            window._notifMaster.connect(comp);
+            comp.connect(ctx.destination);
+        }
+        const master = window._notifMaster;
+
+        // Chaque note = [fréquence Hz, délai ms, durée ms, gain, type d'onde]
         const patterns = {
-            // ✅ Succès : Do5 → Mi5 → Sol5 (joyeux ascendant)
-            success: [
-                [523.25, 0,   110, 0.30],
-                [659.25, 110, 110, 0.30],
-                [783.99, 220, 260, 0.38]
+            // ✅ VALIDATION — triomphant (Do→Mi→Sol→Do + basse)
+            validate: [
+                [261.63,   0, 450, 0.30, 'sine'],
+                [523.25,   0, 130, 0.85, 'triangle'],
+                [659.25, 130, 130, 0.85, 'triangle'],
+                [783.99, 260, 380, 0.95, 'triangle'],
+                [1046.50, 260, 380, 0.38, 'sine'],
+                [1567.98, 450, 250, 0.25, 'sine']
             ],
-            // 🔴 Erreur : La4 → Mi4 (grave descendant)
-            error: [
-                [440.00, 0,   150, 0.35],
-                [329.63, 150, 320, 0.42]
+            // 🔴 ANNULATION — descendant (La→Fa→Do, mineur)
+            cancel: [
+                [261.63,   0, 550, 0.30, 'sine'],
+                [440.00,   0, 180, 0.85, 'sawtooth'],
+                [349.23, 160, 180, 0.85, 'sawtooth'],
+                [261.63, 340, 450, 0.90, 'sawtooth'],
+                [130.81, 340, 450, 0.22, 'sine']
             ],
-            // 💰 Argent : Sol5 → Si5 → Ré6 (cristallin)
-            money: [
-                [783.99, 0,   90,  0.28],
-                [987.77, 90,  90,  0.28],
-                [1174.66, 180, 240, 0.35]
+            // 🔄 REMISE EN COURS — boomerang (Do→Sol→Mi→Do)
+            reset: [
+                [523.25,   0, 120, 0.70, 'triangle'],
+                [783.99, 120, 120, 0.85, 'triangle'],
+                [659.25, 250, 100, 0.72, 'triangle'],
+                [523.25, 370, 300, 0.80, 'triangle']
             ],
-            // 🎤 Vocal : Ré5 → La5 (doux, rapide)
-            voice: [
-                [587.33, 0,   110, 0.26],
-                [880.00, 90,  200, 0.32]
+            // 🛠 MODIFICATION — double tap + résolution
+            modification: [
+                [880.00,   0,  65, 0.65, 'triangle'],
+                [880.00, 120,  65, 0.65, 'triangle'],
+                [1174.66, 240, 220, 0.72, 'triangle']
             ],
-            // 💬 Remarque : clic court et discret
+            // 💬 REMARQUE — double chirp doux
             remark: [
-                [880.00, 0,   70,  0.22]
+                [880.00,   0,  90, 0.75, 'sine'],
+                [1320.00, 40, 110, 0.50, 'sine']
             ],
-            // 🔔 Info : bip simple
+            // 🎤 NOUVEAU VOCAL — chime doux
+            voice: [
+                [587.33,   0, 130, 0.85, 'triangle'],
+                [880.00, 110, 240, 0.90, 'triangle']
+            ],
+            // 🎧 VOCAL ÉCOUTÉ — cloche + écho
+            voice_read: [
+                [1046.50,   0, 350, 0.70, 'sine'],
+                [1567.98,  90, 250, 0.28, 'sine']
+            ],
+            // 💰 SOLDE / TRANSFERT — cristallin
+            balance: [
+                [783.99,   0, 110, 0.80, 'triangle'],
+                [987.77, 110, 110, 0.80, 'triangle'],
+                [1174.66, 220, 280, 0.90, 'triangle'],
+                [1567.98, 220, 280, 0.30, 'sine']
+            ],
+            // 🔔 NOUVELLE OPÉRATION — arpège majeur A
+            new_op: [
+                [880.00,    0, 110, 0.80, 'triangle'],
+                [1108.73, 110, 110, 0.80, 'triangle'],
+                [1318.51, 220, 260, 0.85, 'triangle'],
+                [1760.00, 220, 260, 0.22, 'sine']
+            ],
+            // ✅ SUCCÈS GÉNÉRIQUE — court, amical
+            success: [
+                [659.25,   0, 130, 0.85, 'triangle'],
+                [880.00, 130, 260, 0.90, 'triangle'],
+                [1318.51, 130, 260, 0.30, 'sine']
+            ],
+            // ❌ ERREUR GÉNÉRIQUE
+            error: [
+                [440.00,   0, 160, 0.85, 'sawtooth'],
+                [329.63, 160, 300, 0.90, 'sawtooth']
+            ],
+            // 🔔 INFO — fallback
             info: [
-                [659.25, 0,   180, 0.30]
+                [659.25, 0, 200, 0.85, 'triangle']
             ]
         };
 
         const notes = patterns[type] || patterns.info;
-        notes.forEach(([freq, delay, dur, gain]) => {
+        notes.forEach(([freq, delay, dur, gain, wave]) => {
             setTimeout(() => {
                 try {
                     if (ctx.state === 'closed') return;
                     const osc = ctx.createOscillator();
                     const g = ctx.createGain();
-                    osc.type = 'sine';
+                    osc.type = wave || 'triangle';
                     osc.frequency.setValueAtTime(freq, ctx.currentTime);
-                    g.gain.setValueAtTime(gain, ctx.currentTime);
-                    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + dur / 1000);
-                    osc.connect(g); g.connect(ctx.destination);
+                    g.gain.setValueAtTime(0.0001, ctx.currentTime);
+                    g.gain.exponentialRampToValueAtTime(gain, ctx.currentTime + 0.01);
+                    g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + dur / 1000);
+                    osc.connect(g); g.connect(master);
                     osc.start();
                     osc.stop(ctx.currentTime + dur / 1000);
                 } catch (e) {}
@@ -1272,7 +1366,6 @@ function playNotificationSound(type) {
         });
     } catch (err) { console.log('Erreur son:', err); }
 }
-
 const UI_ZOOM_KEY = 'cashexpress_ui_zoom';
 function applyUiZoom(z) {
     z = Math.min(2.0, Math.max(0.5, Math.round(z * 100) / 100));
@@ -1570,6 +1663,34 @@ let notifMode = 'pending';
 let notifServerLoaded = false;
 let notifRef = null, notifHandler = null;
 
+/* Notifications masquées via "Faire disparaître tout" (persistées en localStorage).
+   Elles restent non-ack (badge inchangé) mais ne s'affichent plus dans le stack flottant. */
+let dismissedNotifs = new Set();
+function dismissedKey() { return 'cashexpress_dismissed_notifs_' + (window.__me || 'none'); }
+function loadDismissedNotifs() {
+    try {
+        const v = JSON.parse(localStorage.getItem(dismissedKey()) || '[]');
+        return new Set(Array.isArray(v) ? v.filter(x => typeof x === 'string') : []);
+    } catch (e) { return new Set(); }
+}
+function saveDismissedNotifs() {
+    try { localStorage.setItem(dismissedKey(), JSON.stringify(Array.from(dismissedNotifs))); } catch (e) {}
+}
+
+/* Notifications "vues" dans le panneau mais pas encore ack.
+   Elles ne comptent PLUS dans le badge, mais restent ambrées dans le panel
+   jusqu'à la fermeture (où elles deviennent ack/grises). */
+let seenNotifs = new Set();
+function seenKey() { return 'cashexpress_seen_notifs_' + (window.__me || 'none'); }
+function loadSeenNotifs() {
+    try {
+        const v = JSON.parse(localStorage.getItem(seenKey()) || '[]');
+        return new Set(Array.isArray(v) ? v.filter(x => typeof x === 'string') : []);
+    } catch (e) { return new Set(); }
+}
+function saveSeenNotifs() {
+    try { localStorage.setItem(seenKey(), JSON.stringify(Array.from(seenNotifs))); } catch (e) {}
+}
 function stopNotifs() {
     if (notifRef && notifHandler) { try { notifRef.off('value', notifHandler); } catch (e) {} }
     notifRef = null; notifHandler = null;
@@ -1579,6 +1700,8 @@ function startNotifs() {
     notifs = [];
     notifMode = 'pending';
     notifServerLoaded = false;
+    dismissedNotifs = loadDismissedNotifs();
+    seenNotifs = loadSeenNotifs();
     renderNotifs();
     notifRef = db.ref(NOTIF_PATH + '/' + window.__me);
     notifHandler = (snap) => {
@@ -1629,15 +1752,78 @@ function pushNotification(title, text) {
     playNotificationSound(getNotifSoundType(title));
     try { if (navigator.vibrate) navigator.vibrate([150, 80, 150]); } catch (e) {}
 }
-
 function ackNotif(id) {
     const n = notifs.find(x => x.id === id);
     if (!n) return;
     n.ack = true;
+    if (dismissedNotifs.delete(id)) saveDismissedNotifs();
+    if (seenNotifs.delete(id)) saveSeenNotifs();
     renderNotifs();
     if (notifMode === 'server') db.ref(NOTIF_PATH + '/' + window.__me + '/' + id + '/ack').set(true).catch(e => console.warn(e));
     else saveNotifs();
 }
+/* Masquer toutes les notifs visibles du stack (elles restent non-ack → badge inchangé) */
+function dismissAllVisible() {
+    notifs.filter(n => !n.ack).forEach(n => dismissedNotifs.add(n.id));
+    saveDismissedNotifs();
+    renderNotifs();
+}
+
+/* Swipe sur une carte de notification : glisser gauche ou droite = OK */
+function attachSwipeToCard(card, notifId) {
+    const SWIPE_THRESHOLD = 80;
+    let startX = 0, startY = 0, currentX = 0, isHorizontal = null, active = false;
+
+    const onStart = (e) => {
+        const t = e.touches ? e.touches[0] : e;
+        startX = t.clientX;
+        startY = t.clientY;
+        currentX = 0;
+        isHorizontal = null;
+        active = true;
+        card.style.transition = 'none';
+    };
+
+    const onMove = (e) => {
+        if (!active) return;
+        const t = e.touches ? e.touches[0] : e;
+        const dx = t.clientX - startX;
+        const dy = t.clientY - startY;
+        // Détection de l'axe dominant
+        if (isHorizontal === null) {
+            if (Math.abs(dx) > 8 || Math.abs(dy) > 8) {
+                isHorizontal = Math.abs(dx) > Math.abs(dy);
+            }
+        }
+        if (isHorizontal === true) {
+            currentX = dx;
+            card.style.transform = 'translateX(' + dx + 'px)';
+            card.style.opacity = String(Math.max(0, 1 - Math.abs(dx) / 300));
+            if (e.cancelable) e.preventDefault();
+        }
+    };
+
+    const onEnd = () => {
+        if (!active) return;
+        active = false;
+        card.style.transition = '';
+        if (Math.abs(currentX) > SWIPE_THRESHOLD) {
+            card.classList.add('swipe-out');
+            setTimeout(() => ackNotif(notifId), 250);
+        } else {
+            card.style.transform = '';
+            card.style.opacity = '';
+        }
+        startX = 0; startY = 0; currentX = 0; isHorizontal = null;
+    };
+
+    card.addEventListener('touchstart', onStart, { passive: true });
+    card.addEventListener('touchmove', onMove, { passive: false });
+    card.addEventListener('touchend', onEnd);
+    card.addEventListener('touchcancel', onEnd);
+}
+window.dismissAllVisible = dismissAllVisible;
+
 function clearAllNotifs() {
     const pending = notifs.filter(n => !n.ack).length;
     if (pending > 0 && !confirm(`${pending} notification(s) n'ont pas encore été validées (OK). Tout effacer quand même ?`)) return;
@@ -1646,12 +1832,46 @@ function clearAllNotifs() {
         notifs.forEach(n => { u[NOTIF_PATH + '/' + window.__me + '/' + n.id] = null; });
         if (Object.keys(u).length) db.ref().update(u).catch(e => console.warn(e));
     }
-    notifs = [];
+        notifs = [];
+    dismissedNotifs.clear();
+    seenNotifs.clear();
+    saveDismissedNotifs();
+    saveSeenNotifs();
     if (notifMode !== 'server') saveNotifs();
     renderNotifs();
 }
-function openNotifPanel() { renderNotifs(); document.getElementById('modal-notifs').classList.remove('hidden'); }
-function closeNotifPanel() { document.getElementById('modal-notifs').classList.add('hidden'); }
+function openNotifPanel() {
+    // Marquer toutes les non-ack comme vues → badge passe à 0 immédiatement
+    const pending = notifs.filter(n => !n.ack);
+    if (pending.length > 0) {
+        pending.forEach(n => seenNotifs.add(n.id));
+        saveSeenNotifs();
+    }
+    renderNotifs();
+    document.getElementById('modal-notifs').classList.remove('hidden');
+}
+function closeNotifPanel() {
+    // À la fermeture, ack toutes les notifs encore pending (elles deviendront grises)
+    const toAck = notifs.filter(n => !n.ack);
+    if (toAck.length > 0) {
+        toAck.forEach(n => {
+            n.ack = true;
+            seenNotifs.delete(n.id);
+            dismissedNotifs.delete(n.id);
+        });
+        saveSeenNotifs();
+        saveDismissedNotifs();
+        if (notifMode === 'server') {
+            const u = {};
+            toAck.forEach(n => { u[NOTIF_PATH + '/' + window.__me + '/' + n.id + '/ack'] = true; });
+            db.ref().update(u).catch(e => console.warn(e));
+        } else {
+            saveNotifs();
+        }
+    }
+    document.getElementById('modal-notifs').classList.add('hidden');
+    renderNotifs();
+}
 
 function fmtNotifTime(at) {
     const d = new Date(at);
@@ -1661,11 +1881,27 @@ function fmtNotifTime(at) {
 function renderNotifs() {
     const stack = document.getElementById('notif-stack');
     if (!stack) return;
-    const pending = notifs.filter(n => !n.ack);
+    // Toutes les non-ack (pour le badge)
+    const allPending = notifs.filter(n => !n.ack);
+    // Celles à afficher dans le stack : non-ack ET pas masquées
+    const visiblePending = allPending.filter(n => !dismissedNotifs.has(n.id));
     stack.innerHTML = '';
-    pending.slice().reverse().forEach(n => {
+
+    // Bouton "Faire disparaître tout" si plus de 3 notifications visibles
+    if (visiblePending.length > 3) {
+        const dismissBtn = document.createElement('button');
+        dismissBtn.type = 'button';
+        dismissBtn.className = 'notif-dismiss-all pointer-events-auto w-full bg-slate-700 hover:bg-slate-600 text-white font-bold text-xs py-2 px-3 rounded-xl border border-slate-500 shadow-2xl flex items-center justify-center gap-2';
+        dismissBtn.innerHTML = '<i class="fa-solid fa-eye-slash text-[11px]"></i><span>Faire disparaître tout (' + visiblePending.length + ')</span>';
+        dismissBtn.onclick = () => dismissAllVisible();
+        stack.appendChild(dismissBtn);
+    }
+
+    // Cartes individuelles
+    visiblePending.slice().reverse().forEach(n => {
         const card = document.createElement('div');
-        card.className = 'pointer-events-auto bg-slate-900 text-white p-3 rounded-2xl shadow-2xl border border-slate-600';
+        card.className = 'notif-card pointer-events-auto bg-slate-900 text-white p-3 rounded-2xl shadow-2xl border border-slate-600';
+        card.dataset.notifId = n.id;
         const t = document.createElement('p'); t.className = 'font-bold text-sm'; t.textContent = n.title;
         const b = document.createElement('p'); b.className = 'text-xs text-slate-200 mt-1 break-words'; b.textContent = n.text;
         const row = document.createElement('div'); row.className = 'flex items-center justify-between mt-2';
@@ -1678,12 +1914,18 @@ function renderNotifs() {
         row.appendChild(tm); row.appendChild(ok);
         card.appendChild(t); card.appendChild(b); card.appendChild(row);
         stack.appendChild(card);
+        attachSwipeToCard(card, n.id);
     });
+
+        // Badge cloche : compte les non-ack ET non-vues (les vues ne comptent plus)
+    const unread = notifs.filter(n => !n.ack && !seenNotifs.has(n.id));
     const badge = document.getElementById('notif-badge');
     if (badge) {
-        badge.textContent = pending.length > 99 ? '99+' : String(pending.length);
-        badge.classList.toggle('hidden', pending.length === 0);
+        badge.textContent = unread.length > 99 ? '99+' : String(unread.length);
+        badge.classList.toggle('hidden', unread.length === 0);
     }
+
+    // Panel : toutes les notifications
     const list = document.getElementById('notif-list');
     if (list) {
         list.innerHTML = '';
@@ -1695,6 +1937,7 @@ function renderNotifs() {
         }
         notifs.slice().reverse().forEach(n => {
             const row = document.createElement('div');
+            // Non-ack = fond ambré (identifiable) / ack = fond gris
             row.className = 'p-3 rounded-xl border ' + (n.ack ? 'bg-slate-50 border-slate-200' : 'bg-amber-50 border-amber-300');
             const top = document.createElement('div'); top.className = 'flex justify-between items-start gap-2';
             const t = document.createElement('p'); t.className = 'font-bold text-sm text-slate-900'; t.textContent = n.title;
@@ -1706,7 +1949,6 @@ function renderNotifs() {
         });
     }
 }
-
 function opMessages(p, d, who, toAdmin) {
     const q = v => String(v == null ? '' : v).trim();
     const nameOf = id => (state.livreurs[id] && state.livreurs[id].name) || id;
@@ -2156,29 +2398,30 @@ function initPresence() {
     });
 }
 function updatePresenceDots() {
-    // Points à côté des cartes livreur (admin)
+    const isLivreurMode = !!window.__me && window.__me !== 'admin';
+
+    // 🎯 Un seul point à côté de "Warda" selon le mode :
+    //   - Admin   → sync-indicator (état Firebase)
+    //   - Livreur → admin-presence-dot (état de connexion de l'admin)
+    const syncEl = document.getElementById('sync-indicator');
+    if (syncEl) syncEl.classList.toggle('hidden', isLivreurMode);
+
+    const adminDot = document.getElementById('admin-presence-dot');
+    if (adminDot) adminDot.classList.toggle('hidden', !isLivreurMode);
+
+    // Points de présence (cartes admin + dot admin dans le header)
     document.querySelectorAll('[data-presence]').forEach(el => {
         const id = el.getAttribute('data-presence');
         const p = state.presence[id];
         const online = p && p.online === true;
         el.classList.remove('online', 'offline');
         el.classList.add(online ? 'online' : 'offline');
-        el.title = online ? 'En ligne' : 'Hors ligne';
-    });
-    // Badge "Admin en ligne" côté livreur
-    const badge = document.getElementById('admin-presence-badge');
-    if (badge) {
-        const p = state.presence.admin;
-        const online = p && p.online === true;
-        badge.classList.remove('hidden', 'bg-emerald-100', 'text-emerald-800', 'border-emerald-300', 'bg-red-100', 'text-red-800', 'border-red-300');
-        if (online) {
-            badge.classList.add('bg-emerald-100', 'text-emerald-800', 'border-emerald-300');
-            badge.innerHTML = '<span class="w-2 h-2 rounded-full bg-emerald-500"></span>Admin en ligne';
+        if (id === 'admin') {
+            el.title = online ? 'Admin en ligne' : 'Admin hors ligne';
         } else {
-            badge.classList.add('bg-red-100', 'text-red-800', 'border-red-300');
-            badge.innerHTML = '<span class="w-2 h-2 rounded-full bg-red-500"></span>Admin hors ligne';
+            el.title = online ? 'En ligne' : 'Hors ligne';
         }
-    }
+    });
 }
 window.initPresence = initPresence;
 window.updatePresenceDots = updatePresenceDots;
@@ -3899,7 +4142,7 @@ window.addEventListener('DOMContentLoaded', boot);
     try { var saved = localStorage.getItem(KEY); if (LANGS.indexOf(saved) >= 0) lang = saved; } catch (e) {}
 
     var E = [
-        [`Warda v51 - Gestion de Warda`, `Warda v51 - Warda management`, `وردة v51 - إدارة وردة`],
+        [`Warda v52 - Gestion de Warda`, `Warda v52 - Warda management`, `وردة v52 - إدارة وردة`],
         [`Gestion de la Liste Noire (Clients Bloqués)`, `Blacklist Management (Blocked Clients)`, `إدارة القائمة السوداء (العملاء المحظورون)`],
         [`Ajouter / Modifier un Client Bloqué`, `Add / Edit a Blocked Client`, `إضافة / تعديل عميل محظور`],
         [`Téléphone *`, `Phone *`, `الهاتف *`],
