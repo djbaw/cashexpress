@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Warda v47 - Gestion de Warda</title>
+<title>Warda v48 - Gestion de Warda</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -319,7 +319,7 @@
                     Warda
                     <span id="sync-indicator" class="syncing inline-block w-2.5 h-2.5 rounded-full" title="État de la connexion"></span>
                 </h1>
-                <p class="text-xs text-slate-400 hidden sm:block">Gestion de Warda - <span class="text-emerald-400 font-bold">v47</span></p>
+                <p class="text-xs text-slate-400 hidden sm:block">Gestion de Warda - <span class="text-emerald-400 font-bold">v48</span></p>
             </div>
         </div>
         <button id="notif-bell" type="button" onclick="openNotifPanel()" title="Toutes les notifications" class="relative w-11 h-11 bg-slate-800 border border-slate-700 rounded-xl text-slate-200 hover:text-white hover:bg-slate-700 transition order-2 sm:order-3">
@@ -1162,38 +1162,79 @@ function autoUnlockOnFirstInteraction() {
     } catch (e) {}
 })();
 
-function playNotificationSound() {
+/* Détecte le type de notification à partir du titre */
+function getNotifSoundType(title) {
+    const t = String(title || '');
+    if (/✅|🟢|🟣|Autorisé|modifié|enregistré|Réussie|effectué|ajouté|copié|reportés/.test(t)) return 'success';
+    if (/🔴|↩️|❌|refusé|échoué|impossible|bloqué|Incorrect|Trop d'essais/i.test(t)) return 'error';
+    if (/💰|🔁|Transfert/.test(t)) return 'money';
+    if (/🎤|Vocal/.test(t)) return 'voice';
+    if (/💬|📞|🏠|📍|✏️|👤|Remarque/.test(t)) return 'remark';
+    return 'info';
+}
+
+/* Sons différents selon le type */
+function playNotificationSound(type) {
     try {
         const AudioContext = window.AudioContext || window.webkitAudioContext;
         if (!AudioContext) return;
         if (!window._cashAudioCtx || window._cashAudioCtx.state === 'closed') {
             window._cashAudioCtx = new AudioContext();
         }
-        const audioCtx = window._cashAudioCtx;
-        if (audioCtx.state === 'suspended') audioCtx.resume();
-        const playTones = () => {
-            const osc1 = audioCtx.createOscillator();
-            const gain1 = audioCtx.createGain();
-            osc1.type = 'sine';
-            osc1.frequency.setValueAtTime(587.33, audioCtx.currentTime);
-            gain1.gain.setValueAtTime(0.3, audioCtx.currentTime);
-            gain1.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.35);
-            osc1.connect(gain1); gain1.connect(audioCtx.destination);
-            osc1.start(); osc1.stop(audioCtx.currentTime + 0.35);
-            setTimeout(() => {
-                if (audioCtx.state === 'closed') return;
-                const osc2 = audioCtx.createOscillator();
-                const gain2 = audioCtx.createGain();
-                osc2.type = 'sine';
-                osc2.frequency.setValueAtTime(880, audioCtx.currentTime);
-                gain2.gain.setValueAtTime(0.4, audioCtx.currentTime);
-                gain2.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.5);
-                osc2.connect(gain2); gain2.connect(audioCtx.destination);
-                osc2.start(); osc2.stop(audioCtx.currentTime + 0.5);
-            }, 100);
+        const ctx = window._cashAudioCtx;
+        if (ctx.state === 'suspended') ctx.resume();
+
+        // Chaque note = [fréquence Hz, délai ms, durée ms, gain]
+        const patterns = {
+            // ✅ Succès : Do5 → Mi5 → Sol5 (joyeux ascendant)
+            success: [
+                [523.25, 0,   110, 0.30],
+                [659.25, 110, 110, 0.30],
+                [783.99, 220, 260, 0.38]
+            ],
+            // 🔴 Erreur : La4 → Mi4 (grave descendant)
+            error: [
+                [440.00, 0,   150, 0.35],
+                [329.63, 150, 320, 0.42]
+            ],
+            // 💰 Argent : Sol5 → Si5 → Ré6 (cristallin)
+            money: [
+                [783.99, 0,   90,  0.28],
+                [987.77, 90,  90,  0.28],
+                [1174.66, 180, 240, 0.35]
+            ],
+            // 🎤 Vocal : Ré5 → La5 (doux, rapide)
+            voice: [
+                [587.33, 0,   110, 0.26],
+                [880.00, 90,  200, 0.32]
+            ],
+            // 💬 Remarque : clic court et discret
+            remark: [
+                [880.00, 0,   70,  0.22]
+            ],
+            // 🔔 Info : bip simple
+            info: [
+                [659.25, 0,   180, 0.30]
+            ]
         };
-        if (audioCtx.state === 'running') playTones();
-        else audioCtx.resume().then(playTones).catch(() => {});
+
+        const notes = patterns[type] || patterns.info;
+        notes.forEach(([freq, delay, dur, gain]) => {
+            setTimeout(() => {
+                try {
+                    if (ctx.state === 'closed') return;
+                    const osc = ctx.createOscillator();
+                    const g = ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(freq, ctx.currentTime);
+                    g.gain.setValueAtTime(gain, ctx.currentTime);
+                    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + dur / 1000);
+                    osc.connect(g); g.connect(ctx.destination);
+                    osc.start();
+                    osc.stop(ctx.currentTime + dur / 1000);
+                } catch (e) {}
+            }, delay);
+        });
     } catch (err) { console.log('Erreur son:', err); }
 }
 
@@ -1478,8 +1519,9 @@ function startNotifs() {
         notifMode = 'server';
         notifServerLoaded = true;
         renderNotifs();
-        if (wasLoaded && fresh.length) {
-            playNotificationSound();
+                if (wasLoaded && fresh.length) {
+            const topNotif = fresh[fresh.length - 1];
+            playNotificationSound(getNotifSoundType(topNotif.title));
             try { if (navigator.vibrate) navigator.vibrate([150, 80, 150]); } catch (e) {}
         }
         if (arr.length > 200) {
@@ -1509,8 +1551,8 @@ function pushNotification(title, text) {
     notifs.push({ id: Date.now() + '-' + Math.random().toString(36).slice(2, 6), title: String(title), text: String(text), at: Date.now(), ack: false });
     if (notifs.length > 200) notifs = notifs.slice(-200);
     saveNotifs();
-    renderNotifs();
-    playNotificationSound();
+        renderNotifs();
+    playNotificationSound(getNotifSoundType(title));
     try { if (navigator.vibrate) navigator.vibrate([150, 80, 150]); } catch (e) {}
 }
 
@@ -1862,10 +1904,11 @@ async function checkAndExecuteDailyRollover() {
         const today = getTodayStr();
         const snap = await db.ref(OPS_PATH).orderByChild('status').equalTo('pending').once('value');
         const todo = [];
-        snap.forEach(ch => {
+                snap.forEach(ch => {
             const d = ch.val();
             if (!d || !VALID_ID.test(ch.key) || !d.date || d.date >= today) return;
             if (d.carriedTo) return;
+            if (d.type !== 'LIVRAISON') return;
             if (window.__me !== 'admin' && d.livreurId !== window.__me) return;
             todo.push([ch.key, d]);
         });
@@ -1873,9 +1916,10 @@ async function checkAndExecuteDailyRollover() {
             const root = String(d.origId || key).slice(0, 60);
             const copyId = ('rep-' + root + '-' + today).replace(/[^A-Za-z0-9_-]/g, '_');
             const ra = d.remarkAdmin || '';
-            const copy = cleanObj(Object.assign({}, d, {
+                        const copy = cleanObj(Object.assign({}, d, {
                 date: today,
                 status: 'pending',
+                type: 'LIVRAISON',
                 actionTime: undefined,
                 carriedTo: undefined,
                 voiceRemarks: undefined,
@@ -1894,9 +1938,8 @@ async function checkAndExecuteDailyRollover() {
 
 // ==================== TOAST ====================
 function showToast(title, message) {
-    playNotificationSound();
-    const toast = document.getElementById('notification-toast');
-    document.getElementById('toast-title').textContent = title;
+    playNotificationSound(getNotifSoundType(title));
+    const toast = document.getElementById('notification-toast');    document.getElementById('toast-title').textContent = title;
     document.getElementById('toast-body').textContent = message;
     clearTimeout(window._toastTimer);
     clearTimeout(window._toastHideTimer);
@@ -3518,7 +3561,7 @@ window.addEventListener('DOMContentLoaded', boot);
     try { var saved = localStorage.getItem(KEY); if (LANGS.indexOf(saved) >= 0) lang = saved; } catch (e) {}
 
     var E = [
-        [`Warda v47 - Gestion de Warda`, `Warda v47 - Warda management`, `وردة v47 - إدارة وردة`],
+        [`Warda v48 - Gestion de Warda`, `Warda v48 - Warda management`, `وردة v48 - إدارة وردة`],
         [`Gestion de la Liste Noire (Clients Bloqués)`, `Blacklist Management (Blocked Clients)`, `إدارة القائمة السوداء (العملاء المحظورون)`],
         [`Ajouter / Modifier un Client Bloqué`, `Add / Edit a Blocked Client`, `إضافة / تعديل عميل محظور`],
         [`Téléphone *`, `Phone *`, `الهاتف *`],
