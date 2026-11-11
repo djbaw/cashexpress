@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Warda v54 - Gestion de Warda</title>
+<title>Warda v55 - Gestion de Warda</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -395,7 +395,7 @@
     <span id="sync-indicator" class="syncing inline-block w-2.5 h-2.5 rounded-full" title="État de la connexion"></span>
     <span id="admin-presence-dot" class="presence-dot hidden" data-presence="admin" title="Admin hors ligne"></span>
 </h1>
-                <p class="text-xs text-slate-400 hidden sm:block">Gestion de Warda - <span class="text-emerald-400 font-bold">v54</span></p>
+                <p class="text-xs text-slate-400 hidden sm:block">Gestion de Warda - <span class="text-emerald-400 font-bold">v55</span></p>
             </div>
         </div>
         <button id="notif-bell" type="button" onclick="openNotifPanel()" title="Toutes les notifications" class="relative w-11 h-11 bg-slate-800 border border-slate-700 rounded-xl text-slate-200 hover:text-white hover:bg-slate-700 transition order-2 sm:order-3">
@@ -671,12 +671,28 @@
                     <button onclick="openAddCashModal()" class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white font-semibold text-xs rounded-xl shadow-sm transition flex items-center space-x-1.5"><i class="fa-solid fa-hand-holding-dollar"></i><span>+ Ajouter Alimentation</span></button>
                 </div>
             </div>
-                        <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
-                <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200/80"><span class="text-xs font-semibold text-slate-400 uppercase">Solde de départ</span><p class="text-lg font-bold text-slate-700 mt-1" id="livreur-start-balance">0 TND</p><p id="livreur-start-held" class="hidden text-xs font-semibold text-slate-500 mt-0.5"></p><button id="held-btn" type="button" onclick="openHeldBalanceModal()" class="mt-2 px-2.5 py-1 bg-amber-100 hover:bg-amber-200 text-amber-900 text-[11px] font-bold rounded-lg border border-amber-300">✋ Possédé</button></div>
-                <div class="bg-emerald-50/50 p-3.5 rounded-xl border border-emerald-100"><span class="text-xs font-semibold text-emerald-600 uppercase">Solde Réel (En Poche)</span><p class="text-xl font-black text-emerald-700 mt-1" id="livreur-real-balance">0 TND</p><p id="livreur-real-held" class="hidden text-xs font-semibold text-emerald-700 mt-0.5"></p></div>
-                <div class="bg-blue-50/50 p-3.5 rounded-xl border border-blue-100"><span class="text-xs font-semibold text-blue-600 uppercase">Solde Théorique (À venir)</span><p class="text-xl font-black text-blue-700 mt-1" id="livreur-theo-balance">0 TND</p><p id="livreur-theo-held" class="hidden text-xs font-semibold text-blue-700 mt-0.5"></p></div>
-                <div class="bg-amber-50/60 p-3.5 rounded-xl border border-amber-200"><span class="text-xs font-semibold text-amber-700 uppercase flex items-center gap-1"><i class="fa-solid fa-coins text-[10px]"></i> Frais du jour</span><p class="text-xl font-black text-amber-800 mt-1" id="livreur-total-fees">0 TND</p><p class="text-[11px] font-semibold text-amber-700 mt-0.5">Cumul des validations</p></div>
-            </div>
+                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-1.5 sm:gap-2">
+    <div class="bg-slate-50 p-1.5 sm:p-2 rounded-lg border border-slate-200/80">
+        <span class="text-[8px] sm:text-[10px] font-semibold text-slate-400 uppercase">Solde de départ</span>
+        <p class="text-sm sm:text-base font-bold text-slate-700 mt-0.5" id="livreur-start-balance">0 TND</p>
+        <p id="livreur-start-held" class="hidden text-[8px] sm:text-[10px] font-semibold text-slate-500 mt-0.5"></p>
+        <button id="held-btn" type="button" onclick="openHeldBalanceModal()" class="mt-1 px-1.5 py-0.5 bg-amber-100 hover:bg-amber-200 text-amber-900 text-[9px] sm:text-[10px] font-bold rounded-md border border-amber-300">✋ Possédé</button>
+    </div>
+    <div class="bg-amber-50/60 p-1.5 sm:p-2 rounded-lg border border-amber-200">
+        <span class="text-[8px] sm:text-[10px] font-semibold text-amber-700 uppercase flex items-center gap-1"><i class="fa-solid fa-coins text-[7px] sm:text-[8px]"></i> Frais du jour</span>
+        <p class="text-sm sm:text-lg font-black text-amber-800 mt-0.5" id="livreur-total-fees">0 TND</p>
+    </div>
+    <div class="bg-emerald-50/50 p-1.5 sm:p-2 rounded-lg border border-emerald-100">
+        <span class="text-[8px] sm:text-[10px] font-semibold text-emerald-600 uppercase">Solde Réel (En Poche)</span>
+        <p class="text-sm sm:text-lg font-black text-emerald-700 mt-0.5" id="livreur-real-balance">0 TND</p>
+        <p id="livreur-real-held" class="hidden text-[8px] sm:text-[10px] font-semibold text-emerald-700 mt-0.5"></p>
+    </div>
+    <div class="bg-blue-50/50 p-1.5 sm:p-2 rounded-lg border border-blue-100">
+        <span class="text-[8px] sm:text-[10px] font-semibold text-blue-600 uppercase">Solde Théorique (À venir)</span>
+        <p class="text-sm sm:text-lg font-black text-blue-700 mt-0.5" id="livreur-theo-balance">0 TND</p>
+        <p id="livreur-theo-held" class="hidden text-[8px] sm:text-[10px] font-semibold text-blue-700 mt-0.5"></p>
+    </div>
+</div>
             <div class="grid grid-cols-4 gap-1.5 pt-2 border-t border-slate-100 text-center text-[11px]">
                 <div class="bg-amber-50 px-2 py-1 rounded-lg border border-amber-200 flex items-center justify-between"><span class="font-bold text-amber-800 truncate">⏳ En cours</span><span class="font-black text-amber-900 text-xs ms-1 bg-amber-200/80 px-1.5 py-0.2 rounded" id="livreur-count-pending">0</span></div>
                 <div class="bg-emerald-50 px-2 py-1 rounded-lg border border-emerald-200 flex items-center justify-between"><span class="font-bold text-emerald-800 truncate">🟢 Envoyés</span><span class="font-black text-emerald-900 text-xs ms-1 bg-emerald-200/80 px-1.5 py-0.2 rounded" id="livreur-count-delivered">0</span></div>
@@ -4379,7 +4395,7 @@ window.addEventListener('DOMContentLoaded', boot);
     try { var saved = localStorage.getItem(KEY); if (LANGS.indexOf(saved) >= 0) lang = saved; } catch (e) {}
 
     var E = [
-        [`Warda v54 - Gestion de Warda`, `Warda v54 - Warda management`, `وردة v54 - إدارة وردة`],
+        [`Warda v55 - Gestion de Warda`, `Warda v55 - Warda management`, `وردة v55 - إدارة وردة`],
         [`Gestion de la Liste Noire (Clients Bloqués)`, `Blacklist Management (Blocked Clients)`, `إدارة القائمة السوداء (العملاء المحظورون)`],
         [`Ajouter / Modifier un Client Bloqué`, `Add / Edit a Blocked Client`, `إضافة / تعديل عميل محظور`],
         [`Téléphone *`, `Phone *`, `الهاتف *`],
@@ -4759,6 +4775,11 @@ window.addEventListener('DOMContentLoaded', boot);
 	[`Nouvelle dette : 0 TND`, `New debt: 0 TND`, `الدين الجديد: 0 TND`],
 	[`Confirmer`, `Confirm`, `تأكيد`],
 	[`Gérer dette`, `Manage debt`, `إدارة الدين`],
+	[`Frais de livraison (TND)`, `Delivery fee (TND)`, `رسوم التوصيل (TND)`],
+	[`Frais d'alimentation (TND)`, `Top-up fee (TND)`, `رسوم التغذية (TND)`],
+	[`Frais du jour`, `Daily fees`, `رسوم اليوم`],
+	[`Max 999 TND · Laissez vide pour la valeur par défaut.`, `Max 999 TND · Leave empty for default value.`, `الحد الأقصى 999 TND · اترك الحقل فارغاً للقيمة الافتراضية.`],
+	[`Frais`, `Fees`, `رسوم`],
     ];
 
     var P = [
