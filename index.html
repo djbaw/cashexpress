@@ -250,21 +250,21 @@
             <p class="text-xs text-slate-600 leading-relaxed">Copiez et envoyez ces liens uniques à chaque utilisateur. En ouvrant leur lien respectif, ils accèderont <strong>directement à leur propre espace sans pouvoir changer de rôle</strong>.</p>
             <div class="space-y-3">
                 <div class="p-3 bg-slate-50 rounded-xl border border-slate-200">
-                    <label class="block text-xs font-bold text-slate-900 mb-1">👑 Lien Unique Administrateur :</label>
-                    <div class="flex items-center space-x-2">
-                        <input type="text" readonly id="link-url-admin" class="w-full text-xs p-2 bg-white border border-slate-300 rounded-lg font-mono text-slate-700">
-                        <button onclick="copyToClipboard('link-url-admin')" class="px-3 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-lg transition shrink-0"><i class="fa-solid fa-copy me-1"></i> Copier</button>
-                    </div>
-                </div>
+    <label class="block text-xs font-bold text-slate-900 mb-1">👑 Lien Unique Administrateur :</label>
+    <div class="flex items-center space-x-2">
+        <input type="text" readonly id="link-url-admin" class="w-full text-xs p-2 bg-white border border-slate-300 rounded-lg font-mono text-slate-700">
+        <button onclick="copyToClipboard('link-url-admin')" class="px-3 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-lg transition shrink-0"><i class="fa-solid fa-copy me-1"></i> Copier</button>
+    </div>
+</div>
                 <div class="p-3 bg-blue-50/60 rounded-xl border border-blue-100">
                     <div class="flex justify-between items-center mb-1">
                         <label class="block text-xs font-bold text-blue-900">🛵 Lien Livreur 1 (<span class="livreur-name-1">Livreur 1</span>) :</label>
                         <button onclick="revokeAndRegenerateLink('livreur1')" class="text-[11px] font-bold text-red-600 hover:text-red-800 bg-red-50 hover:bg-red-100 px-2 py-0.5 rounded transition border border-red-200"><i class="fa-solid fa-arrows-rotate me-1"></i> Révoquer & Changer Lien</button>
                     </div>
-                    <div class="flex items-center space-x-2">
-                        <input type="text" readonly id="link-url-livreur1" class="w-full text-xs p-2 bg-white border border-slate-300 rounded-lg font-mono text-slate-700">
-                        <button onclick="copyToClipboard('link-url-livreur1')" class="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition shrink-0"><i class="fa-solid fa-copy me-1"></i> Copier</button>
-                    </div>
+<div class="flex items-center space-x-2">
+    <input type="text" readonly id="link-url-livreur1" class="w-full text-xs p-2 bg-white border border-slate-300 rounded-lg font-mono text-slate-700">
+    <button onclick="copyToClipboard('link-url-livreur1')" class="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition shrink-0"><i class="fa-solid fa-copy me-1"></i> Copier</button>
+</div>                 
                 </div>
                 <div class="p-3 bg-purple-50/60 rounded-xl border border-purple-100">
                     <div class="flex justify-between items-center mb-1">
@@ -660,7 +660,7 @@
                 <div>
                     <div class="inline-flex items-center space-x-2 flex-wrap gap-y-1">
     <span class="w-3 h-3 rounded-full bg-emerald-500 animate-pulse"></span>
-    <h2 class="text-2xl font-bold text-slate-900" id="livreur-view-title">Espace Livreur</h2>
+    <h2 class="text-lg font-bold text-slate-900" id="livreur-view-title">Espace Livreur</h2>
     <span id="livreur-debt-badge" class="hidden px-2.5 py-1 text-xs font-bold rounded-lg border inline-flex items-center gap-1">
         <i class="fa-solid fa-hand-holding-dollar text-[10px]"></i>
         <span id="livreur-debt-label">Dette</span>
@@ -668,29 +668,32 @@
 </div>
                 </div>
                 <div class="flex items-center space-x-2">
-                    <button onclick="openAddCashModal()" class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white font-semibold text-xs rounded-xl shadow-sm transition flex items-center space-x-1.5"><i class="fa-solid fa-hand-holding-dollar"></i><span>+ Ajouter Alimentation</span></button>
-                </div>
+    <button onclick="openAddCashModal()" title="+ Ajouter Alimentation" aria-label="+ Ajouter Alimentation" class="px-3 py-2 bg-purple-600 hover:bg-purple-700 text-white font-semibold text-xs rounded-xl shadow-sm transition flex items-center gap-1.5 shrink-0">
+    <i class="fa-solid fa-hand-holding-dollar"></i>
+    <span>+Alimentation</span>
+</button>
+</div>
             </div>
                         <div class="grid grid-cols-2 sm:grid-cols-4 gap-1.5 sm:gap-2">
     <div class="bg-slate-50 p-1.5 sm:p-2 rounded-lg border border-slate-200/80">
-        <span class="text-[8px] sm:text-[10px] font-semibold text-slate-400 uppercase">Solde de départ</span>
-        <p class="text-sm sm:text-base font-bold text-slate-700 mt-0.5" id="livreur-start-balance">0 TND</p>
-        <p id="livreur-start-held" class="hidden text-[8px] sm:text-[10px] font-semibold text-slate-500 mt-0.5"></p>
-        <button id="held-btn" type="button" onclick="openHeldBalanceModal()" class="mt-1 px-1.5 py-0.5 bg-amber-100 hover:bg-amber-200 text-amber-900 text-[9px] sm:text-[10px] font-bold rounded-md border border-amber-300">✋ Possédé</button>
+        <span class="text-[9px] sm:text-[11px] font-semibold text-slate-400 uppercase">Solde de départ</span>
+        <p class="text-base sm:text-lg font-bold text-slate-700 mt-0.5" id="livreur-start-balance">0 TND</p>
+        <p id="livreur-start-held" class="hidden text-[9px] sm:text-[11px] font-semibold text-slate-500 mt-0.5"></p>
+        <button id="held-btn" type="button" onclick="openHeldBalanceModal()" class="mt-1 px-1.5 py-0.5 bg-amber-100 hover:bg-amber-200 text-amber-900 text-[10px] sm:text-[11px] font-bold rounded-md border border-amber-300">✋ Possédé</button>
     </div>
     <div class="bg-amber-50/60 p-1.5 sm:p-2 rounded-lg border border-amber-200">
-        <span class="text-[8px] sm:text-[10px] font-semibold text-amber-700 uppercase flex items-center gap-1"><i class="fa-solid fa-coins text-[7px] sm:text-[8px]"></i> Frais du jour</span>
-        <p class="text-sm sm:text-lg font-black text-amber-800 mt-0.5" id="livreur-total-fees">0 TND</p>
+        <span class="text-[9px] sm:text-[11px] font-semibold text-amber-700 uppercase flex items-center gap-1"><i class="fa-solid fa-coins text-[8px] sm:text-[9px]"></i> Frais du jour</span>
+        <p class="text-base sm:text-xl font-black text-amber-800 mt-0.5" id="livreur-total-fees">0 TND</p>
     </div>
     <div class="bg-emerald-50/50 p-1.5 sm:p-2 rounded-lg border border-emerald-100">
-        <span class="text-[8px] sm:text-[10px] font-semibold text-emerald-600 uppercase">Solde Réel (En Poche)</span>
-        <p class="text-sm sm:text-lg font-black text-emerald-700 mt-0.5" id="livreur-real-balance">0 TND</p>
-        <p id="livreur-real-held" class="hidden text-[8px] sm:text-[10px] font-semibold text-emerald-700 mt-0.5"></p>
+        <span class="text-[9px] sm:text-[11px] font-semibold text-emerald-600 uppercase">Solde Réel (En Poche)</span>
+        <p class="text-base sm:text-xl font-black text-emerald-700 mt-0.5" id="livreur-real-balance">0 TND</p>
+        <p id="livreur-real-held" class="hidden text-[9px] sm:text-[11px] font-semibold text-emerald-700 mt-0.5"></p>
     </div>
     <div class="bg-blue-50/50 p-1.5 sm:p-2 rounded-lg border border-blue-100">
-        <span class="text-[8px] sm:text-[10px] font-semibold text-blue-600 uppercase">Solde Théorique (À venir)</span>
-        <p class="text-sm sm:text-lg font-black text-blue-700 mt-0.5" id="livreur-theo-balance">0 TND</p>
-        <p id="livreur-theo-held" class="hidden text-[8px] sm:text-[10px] font-semibold text-blue-700 mt-0.5"></p>
+        <span class="text-[9px] sm:text-[11px] font-semibold text-blue-600 uppercase">Solde Théorique (À venir)</span>
+        <p class="text-base sm:text-xl font-black text-blue-700 mt-0.5" id="livreur-theo-balance">0 TND</p>
+        <p id="livreur-theo-held" class="hidden text-[9px] sm:text-[11px] font-semibold text-blue-700 mt-0.5"></p>
     </div>
 </div>
             <div class="grid grid-cols-4 gap-1.5 pt-2 border-t border-slate-100 text-center text-[11px]">
@@ -2615,7 +2618,6 @@ function startLivreurSession() {
     setTimeout(applyCourierHistoryRestriction, 100);
     initPresence();
     runDailyMaintenance();
-    startMidnightWatcher();
     startMidnightWatcher();
 }
 async function verifyLivreurPIN(e) {
@@ -4780,6 +4782,7 @@ window.addEventListener('DOMContentLoaded', boot);
 	[`Frais du jour`, `Daily fees`, `رسوم اليوم`],
 	[`Max 999 TND · Laissez vide pour la valeur par défaut.`, `Max 999 TND · Leave empty for default value.`, `الحد الأقصى 999 TND · اترك الحقل فارغاً للقيمة الافتراضية.`],
 	[`Frais`, `Fees`, `رسوم`],
+	[`Alimentation`, `Top-up`, `تغذية`],
     ];
 
     var P = [
