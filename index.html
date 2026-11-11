@@ -4712,6 +4712,19 @@ window.addEventListener('DOMContentLoaded', boot);
 	[`Historique livreur : OFF`, `Courier history: OFF`, `سجل الموزّع: معطّل`],
 	[`🔒 Aujourd'hui uniquement`, `🔒 Today only`, `🔒 اليوم فقط`],
 	[`🎧 Vocal écouté`, `🎧 Voice message heard`, `🎧 تم الاستماع إلى الرسالة الصوتية`],
+	[`Gestion de la dette`, `Debt management`, `إدارة الدين`],
+	[`Dette`, `Debt`, `دين`],
+	[`Aucune dette`, `No debt`, `لا يوجد دين`],
+	[`Le livreur doit à l'Admin`, `Courier owes Admin`, `الموزّع مدين للمسؤول`],
+	[`L'Admin doit au livreur`, `Admin owes courier`, `المسؤول مدين للموزّع`],
+	[`Ajouter un montant (TND)`, `Add an amount (TND)`, `إضافة مبلغ (TND)`],
+	[`Positif = le livreur doit à l'Admin · Négatif = l'Admin doit au livreur.`, `Positive = courier owes Admin · Negative = Admin owes courier.`, `موجب = الموزّع مدين للمسؤول · سالب = المسؤول مدين للموزّع.`],
+	[`+ Ajouter`, `+ Add`, `+ إضافة`],
+	[`Utiliser solde réel`, `Use actual balance`, `استخدام الرصيد الفعلي`],
+	[`Remettre à zéro`, `Reset to zero`, `إعادة إلى الصفر`],
+	[`Nouvelle dette : 0 TND`, `New debt: 0 TND`, `الدين الجديد: 0 TND`],
+	[`Confirmer`, `Confirm`, `تأكيد`],
+	[`Gérer dette`, `Manage debt`, `إدارة الدين`],
     ];
 
     var P = [
@@ -4777,6 +4790,17 @@ window.addEventListener('DOMContentLoaded', boot);
 	[`Admin a transféré {1} TND de {2} vers votre solde : {3} → {4} TND ({5})`, `Admin transferred {1} TND from {2} to your balance: {3} → {4} TND ({5})`, `قام المسؤول بتحويل {1} TND من {2} إلى رصيدك: {3} ← {4} TND ({5})`],
 	[`{1} TND transférés de {2} vers {3}.`, `{1} TND transferred from {2} to {3}.`, `تم تحويل {1} TND من {2} إلى {3}.`],
 [`{1} a écouté votre vocal ({2}) pour {3}`, `{1} listened to your voice message ({2}) for {3}`, `قام {1} بالاستماع إلى رسالتك الصوتية ({2}) لـ {3}`],   
+	[`Remettre la dette à zéro ?`, `Reset the debt to zero?`, `هل تريد إعادة الدين إلى الصفر؟`],
+	[`Le solde réel est 0. Rien à ajouter.`, `The actual balance is 0. Nothing to add.`, `الرصيد الفعلي هو 0. لا شيء لإضافته.`],
+	[`Ajouter le solde réel actuel ({1} TND) à la dette ?\n\nSolde réel négatif = le livreur a avancé du cash (Admin doit).\nSolde réel positif = le livreur a du cash en main (à reverser).\n\nNouvelle dette : {2} TND`, `Add the current actual balance ({1} TND) to the debt?\n\nNegative actual balance = courier advanced cash (Admin owes).\nPositive actual balance = courier has cash in hand (to hand over).\n\nNew debt: {2} TND`, `هل تريد إضافة الرصيد الفعلي الحالي ({1} TND) إلى الدين؟\n\nرصيد فعلي سالب = الموزّع دفع نقداً (المسؤول مدين).\nرصيد فعلي موجب = الموزّع لديه نقد بيده (يجب تسليمه).\n\nالدين الجديد: {2} TND`],
+	[`❌ Échec de l'enregistrement de la dette.`, `❌ Failed to save the debt.`, `❌ فشل حفظ الدين.`],
+	[`Dette enregistrée`, `Debt saved`, `تم حفظ الدين`],
+	[`Admin a mis à jour votre dette : {1} ({2})`, `Admin updated your debt: {1} ({2})`, `قام المسؤول بتحديث دينك: {1} ({2})`],
+	[`Faire disparaître tout ({1})`, `Dismiss all ({1})`, `إخفاء الكل ({1})`],
+	[`Dette : {1}`, `Debt: {1}`, `الدين: {1}`],
+	[`Admin doit : {1}`, `Admin owes: {1}`, `المسؤول مدين: {1}`],
+	[`Dette — {1}`, `Debt — {1}`, `الدين — {1}`],
+	[`Nouvelle dette : {1} — {2}`, `New debt: {1} — {2}`, `الدين الجديد: {1} — {2}`],
  ];
 
     [
@@ -4798,10 +4822,13 @@ window.addEventListener('DOMContentLoaded', boot);
         });
     });
 
-    var GROUP = [
+        var GROUP = [
         [`Admin`, `Admin`, `المسؤول`],
         [`client`, `client`, `العميل`],
-        [`Une opération`, `An operation`, `عملية`]
+        [`Une opération`, `An operation`, `عملية`],
+        [`Aucune dette`, `No debt`, `لا يوجد دين`],
+        [`Le livreur doit à l'Admin`, `Courier owes Admin`, `الموزّع مدين للمسؤول`],
+        [`L'Admin doit au livreur`, `Admin owes courier`, `المسؤول مدين للموزّع`]
     ];
 
     var key = function (s) { return String(s).replace(/\u2019/g, "'").replace(/\s+/g, ' ').trim(); };
