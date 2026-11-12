@@ -705,6 +705,12 @@ body.locked #lang-float.admin-only { display: flex; }
                         <option value="livrais_only">Livraisons uniquement</option>
                         <option value="solde_recu">Alimentations uniquement</option>
                     </select>
+<button id="admin-sort-btn" type="button" onclick="toggleSortMode()" title="Tri personnalisé" class="px-2 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-bold hover:bg-slate-50 transition">
+    <i class="fa-solid fa-list-ol text-indigo-600"></i>
+</button>
+<button id="admin-sort-reset-btn" type="button" onclick="resetSort()" title="Réinitialiser le tri" class="hidden px-2 py-1.5 bg-red-50 border border-red-200 rounded-lg text-xs font-bold text-red-700 hover:bg-red-100 transition">
+    <i class="fa-solid fa-rotate-left"></i>
+</button>
                 </div>
             </div>
             <div class="overflow-x-auto">
@@ -801,6 +807,12 @@ body.locked #lang-float.admin-only { display: flex; }
                         <option value="livrais_only">Livraisons</option>
                         <option value="solde_recu">Alimentations</option>
                     </select>
+<button id="livreur-sort-btn" type="button" onclick="toggleSortMode()" title="Tri personnalisé" class="px-2 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-bold hover:bg-slate-50 transition">
+    <i class="fa-solid fa-list-ol text-indigo-600"></i>
+</button>
+<button id="livreur-sort-reset-btn" type="button" onclick="resetSort()" title="Réinitialiser le tri" class="hidden px-2 py-1.5 bg-red-50 border border-red-200 rounded-lg text-xs font-bold text-red-700 hover:bg-red-100 transition">
+    <i class="fa-solid fa-rotate-left"></i>
+</button>
                 </div>
             </div>
             <div id="livreur-delivery-cards" class="space-y-3"></div>
@@ -1651,8 +1663,9 @@ const VALID_ID = /^[A-Za-z0-9_-]{1,80}$/;
 let state = {
     currentRole: 'admin',
     selectedDate: getBusinessDayStr(),
-        adminStartBalances: {},
+    adminStartBalances: {},
     couriersCanSeeHistory: true,
+    customSort: {},
     presence: {},
     livreurs: {
         livreur1: { id: 'livreur1', name: DEFAULT_NAMES.livreur1, startBalances: {} },
@@ -1930,7 +1943,17 @@ function attachConfigListeners(isAdmin, myId) {
             updateCouriersHistoryBtn();
             renderApp();
         });
-    } else {
+                addCfgListener(CFG_PATH + '/customSort', s => {
+            state.customSort = s.val() || {};
+            if (sortModeActive) {
+                sortSelection = (state.customSort[state.selectedDate] || []).filter(id => {
+                    const op = state.deliveries.find(d => d.id === id);
+                    return op && op.status === 'pending';
+                });
+            }
+            renderApp();
+        });
+    } else {               
         addCfgListener(CFG_PATH + '/couriersCanSeeHistory', s => {
             state.couriersCanSeeHistory = s.val() !== false;
             applyCourierHistoryRestriction();
@@ -1942,9 +1965,18 @@ function attachConfigListeners(isAdmin, myId) {
             if (window.__livDefaultHash) window.__livHash = v.pinHash || window.__livDefaultHash;
             renderApp();
         });
+                addCfgListener(CFG_PATH + '/customSort', s => {
+            state.customSort = s.val() || {};
+            if (sortModeActive) {
+                sortSelection = (state.customSort[state.selectedDate] || []).filter(id => {
+                    const op = state.deliveries.find(d => d.id === id);
+                    return op && op.status === 'pending';
+                });
+            }
+            renderApp();
+        });
     }
 }
-
 function subscribeOps() {
     unsubscribeOps();
     opsFirstLoad = true;
@@ -3481,11 +3513,90 @@ async function handleConfirmDebt() {
         alert("❌ Échec de l'enregistrement de la dette.");
     }
 }
+// ==================== TRI PERSONNALISÉ ====================
+let sortModeActive = false;
+let sortSelection = [];
+
+function toggleSortMode() {
+    sortModeActive = !sortModeActive;
+    if (sortModeActive) {
+        const date = state.selectedDate;
+        sortSelection = (state.customSort[date] || []).filter(id => {
+            const op = state.deliveries.find(d => d.id === id);
+            return op && op.status === 'pending';
+        });
+    }
+    renderApp();
+}
+
+function handleSortClick(opId) {
+    if (!sortModeActive) return;
+    const op = state.deliveries.find(d => d.id === opId);
+    if (!op || op.status !== 'pending') return;
+    const idx = sortSelection.indexOf(opId);
+    if (idx === -1) sortSelection.push(opId);
+    else sortSelection.splice(idx, 1);
+    const date = state.selectedDate;
+    state.customSort[date] = [...sortSelection];
+    db.ref(CFG_PATH + '/customSort/' + date).set(sortSelection).catch(handleWriteError);
+    renderApp();
+}
+
+function resetSort() {
+    if (!confirm("Réinitialiser le tri personnalisé ?")) return;
+    sortSelection = [];
+    const date = state.selectedDate;
+    delete state.customSort[date];
+    db.ref(CFG_PATH + '/customSort/' + date).remove().catch(handleWriteError);
+    renderApp();
+}
+
+function applyCustomSort(items) {
+    const date = state.selectedDate;
+    const order = state.customSort[date] || [];
+    const idxMap = new Map();
+    order.forEach((id, i) => idxMap.set(id, i));
+    return items.slice().sort((a, b) => {
+        const aHasCustom = a.status === 'pending' && idxMap.has(a.id);
+        const bHasCustom = b.status === 'pending' && idxMap.has(b.id);
+        if (aHasCustom && bHasCustom) return idxMap.get(a.id) - idxMap.get(b.id);
+        if (aHasCustom) return -1;
+        if (bHasCustom) return 1;
+        if (a.status === 'pending' && b.status !== 'pending') return -1;
+        if (a.status !== 'pending' && b.status === 'pending') return 1;
+        return b.timestamp - a.timestamp;
+    });
+}
+
+function updateSortButtons() {
+    ['admin', 'livreur'].forEach(prefix => {
+        const btn = document.getElementById(prefix + '-sort-btn');
+        if (btn) {
+            const i = btn.querySelector('i');
+            if (sortModeActive) {
+                btn.classList.add('bg-indigo-600', 'text-white', 'border-indigo-600');
+                btn.classList.remove('bg-white', 'border-slate-300', 'hover:bg-slate-50');
+                if (i) i.className = 'fa-solid fa-check text-white';
+            } else {
+                btn.classList.remove('bg-indigo-600', 'text-white', 'border-indigo-600');
+                btn.classList.add('bg-white', 'border-slate-300', 'hover:bg-slate-50');
+                if (i) i.className = 'fa-solid fa-list-ol text-indigo-600';
+            }
+        }
+        const resetBtn = document.getElementById(prefix + '-sort-reset-btn');
+        if (resetBtn) resetBtn.classList.toggle('hidden', !sortModeActive || sortSelection.length === 0);
+    });
+}
+
+window.toggleSortMode = toggleSortMode;
+window.handleSortClick = handleSortClick;
+window.resetSort = resetSort;
 // ==================== RENDER ====================
 function renderApp() {
     if (appBlocked || !document.getElementById('view-admin')) return;
     updateLivreurNamesInUI();
     updatePresenceDots();
+    updateSortButtons(); 
     if (state.currentRole === 'admin') renderAdminDashboard();
     else renderLivreurDashboard(state.currentRole);
 }
@@ -3920,7 +4031,7 @@ function renderAdminTable() {
     else if (filter === 'livrais_only') filtered = filtered.filter(d => d.type === 'LIVRAISON');
     else if (filter !== 'all') filtered = filtered.filter(d => d.status === filter);
     if (search) filtered = filtered.filter(d => (d.clientName && d.clientName.toLowerCase().includes(search)) || (d.phone && d.phone.includes(search)) || (d.phone2 && d.phone2.includes(search)) || (d.address && d.address.toLowerCase().includes(search)) || (d.location && d.location.toLowerCase().includes(search)));
-    filtered.sort((a, b) => { if (a.status === 'pending' && b.status !== 'pending') return -1; if (a.status !== 'pending' && b.status === 'pending') return 1; return b.timestamp - a.timestamp; });
+    filtered = applyCustomSort(filtered);
     if (filtered.length === 0) { tbody.innerHTML = `<tr><td colspan="8" class="p-8 text-center text-slate-400">Aucune opération pour cette journée.</td></tr>`; return; }
 
     let rowNumber = 0;
@@ -3951,7 +4062,8 @@ function renderAdminTable() {
         tr.innerHTML = `
             <td class="p-3.5 text-center font-bold text-slate-500 text-sm">${rowNumber}</td>
             <td class="p-3.5">
-                ${typeIcon}
+${sortModeActive && d.status === 'pending' ? `<button onclick="handleSortClick('${d.id}')" class="inline-flex items-center justify-center w-6 h-6 rounded-full text-[10px] font-black ${sortSelection.includes(d.id) ? 'bg-indigo-600 text-white' : 'bg-white border-2 border-indigo-400 text-indigo-600'} me-1 align-middle">${sortSelection.includes(d.id) ? sortSelection.indexOf(d.id) + 1 : ''}</button>` : ''}
+${typeIcon}
                 <div class="flex items-center space-x-2 flex-wrap">
                     <span class="font-bold text-slate-900">${esc(d.clientName)}</span>
                     ${d.phone ? `<div class="inline-flex items-center space-x-1.5 bg-slate-100/80 px-1.5 py-0.5 rounded">
@@ -3999,8 +4111,13 @@ function renderAdminTable() {
                         <button onclick="openConfirmValidationModal('${d.id}')" class="p-1.5 bg-emerald-600 text-white rounded-lg text-xs font-bold hover:bg-emerald-700 transition"><i class="fa-solid fa-check"></i></button>
                         <button onclick="openCancelModal('${d.id}')" class="p-1.5 bg-red-600 text-white rounded-lg text-xs font-bold hover:bg-red-700 transition"><i class="fa-solid fa-ban"></i></button>
                     ` : `<button onclick="confirmResetToPending('${d.id}')" class="p-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-xs font-bold transition"><i class="fa-solid fa-rotate-left"></i></button>`}
-                    <button onclick="openRemarkModal('${d.id}')" class="p-1.5 bg-brand-100 text-brand-700 hover:bg-brand-200 rounded-lg text-xs font-bold transition"><i class="fa-solid fa-comment-dots"></i></button>
-                    <button type="button" onclick="openEditOpModal('${d.id}')" title="Modifier" class="p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold transition"><i class="fa-solid fa-pen-to-square"></i></button>
+                                        ${d.status === 'pending' ? `
+                        <button onclick="openRemarkModal('${d.id}')" class="p-1.5 bg-brand-100 text-brand-700 hover:bg-brand-200 rounded-lg text-xs font-bold transition"><i class="fa-solid fa-comment-dots"></i></button>
+                        <button type="button" onclick="openEditOpModal('${d.id}')" title="Modifier" class="p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold transition"><i class="fa-solid fa-pen-to-square"></i></button>
+                    ` : `
+                        <button type="button" disabled title="Uniquement pour les opérations en cours" class="p-1.5 bg-slate-50 text-slate-300 rounded-lg text-xs font-bold cursor-not-allowed"><i class="fa-solid fa-comment-dots"></i></button>
+                        <button type="button" disabled title="Uniquement pour les opérations en cours" class="p-1.5 bg-slate-50 text-slate-300 rounded-lg text-xs font-bold cursor-not-allowed"><i class="fa-solid fa-pen-to-square"></i></button>
+                    `}
                     <button onclick="openConfirmDeleteModal('${d.id}')" class="p-1.5 bg-red-100 hover:bg-red-200 text-red-700 rounded-lg text-xs font-bold transition"><i class="fa-solid fa-trash-can"></i></button>
                     ${_vBtn(d.id, 'sm')}
                 </div>
@@ -4063,7 +4180,7 @@ function renderLivreurDashboard(livreurId) {
     else if (filter === 'livrais_only') myDeliveries = myDeliveries.filter(d => d.type === 'LIVRAISON');
     else if (filter !== 'all') myDeliveries = myDeliveries.filter(d => d.status === filter);
     if (search) myDeliveries = myDeliveries.filter(d => (d.clientName && d.clientName.toLowerCase().includes(search)) || (d.phone && d.phone.includes(search)) || (d.phone2 && d.phone2.includes(search)) || (d.address && d.address.toLowerCase().includes(search)) || (d.location && d.location.toLowerCase().includes(search)));
-    myDeliveries.sort((a, b) => { if (a.status === 'pending' && b.status !== 'pending') return -1; if (a.status !== 'pending' && b.status === 'pending') return 1; return b.timestamp - a.timestamp; });
+    myDeliveries = applyCustomSort(myDeliveries);
 
     const cardsContainer = document.getElementById('livreur-delivery-cards');
     cardsContainer.innerHTML = '';
@@ -4093,7 +4210,9 @@ function renderLivreurDashboard(livreurId) {
         card.innerHTML = `
             <div class="flex items-center justify-between gap-2 border-b border-slate-200/60 pb-1.5">
                 <div class="flex items-center space-x-1.5 flex-wrap gap-y-1">
-                    <span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-700 text-white">#${cardNumber}</span>
+${sortModeActive && d.status === 'pending' ? `<button onclick="handleSortClick('${d.id}')" class="inline-flex items-center justify-center w-6 h-6 rounded-full text-[11px] font-black shrink-0 ${sortSelection.includes(d.id) ? 'bg-indigo-600 text-white shadow-md' : 'bg-white border-2 border-indigo-400 text-indigo-600 hover:bg-indigo-50'}">${sortSelection.includes(d.id) ? sortSelection.indexOf(d.id) + 1 : ''}</button>` : ''}
+<span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-700 text-white">#${cardNumber}</span>
+
                                         ${typeBadge}${statusBadge}
                     <span class="text-[11px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">🕒 ${cTime}${d.actionTime ? ' ➔ ' + d.actionTime : ''}</span>
                     ${d.status === 'delivered' && typeof d.deliveryFee === 'number' && d.deliveryFee > 0 ? `<span class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200" title="Frais"><i class="fa-solid fa-coins text-[9px]"></i> ${Number(d.deliveryFee).toLocaleString('fr-FR')} TND</span>` : ''}
@@ -4115,8 +4234,13 @@ function renderLivreurDashboard(livreurId) {
                         <button onclick="openConfirmValidationModal('${d.id}')" class="px-3 py-1.5 ${isCash ? 'bg-purple-600 hover:bg-purple-700' : 'bg-emerald-600 hover:bg-emerald-700'} text-white font-bold text-xs rounded-lg shadow-sm transition flex items-center space-x-1"><i class="fa-solid fa-check"></i><span>${isCash ? 'VALIDER' : 'ENVOYER'}</span></button>
                         <button onclick="openCancelModal('${d.id}')" class="px-2 py-1.5 bg-red-100 hover:bg-red-200 text-red-700 font-bold text-xs rounded-lg transition"><i class="fa-solid fa-ban"></i></button>
                     ` : `<button onclick="confirmResetToPending('${d.id}')" class="px-2 py-1 bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs rounded-lg transition"><i class="fa-solid fa-rotate-left"></i></button>`}
-                    <button onclick="openRemarkModal('${d.id}')" class="px-2 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-lg transition"><i class="fa-solid fa-comment-dots"></i></button>
-                    <button type="button" onclick="openEditOpModal('${d.id}')" title="Modifier" class="px-2 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-lg transition"><i class="fa-solid fa-pen-to-square"></i> Modifier</button>
+                                        ${d.status === 'pending' ? `
+                        <button onclick="openRemarkModal('${d.id}')" class="px-2 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-lg transition"><i class="fa-solid fa-comment-dots"></i></button>
+                        <button type="button" onclick="openEditOpModal('${d.id}')" title="Modifier" class="px-2 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-lg transition"><i class="fa-solid fa-pen-to-square"></i> Modifier</button>
+                    ` : `
+                        <button type="button" disabled title="Uniquement pour les opérations en cours" class="px-2 py-1.5 bg-slate-50 text-slate-300 font-bold text-xs rounded-lg cursor-not-allowed"><i class="fa-solid fa-comment-dots"></i></button>
+                        <button type="button" disabled title="Uniquement pour les opérations en cours" class="px-2 py-1.5 bg-slate-50 text-slate-300 font-bold text-xs rounded-lg cursor-not-allowed"><i class="fa-solid fa-pen-to-square"></i> Modifier</button>
+                    `}
 ${_vBtn(d.id)}
 </div>
             </div>
@@ -4289,7 +4413,7 @@ function promptEditAmount(id) {
     if (v !== null && !isNaN(v) && parseFloat(v) > 0) {
         const amount = parseFloat(v);
         if (amount === Number(d.amount)) return;
-        patchOp(id, { amount, timestamp: new Date().getTime() });
+        patchOp(id, { amount });
         showToast("Montant modifié", `Nouveau montant ${amount} TND.`);
     }
 }
@@ -4297,6 +4421,7 @@ function promptEditAmount(id) {
 function openEditOpModal(id) {
     const d = state.deliveries.find(x => x.id === id);
     if (!d) return;
+    if (d.status !== 'pending') { alert("Modification impossible : cette opération n'est plus EN COURS."); return; }
     const isAdmin = state.currentRole === 'admin';
     const isCash = d.type === 'SOLDE_RECU';
     document.getElementById('edit-op-id').value = id;
@@ -4322,6 +4447,7 @@ function handleSaveEditOp(e) {
     const id = document.getElementById('edit-op-id').value;
     const d = state.deliveries.find(x => x.id === id);
     if (!d) { toggleEditOpModal(false); return; }
+    if (d.status !== 'pending') { toggleEditOpModal(false); alert("Modification impossible : cette opération n'est plus EN COURS."); return; }
     const isAdmin = state.currentRole === 'admin';
     const val = (elId) => document.getElementById(elId).value.trim();
     const cur = (v) => String(v == null ? '' : v).trim();
@@ -4342,13 +4468,14 @@ function handleSaveEditOp(e) {
         return;
     }
     if ('phone' in patch) {
-        patch.phoneClean = patch.phone.replace(/\s+/g, '');
-        const bl = patch.phoneClean && (state.blacklist || []).find(b => String(b.phone).replace(/\s+/g, '') === patch.phoneClean);
+	patch.phoneClean = normalizePhone(patch.phone);
+        const bl = patch.phoneClean && (state.blacklist || []).find(b => normalizePhone(b.phone) === patch.phoneClean);
         if (bl && !confirm(`⚠️ CLIENT BLACKLISTÉ !\n\nNom : ${bl.clientName}\nMotif : ${bl.reason}\n\nEnregistrer quand même ce numéro ?`)) return;
     }
-    patchOp(id, patch);
+        patchOp(id, patch);
     toggleEditOpModal(false);
-    showToast("Modification enregistrée", `${Object.keys(patch).filter(k => k !== 'timestamp' && k !== 'phoneClean').length} information(s) mise(s) à jour pour ${next.clientName}.`);
+    showToast("Modification enregistrée",
+        `${Object.keys(patch).filter(k => k !== 'phoneClean').length} information(s) mise(s) à jour pour ${next.clientName}.`);
 }
 
 // ==================== OPÉRATIONS ====================
@@ -4412,6 +4539,7 @@ function handleSaveDelivery(e) {
 function openRemarkModal(id) {
     const del = state.deliveries.find(d => d.id === id);
     if (!del) return;
+    if (del.status !== 'pending') { alert("Remarque impossible : cette opération n'est plus EN COURS."); return; }
     document.getElementById('remark-delivery-id').value = id;
     const isAdmin = state.currentRole === 'admin';
     document.getElementById('modal-remark-title').textContent = isAdmin ? "Remarque Admin" : "Remarque Livreur";
@@ -4426,6 +4554,7 @@ function handleSaveRemark(e) {
     const text = document.getElementById('input-delivery-remark').value.trim();
     const del = state.deliveries.find(d => d.id === id);
     if (del) {
+        if (del.status !== 'pending') { toggleRemarkModal(false); alert("Remarque impossible : cette opération n'est plus EN COURS."); return; }
         if (state.currentRole === 'admin') { patchOp(id, { remarkAdmin: text }); showToast("Remarque Admin", "Mise à jour."); }
         else { patchOp(id, { remarkLivreur: text }); showToast("Remarque Livreur", "Enregistrée."); }
     }
@@ -4685,6 +4814,7 @@ function shiftDate(delta) {
     handleDateChange();
 }
 function handleDateChange() {
+    if (sortModeActive) { sortModeActive = false; sortSelection = []; }
     if (state.currentRole !== 'admin' && state.couriersCanSeeHistory === false) {
         const today = getBusinessDayStr();
         document.getElementById('global-date-picker').value = today;
@@ -5272,6 +5402,9 @@ window.addEventListener('DOMContentLoaded', boot);
 	[`Hors ligne`, `Offline`, `غير متصل`],
 	[`Admin en ligne`, `Admin online`, `المسؤول متصل`],
 	[`Admin hors ligne`, `Admin offline`, `المسؤول غير متصل`],
+[`Tri personnalisé`, `Custom sort`, `ترتيب مخصص`],
+[`Réinitialiser le tri`, `Reset sort`, `إعادة تعيين الترتيب`],
+[`Réinitialiser le tri personnalisé ?`, `Reset custom sort?`, `إعادة تعيين الترتيب المخصص؟`],
     ];
 
     var P = [
