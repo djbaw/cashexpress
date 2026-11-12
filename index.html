@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Warda v59.4 - Gestion de Warda</title>
+<title>Warda v59.5 - Gestion de Warda</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
@@ -420,13 +420,17 @@
     <span id="sync-indicator" class="syncing inline-block w-2.5 h-2.5 rounded-full" title="État de la connexion"></span>
 	<span id="admin-presence-dot" role="button" tabindex="0" aria-label="Voir le statut de l'admin" class="presence-dot hidden" data-presence="admin" title="Admin hors ligne"></span>
 				</h1>
-                <p class="text-xs text-slate-400 hidden sm:block">Gestion de Warda - <span class="text-emerald-400 font-bold">v59.4</span></p>
+                <p class="text-xs text-slate-400 hidden sm:block">Gestion de Warda - <span class="text-emerald-400 font-bold">v59.5</span></p>
             </div>
         </div>
         <button id="notif-bell" type="button" onclick="openNotifPanel()" title="Toutes les notifications" class="relative w-11 h-11 bg-slate-800 border border-slate-700 rounded-xl text-slate-200 hover:text-white hover:bg-slate-700 transition order-2 sm:order-3">
-            <i class="fa-solid fa-bell"></i>
-            <span id="notif-badge" class="hidden absolute -top-1.5 -right-1.5 min-w-[1.15rem] h-[1.15rem] px-1 rounded-full bg-red-600 text-white text-[10px] font-bold items-center justify-center">0</span>
-        </button>
+    <i class="fa-solid fa-bell"></i>
+    <span id="notif-badge" class="hidden absolute -top-1.5 -right-1.5 min-w-[1.15rem] h-[1.15rem] px-1 rounded-full bg-red-600 text-white text-[10px] font-bold items-center justify-center">0</span>
+</button>
+<!-- 🆕 Bouton plein écran (visible uniquement en mode livreur) -->
+<button id="fullscreen-toggle-btn" type="button" onclick="toggleFullscreen()" title="Passer en plein écran" class="hidden w-11 h-11 bg-slate-800 border border-slate-700 rounded-xl text-slate-200 hover:text-white hover:bg-slate-700 transition order-2 sm:order-3">
+    <i class="fa-solid fa-expand"></i>
+</button>
         <div class="flex items-center gap-1 bg-slate-800 p-1 rounded-xl border border-slate-700 order-2 sm:order-3" title="Taille du texte">
             <button type="button" onclick="changeUiZoom(-0.1)" class="w-9 h-9 text-sm font-bold text-slate-200 hover:text-white hover:bg-slate-700 rounded-lg">A−</button>
             <button type="button" onclick="resetUiZoom()" id="ui-zoom-label" class="min-w-[3rem] h-9 text-xs font-semibold text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg">100%</button>
@@ -1203,7 +1207,7 @@ const firebaseConfig = {
 };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
-const APP_VERSION = 59.4;      // à augmenter à chaque nouvelle version publiée (sert au bandeau « Nouvelle version »)
+const APP_VERSION = 59.5;      // à augmenter à chaque nouvelle version publiée (sert au bandeau « Nouvelle version »)
 const ROOT = 'cashexpress';
 const OPS_PATH = ROOT + '/ops';
 const CFG_PATH = ROOT + '/config';
@@ -1212,6 +1216,39 @@ const VOICE_PATH = ROOT + '/voiceData';      // fichiers audio (séparés des op
 const NOTIF_PATH = ROOT + '/notifs';
 const PRESENCE_PATH = ROOT + '/presence';
 const LEGACY_PATH = ROOT + '/state';
+
+// ==================== PLEIN ÉCRAN ====================
+function toggleFullscreen() {
+    const isFull = !!(document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement);
+    try {
+        if (!isFull) {
+            const el = document.documentElement;
+            if (el.requestFullscreen) el.requestFullscreen();
+            else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+            else if (el.msRequestFullscreen) el.msRequestFullscreen();
+        } else {
+            if (document.exitFullscreen) document.exitFullscreen();
+            else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+            else if (document.msExitFullscreen) document.msExitFullscreen();
+        }
+    } catch (e) {
+        console.warn('Plein écran non supporté sur cet appareil :', e);
+        showToast("⚠️ Plein écran indisponible", "Votre navigateur ne supporte pas cette fonction. Utilisez 'Ajouter à l'écran d'accueil' pour un plein écran natif.", true);
+    }
+}
+
+function updateFullscreenBtn() {
+    const btn = document.getElementById('fullscreen-toggle-btn');
+    if (!btn) return;
+    const isFull = !!(document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement);
+    const icon = btn.querySelector('i');
+    if (icon) icon.className = isFull ? 'fa-solid fa-compress' : 'fa-solid fa-expand';
+    btn.title = isFull ? 'Quitter le plein écran' : 'Passer en plein écran';
+}
+
+document.addEventListener('fullscreenchange', updateFullscreenBtn);
+document.addEventListener('webkitfullscreenchange', updateFullscreenBtn);
+document.addEventListener('msfullscreenchange', updateFullscreenBtn);
 
 function setSyncStatus(status) {
     const el = document.getElementById('sync-indicator');
@@ -1680,6 +1717,17 @@ async function fetchOpsRange(startDate, endDate) {
 // ---------- Bandeau « Nouvelle version disponible » ----------
 // L'Admin (avec la version la plus récente) publie le numéro de version dans la base ; les autres appareils le comparent au leur.
 function publishAppVersion() {
+    // Ne pas publier quand on est en local (file:// ou localhost)
+    // → évite qu'un test local "pollue" Firebase et bloque les appareils web sur l'ancienne version
+    const isLocal = location.protocol === 'file:'
+                 || location.hostname === 'localhost'
+                 || location.hostname === '127.0.0.1'
+                 || location.hostname.startsWith('192.168.')
+                 || location.hostname.startsWith('10.');
+    if (isLocal) {
+        console.log('🚧 Test local détecté — publication de version ignorée.');
+        return;
+    }
     db.ref(CFG_PATH + '/appVersion')
         .transaction(cur => (typeof cur === 'number' && cur >= APP_VERSION) ? undefined : APP_VERSION)
         .catch(e => console.warn('Version non publiée :', e));
@@ -2775,6 +2823,8 @@ function switchRole(roleId, isURLCheck = false) {
         document.getElementById('view-admin').classList.add('hidden');
         document.getElementById('view-livreur').classList.remove('hidden');
     }
+    // 🆕 Afficher/cacher le bouton plein écran selon la vue
+    document.getElementById('fullscreen-toggle-btn')?.classList.toggle('hidden', roleId === 'admin');
     renderApp();
 }
 function toggleAdminAuthModal(show) {
@@ -4593,8 +4643,11 @@ window.addEventListener('DOMContentLoaded', boot);
     try { var saved = localStorage.getItem(KEY); if (LANGS.indexOf(saved) >= 0) lang = saved; } catch (e) {}
 
     var E = [
-        [`Warda v59.4 - Gestion de Warda`, `Warda v59.4 - Warda management`, `وردة v59.4 - إدارة وردة`],
+        [`Warda v59.5 - Gestion de Warda`, `Warda v59.5 - Warda management`, `وردة v59.5 - إدارة وردة`],
 	[`Nouvelle version disponible, cliquez ici pour actualiser la page.`, `New version available, click here to refresh the page.`, `إصدار جديد متوفر، انقر هنا لتحديث الصفحة.`],
+	[`Passer en plein écran`, `Enter fullscreen`, `التبديل إلى وضع ملء الشاشة`],
+        [`Quitter le plein écran`, `Exit fullscreen`, `الخروج من وضع ملء الشاشة`],
+        [`⚠️ Plein écran indisponible`, `⚠️ Fullscreen unavailable`, `⚠️ وضع ملء الشاشة غير متاح`],
         [`Gestion de la Liste Noire (Clients Bloqués)`, `Blacklist Management (Blocked Clients)`, `إدارة القائمة السوداء (العملاء المحظورون)`],
         [`Ajouter / Modifier un Client Bloqué`, `Add / Edit a Blocked Client`, `إضافة / تعديل عميل محظور`],
         [`Téléphone *`, `Phone *`, `الهاتف *`],
