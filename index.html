@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Warda v59.5 - Gestion de Warda</title>
+<title>Warda v60.0 - Gestion de Warda</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
@@ -306,6 +306,13 @@
                         <input type="text" readonly id="link-url-livreur3" class="w-full text-xs p-2 bg-white border border-slate-300 rounded-lg font-mono text-slate-700">
                         <button onclick="copyToClipboard('link-url-livreur3')" class="px-3 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-lg transition shrink-0"><i class="fa-solid fa-copy me-1"></i> Copier</button>
                     </div>
+                                </div>
+                <div class="p-3 bg-orange-50/60 rounded-xl border border-orange-200">
+                    <div class="flex justify-between items-center">
+                        <label class="block text-xs font-bold text-orange-900">⚠️ Version publiée (dépannage)</label>
+                        <button onclick="resetPublishedVersion()" class="text-[11px] font-bold text-red-600 hover:text-red-800 bg-red-50 hover:bg-red-100 px-2 py-0.5 rounded transition border border-red-200"><i class="fa-solid fa-rotate-left me-1"></i> Réinitialiser</button>
+                    </div>
+                    <p class="text-[11px] text-orange-800 mt-1">Si le bandeau « Nouvelle version » reste bloqué sur d'autres appareils, cliquez ici pour republier la version courante de cette page.</p>
                 </div>
             </div>
             <div class="pt-3 flex justify-end">
@@ -420,7 +427,7 @@
     <span id="sync-indicator" class="syncing inline-block w-2.5 h-2.5 rounded-full" title="État de la connexion"></span>
 	<span id="admin-presence-dot" role="button" tabindex="0" aria-label="Voir le statut de l'admin" class="presence-dot hidden" data-presence="admin" title="Admin hors ligne"></span>
 				</h1>
-                <p class="text-xs text-slate-400 hidden sm:block">Gestion de Warda - <span class="text-emerald-400 font-bold">v59.5</span></p>
+                <p class="text-xs text-slate-400 hidden sm:block">Gestion de Warda - <span class="text-emerald-400 font-bold">v60.0</span></p>
             </div>
         </div>
         <button id="notif-bell" type="button" onclick="openNotifPanel()" title="Toutes les notifications" class="relative w-11 h-11 bg-slate-800 border border-slate-700 rounded-xl text-slate-200 hover:text-white hover:bg-slate-700 transition order-2 sm:order-3">
@@ -431,9 +438,12 @@
 <button id="fullscreen-toggle-btn" type="button" onclick="toggleFullscreen()" title="Passer en plein écran" class="hidden w-11 h-11 bg-slate-800 border border-slate-700 rounded-xl text-slate-200 hover:text-white hover:bg-slate-700 transition order-2 sm:order-3">
     <i class="fa-solid fa-expand"></i>
 </button>
-        <div class="flex items-center gap-1 bg-slate-800 p-1 rounded-xl border border-slate-700 order-2 sm:order-3" title="Taille du texte">
+<button id="livreur-more-btn" type="button" onclick="toggleLivreurMoreMenu()" title="Plus d'options" class="hidden w-11 h-11 bg-slate-800 border border-slate-700 rounded-xl text-slate-200 hover:text-white hover:bg-slate-700 transition order-2 sm:order-3">
+    <i class="fa-solid fa-ellipsis"></i>
+</button>
+<div id="zoom-controls" class="flex items-center gap-1 bg-slate-800 p-1 rounded-xl border border-slate-700 order-2 sm:order-3" title="Taille du texte">        
             <button type="button" onclick="changeUiZoom(-0.1)" class="w-9 h-9 text-sm font-bold text-slate-200 hover:text-white hover:bg-slate-700 rounded-lg">A−</button>
-            <button type="button" onclick="resetUiZoom()" id="ui-zoom-label" class="min-w-[3rem] h-9 text-xs font-semibold text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg">100%</button>
+<button type="button" onclick="resetUiZoom()" id="ui-zoom-label" class="ui-zoom-label min-w-[3rem] h-9 text-xs font-semibold text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg">100%</button>            
             <button type="button" onclick="changeUiZoom(0.1)" class="w-9 h-9 text-base font-bold text-slate-200 hover:text-white hover:bg-slate-700 rounded-lg">A+</button>
         </div>
         <div id="lang-switch" class="flex items-center gap-1 bg-slate-800 p-1 rounded-xl border border-slate-700 order-2 sm:order-3" role="group" aria-label="Langue / Language / اللغة"><button type="button" class="lang-btn" data-lang="fr" onclick="setLang('fr')">FR</button><button type="button" class="lang-btn" data-lang="en" onclick="setLang('en')">EN</button><button type="button" class="lang-btn" data-lang="ar" onclick="setLang('ar')">ع</button></div>
@@ -1194,6 +1204,40 @@
     </div>
 </div>
 
+<!-- MODAL: LIVREUR OPTIONS (zoom + langue + PIN) -->
+<div id="modal-livreur-more" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden">
+        <div class="bg-slate-900 px-6 py-4 text-white flex justify-between items-center">
+            <h3 class="font-bold text-lg"><i class="fa-solid fa-sliders me-2 text-emerald-400"></i><span>Options</span></h3>
+            <button onclick="toggleLivreurMoreMenu()" class="text-white/80 hover:text-white transition"><i class="fa-solid fa-xmark text-xl"></i></button>
+        </div>
+        <div class="p-6 space-y-5">
+            <div>
+                <label class="block text-xs font-bold text-slate-700 uppercase mb-2">Taille du texte</label>
+                <div class="flex items-center justify-center gap-2 bg-slate-100 p-1.5 rounded-xl">
+                    <button type="button" onclick="changeUiZoom(-0.1)" class="flex-1 py-2 text-sm font-bold text-slate-700 hover:bg-white hover:shadow-sm rounded-lg transition">A−</button>
+                    <button type="button" onclick="resetUiZoom()" class="ui-zoom-label flex-1 py-2 text-sm font-semibold text-slate-600 hover:bg-white hover:shadow-sm rounded-lg transition">100%</button>
+                    <button type="button" onclick="changeUiZoom(0.1)" class="flex-1 py-2 text-base font-bold text-slate-700 hover:bg-white hover:shadow-sm rounded-lg transition">A+</button>
+                </div>
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-slate-700 uppercase mb-2">Langue</label>
+                <div class="flex items-center gap-1 bg-slate-900 p-1 rounded-xl" role="group" aria-label="Langue / Language / اللغة">
+                    <button type="button" class="lang-btn flex-1" data-lang="fr" onclick="setLang('fr')">FR</button>
+                    <button type="button" class="lang-btn flex-1" data-lang="en" onclick="setLang('en')">EN</button>
+                    <button type="button" class="lang-btn flex-1" data-lang="ar" onclick="setLang('ar')">ع</button>
+                </div>
+            </div>
+            <div class="pt-3 border-t border-slate-100">
+                <button type="button" onclick="closeLivreurMoreAndOpenPin()" class="w-full py-2.5 bg-amber-50 hover:bg-amber-100 text-amber-800 font-bold text-sm rounded-xl border border-amber-200 transition flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-key"></i> Modifier mon code PIN
+                </button>
+            </div>
+            <button type="button" onclick="toggleLivreurMoreMenu()" class="w-full py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-800 font-semibold text-sm rounded-xl transition">Fermer</button>
+        </div>
+    </div>
+</div>
+
 <script>
 // ==================== FIREBASE ====================
 const firebaseConfig = {
@@ -1207,7 +1251,7 @@ const firebaseConfig = {
 };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
-const APP_VERSION = 59.5;      // à augmenter à chaque nouvelle version publiée (sert au bandeau « Nouvelle version »)
+const APP_VERSION = 60.0;      // à augmenter à chaque nouvelle version publiée (sert au bandeau « Nouvelle version »)
 const ROOT = 'cashexpress';
 const OPS_PATH = ROOT + '/ops';
 const CFG_PATH = ROOT + '/config';
@@ -1516,8 +1560,7 @@ const UI_ZOOM_KEY = 'cashexpress_ui_zoom';
 function applyUiZoom(z) {
     z = Math.min(2.0, Math.max(0.5, Math.round(z * 100) / 100));
     document.documentElement.style.setProperty('--ui-zoom', z);
-    const lbl = document.getElementById('ui-zoom-label');
-    if (lbl) lbl.textContent = Math.round(z * 100) + '%';
+    document.querySelectorAll('.ui-zoom-label').forEach(lbl => { lbl.textContent = Math.round(z * 100) + '%'; });
     try { localStorage.setItem(UI_ZOOM_KEY, String(z)); } catch (e) {}
     return z;
 }
@@ -1716,15 +1759,23 @@ async function fetchOpsRange(startDate, endDate) {
 
 // ---------- Bandeau « Nouvelle version disponible » ----------
 // L'Admin (avec la version la plus récente) publie le numéro de version dans la base ; les autres appareils le comparent au leur.
+function isLocalOrDevEnvironment() {
+    const h = location.hostname || '';
+    if (location.protocol === 'file:') return true;
+    if (!h) return true;
+    if (h === 'localhost' || h === '127.0.0.1' || h === '[::1]' || h === '::1' || h === '0.0.0.0') return true;
+    if (h.endsWith('.local') || h.endsWith('.localhost')) return true;
+    if (/^127\./.test(h)) return true;
+    if (/^10\./.test(h)) return true;
+    if (/^192\.168\./.test(h)) return true;
+    if (/^172\.(1[6-9]|2[0-9]|3[01])\./.test(h)) return true;
+    if (/^169\.254\./.test(h)) return true;
+    return false;
+}
 function publishAppVersion() {
-    // Ne pas publier quand on est en local (file:// ou localhost)
+    // Ne pas publier quand on est en local (file://, localhost, IPv4/IPv6 loopback, plages privées, .local, 0.0.0.0...)
     // → évite qu'un test local "pollue" Firebase et bloque les appareils web sur l'ancienne version
-    const isLocal = location.protocol === 'file:'
-                 || location.hostname === 'localhost'
-                 || location.hostname === '127.0.0.1'
-                 || location.hostname.startsWith('192.168.')
-                 || location.hostname.startsWith('10.');
-    if (isLocal) {
+    if (isLocalOrDevEnvironment()) {
         console.log('🚧 Test local détecté — publication de version ignorée.');
         return;
     }
@@ -2805,6 +2856,16 @@ function openAdminLogin() {
     else help.textContent = "Veuillez saisir le code PIN confidentiel pour déverrouiller le tableau de bord Admin.";
     toggleAdminAuthModal(true);
 }
+function toggleLivreurMoreMenu() {
+    const modal = document.getElementById('modal-livreur-more');
+    if (!modal) return;
+    modal.classList.toggle('hidden');
+}
+function closeLivreurMoreAndOpenPin() {
+    const modal = document.getElementById('modal-livreur-more');
+    if (modal) modal.classList.add('hidden');
+    openChangeAdminPinModal();
+}
 function switchRole(roleId, isURLCheck = false) {
     const allowed = isAdminAuthenticated || window.__me === roleId;
     if (!allowed) { openAdminLogin(); return; }
@@ -2823,8 +2884,15 @@ function switchRole(roleId, isURLCheck = false) {
         document.getElementById('view-admin').classList.add('hidden');
         document.getElementById('view-livreur').classList.remove('hidden');
     }
-    // 🆕 Afficher/cacher le bouton plein écran selon la vue
+    // 🆕 Optimisation du header en mode livreur :
+    //   - Boutons visibles : cloche 🔔, plein écran ⛶, menu ⋯
+    //   - Zoom + langue + PIN déplacés dans le modal "⋯"
+    const isLivreurSession = window.__me !== 'admin';
     document.getElementById('fullscreen-toggle-btn')?.classList.toggle('hidden', roleId === 'admin');
+    document.getElementById('livreur-more-btn')?.classList.toggle('hidden', !isLivreurSession);
+    document.getElementById('zoom-controls')?.classList.toggle('hidden', isLivreurSession);
+    document.getElementById('lang-switch')?.classList.toggle('hidden', isLivreurSession);
+    document.getElementById('admin-pin-settings-btn')?.classList.toggle('hidden', isLivreurSession);
     renderApp();
 }
 function toggleAdminAuthModal(show) {
@@ -3033,6 +3101,16 @@ function toggleDirectLinksModal(show) {
     const modal = document.getElementById('modal-direct-links');
     if (show) modal.classList.remove('hidden'); else modal.classList.add('hidden');
 }
+function resetPublishedVersion() {
+    if (!confirm("Réinitialiser la version publiée à la version actuelle de cette page (" + APP_VERSION + ") ?\n\nCela fera disparaître le bandeau « Nouvelle version » sur les appareils déjà à jour.")) return;
+    db.ref(CFG_PATH + '/appVersion').set(APP_VERSION)
+        .then(() => showToast("✅ Version réinitialisée", "Version publiée = " + APP_VERSION))
+        .catch(e => {
+            console.error(e);
+            alert("❌ Échec : " + (e.message || e));
+        });
+}
+window.resetPublishedVersion = resetPublishedVersion;
 function copyToClipboard(elementId) {
     const input = document.getElementById(elementId);
     input.select(); input.setSelectionRange(0, 99999);
@@ -4643,8 +4721,11 @@ window.addEventListener('DOMContentLoaded', boot);
     try { var saved = localStorage.getItem(KEY); if (LANGS.indexOf(saved) >= 0) lang = saved; } catch (e) {}
 
     var E = [
-        [`Warda v59.5 - Gestion de Warda`, `Warda v59.5 - Warda management`, `وردة v59.5 - إدارة وردة`],
-	[`Nouvelle version disponible, cliquez ici pour actualiser la page.`, `New version available, click here to refresh the page.`, `إصدار جديد متوفر، انقر هنا لتحديث الصفحة.`],
+        [`Warda v60.0 - Gestion de Warda`, `Warda v60.0 - Warda management`, `وردة v60.0 - إدارة وردة`],
+[`Options`, `Options`, `خيارات`],
+[`Langue`, `Language`, `اللغة`],
+[`Plus d'options`, `More options`, `المزيد من الخيارات`],	
+[`Nouvelle version disponible, cliquez ici pour actualiser la page.`, `New version available, click here to refresh the page.`, `إصدار جديد متوفر، انقر هنا لتحديث الصفحة.`],
 	[`Passer en plein écran`, `Enter fullscreen`, `التبديل إلى وضع ملء الشاشة`],
         [`Quitter le plein écran`, `Exit fullscreen`, `الخروج من وضع ملء الشاشة`],
         [`⚠️ Plein écran indisponible`, `⚠️ Fullscreen unavailable`, `⚠️ وضع ملء الشاشة غير متاح`],
