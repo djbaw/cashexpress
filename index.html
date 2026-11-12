@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Warda v56 - Gestion de Warda</title>
+<title>Warda v58 - Gestion de Warda</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
 
@@ -399,6 +399,10 @@
 </div>
 
 <!-- ÉCRAN DE CHARGEMENT -->
+<button id="update-banner" type="button" onclick="reloadForUpdate()" class="hidden fixed bottom-4 left-1/2 -translate-x-1/2 z-[70] w-[92%] max-w-md px-4 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm rounded-2xl shadow-2xl border border-emerald-300 text-center transition">
+    <i class="fa-solid fa-rotate me-1"></i> Nouvelle version disponible, cliquez ici pour actualiser la page.
+</button>
+
 <div id="app-loading" class="fixed inset-0 z-[60] bg-slate-900 flex flex-col items-center justify-center text-white p-6 text-center gap-3">
     <i id="app-loading-icon" class="fa-solid fa-circle-notch fa-spin text-3xl text-emerald-400"></i>
     <p id="app-loading-text" class="text-sm font-semibold max-w-xs">Connexion au serveur…</p>
@@ -416,7 +420,7 @@
     <span id="sync-indicator" class="syncing inline-block w-2.5 h-2.5 rounded-full" title="État de la connexion"></span>
 	<span id="admin-presence-dot" role="button" tabindex="0" aria-label="Voir le statut de l'admin" class="presence-dot hidden" data-presence="admin" title="Admin hors ligne"></span>
 				</h1>
-                <p class="text-xs text-slate-400 hidden sm:block">Gestion de Warda - <span class="text-emerald-400 font-bold">v56</span></p>
+                <p class="text-xs text-slate-400 hidden sm:block">Gestion de Warda - <span class="text-emerald-400 font-bold">v58</span></p>
             </div>
         </div>
         <button id="notif-bell" type="button" onclick="openNotifPanel()" title="Toutes les notifications" class="relative w-11 h-11 bg-slate-800 border border-slate-700 rounded-xl text-slate-200 hover:text-white hover:bg-slate-700 transition order-2 sm:order-3">
@@ -632,7 +636,7 @@
             <div class="flex flex-col sm:flex-row items-center gap-2.5 w-full sm:w-auto">
                 <button onclick="openBlacklistModal()" class="w-full sm:w-auto px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white font-semibold text-sm rounded-xl transition shadow-md flex items-center justify-center space-x-2"><i class="fa-solid fa-user-slash"></i><span>Liste Noire (<span id="blacklist-badge-count">0</span>)</span></button>
                 <button onclick="openDirectLinksModal()" class="w-full sm:w-auto px-4 py-2.5 bg-slate-800 hover:bg-slate-900 text-white font-semibold text-sm rounded-xl transition shadow-md flex items-center justify-center space-x-2"><i class="fa-solid fa-link text-emerald-400"></i><span>Liens d'Accès Uniques</span></button>
-                <button onclick="document.getElementById('excel-file-input').click()" class="w-full sm:w-auto px-4 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white font-semibold text-sm rounded-xl transition shadow-md flex items-center justify-center space-x-2"><i class="fa-solid fa-file-import"></i><span>Importer Excel</span></button>
+                <button onclick="loadXLSX().catch(()=>{}); document.getElementById('excel-file-input').click()" class="w-full sm:w-auto px-4 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white font-semibold text-sm rounded-xl transition shadow-md flex items-center justify-center space-x-2"><i class="fa-solid fa-file-import"></i><span>Importer Excel</span></button>
                 <input type="file" id="excel-file-input" accept=".xlsx, .xls" class="hidden" onchange="handleExcelImport(event)">
                 <button onclick="openExportExcelModal()" class="w-full sm:w-auto px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm rounded-xl transition shadow-md flex items-center justify-center space-x-2"><i class="fa-solid fa-file-excel"></i><span>Extraction Excel</span></button>
                 <button onclick="toggleAddModal(true)" class="w-full sm:w-auto px-5 py-2.5 bg-brand-600 hover:bg-brand-700 text-white font-semibold text-sm rounded-xl transition shadow-md flex items-center justify-center space-x-2"><i class="fa-solid fa-plus"></i><span>Ajouter une Opération</span></button>
@@ -1199,6 +1203,7 @@ const firebaseConfig = {
 };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
+const APP_VERSION = 58;      // à augmenter à chaque nouvelle version publiée (sert au bandeau « Nouvelle version »)
 const ROOT = 'cashexpress';
 const OPS_PATH = ROOT + '/ops';
 const CFG_PATH = ROOT + '/config';
@@ -1505,6 +1510,20 @@ const getDateStr = (timestamp) => {
     const d = timestamp ? new Date(timestamp) : new Date();
     return d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
 };
+
+// 🆕 JOURNÉE MÉTIER : bascule à 5h du matin (pas à minuit).
+// À 2h du matin → encore la veille. À 5h pile → le jour même.
+// Ex : le 12/11 à 02:00 → journée métier = 11/11. À 05:00 → journée métier = 12/11.
+const BUSINESS_DAY_CUTOFF_HOUR = 5;
+const getBusinessDayStr = () => {
+    const now = new Date();
+    if (now.getHours() < BUSINESS_DAY_CUTOFF_HOUR) {
+        const prev = new Date(now);
+        prev.setDate(prev.getDate() - 1);
+        return toLocalDateStr(prev);
+    }
+    return toLocalDateStr(now);
+};
 // ==================== ÉTAT ====================
 const LIVREUR_IDS = ['livreur1', 'livreur2', 'livreur3'];
 const DEFAULT_NAMES = { livreur1: 'Sami (Livreur 1)', livreur2: 'Karim (Livreur 2)', livreur3: 'Youssef (Livreur 3)' };
@@ -1512,7 +1531,7 @@ const VALID_ID = /^[A-Za-z0-9_-]{1,80}$/;
 
 let state = {
     currentRole: 'admin',
-    selectedDate: getTodayStr(),
+    selectedDate: getBusinessDayStr(),
         adminStartBalances: {},
     couriersCanSeeHistory: true,
     presence: {},
@@ -1658,7 +1677,32 @@ async function fetchOpsRange(startDate, endDate) {
     return arr.sort((a, b) => (a.date === b.date ? (a.timestamp || 0) - (b.timestamp || 0) : (a.date < b.date ? -1 : 1)));
 }
 
-function unlockUI() { document.body.classList.remove('locked'); startNotifs(); }
+// ---------- Bandeau « Nouvelle version disponible » ----------
+// L'Admin (avec la version la plus récente) publie le numéro de version dans la base ; les autres appareils le comparent au leur.
+function publishAppVersion() {
+    db.ref(CFG_PATH + '/appVersion')
+        .transaction(cur => (typeof cur === 'number' && cur >= APP_VERSION) ? undefined : APP_VERSION)
+        .catch(e => console.warn('Version non publiée :', e));
+}
+function watchAppVersion() {
+    if (window.__verWatch) return;
+    window.__verWatch = true;
+    db.ref(CFG_PATH + '/appVersion').on('value', snap => {
+        const v = Number(snap.val());
+        const b = document.getElementById('update-banner');
+        if (b) b.classList.toggle('hidden', !(v > APP_VERSION));
+    }, () => {});
+}
+function reloadForUpdate() {
+    try {
+        const u = new URL(window.location.href);
+        u.searchParams.set('_v', String(Date.now()));      // adresse différente = pas de copie en cache ; role et token sont conservés
+        window.location.replace(u.toString());
+    } catch (e) { window.location.reload(); }
+}
+
+function unlockUI() {
+    watchAppVersion(); document.body.classList.remove('locked'); startNotifs(); }
 function hideLoading() { const el = document.getElementById('app-loading'); if (el) el.classList.add('hidden'); }
 function showFatal(message) {
     const el = document.getElementById('app-loading');
@@ -2154,7 +2198,7 @@ function notifyOpsChanges(prev, cur) {
         const who = actorOf(d) || (isAdminMe ? nameOf(d.livreurId) : 'Admin');
         opMessages(wasMine ? p : null, d, who, isAdminMe).forEach(m => out.push(m));
     });
-    if (!isAdminMe && state.selectedDate === getTodayStr()) {
+    if (!isAdminMe && state.selectedDate === getBusinessDayStr()) {
         prev.forEach(p => {
             if (p.livreurId === me) {
                 const c = curMap.get(p.id);
@@ -2240,6 +2284,20 @@ async function migrateLegacy(legacy, pinHash) {
 }
 
 // ==================== IMPORT EXCEL ====================
+let _xlsxPromise = null;
+function loadXLSX() {
+    if (window.XLSX) return Promise.resolve(window.XLSX);
+    if (_xlsxPromise) return _xlsxPromise;
+    _xlsxPromise = new Promise((resolve, reject) => {
+        const sc = document.createElement('script');
+        sc.src = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
+        sc.onload = () => resolve(window.XLSX);
+        sc.onerror = () => { _xlsxPromise = null; reject(new Error("Bibliothèque Excel indisponible. Vérifiez votre connexion Internet.")); };
+        document.head.appendChild(sc);
+    });
+    return _xlsxPromise;
+}
+
 function handleExcelImport(e) {
     const input = e.target;
     const file = input.files[0];
@@ -2247,6 +2305,7 @@ function handleExcelImport(e) {
     const reader = new FileReader();
     reader.onload = async function(ev) {
         try {
+            await loadXLSX();
             const data = new Uint8Array(ev.target.result);
             const workbook = XLSX.read(data, { type: 'array' });
             const worksheet = workbook.Sheets[workbook.SheetNames[0]];
@@ -2325,7 +2384,7 @@ function handleExcelImport(e) {
 // ==================== ROLLOVER ====================
 async function checkAndExecuteDailyRollover(all) {
     try {
-        const today = getTodayStr();
+        const today = getBusinessDayStr();
         const dayStr = (back) => { const d = new Date(); d.setHours(12, 0, 0, 0); d.setDate(d.getDate() - back); return toLocalDateStr(d); };
         const ageDays = (a, b) => Math.round((new Date(b + 'T12:00:00') - new Date(a + 'T12:00:00')) / 86400000);
         // Seulement les 8 derniers jours (au lieu de tout l'historique des opérations « En cours »)
@@ -2465,8 +2524,8 @@ function applyCourierHistoryRestriction() {
     const badge = document.getElementById('history-locked-badge');
 
     if (!allowed) {
-        // Force la date du jour
-        const today = getTodayStr();
+                // Force la date du jour (métier)
+        const today = getBusinessDayStr();
         if (state.selectedDate !== today) {
             state.selectedDate = today;
             if (picker) picker.value = today;
@@ -2582,9 +2641,35 @@ function setupPresenceClickHandler() {
 
 window.initPresence = initPresence;
 window.updatePresenceDots = updatePresenceDots;
+// Soldes de départ (admin et livreurs), soldes possédés et dettes : on ne garde que les 30 derniers jours.
+// La date la plus récente de chaque série est toujours conservée (sécurité du report des soldes après une longue absence).
+async function purgeOldBalances() {
+    try {
+        const cutoff = dayAgoStr(31);
+        const cfg = (await db.ref(CFG_PATH).once('value')).val() || {};
+        const u = {};
+        const dropOld = (obj, basePath) => {
+            const keys = Object.keys(obj || {}).filter(k => /^\d{4}-\d{2}-\d{2}$/.test(k)).sort();
+            if (!keys.length) return;
+            const latest = keys[keys.length - 1];
+            keys.forEach(k => { if (k <= cutoff && k !== latest) u[basePath + '/' + k] = null; });
+        };
+        dropOld(cfg.adminStartBalances, CFG_PATH + '/adminStartBalances');
+        LIVREUR_IDS.forEach(id => {
+            const l = (cfg.livreurs && cfg.livreurs[id]) || {};
+            ['startBalances', 'heldBalances', 'debt'].forEach(f => dropOld(l[f], CFG_PATH + '/livreurs/' + id + '/' + f));
+        });
+        if (Object.keys(u).length) await db.ref().update(u);
+        return true;
+    } catch (e) {
+        console.warn('Purge des anciens soldes impossible :', e);
+        return false;
+    }
+}
+
 async function runDailyMaintenance() {
     try {
-        const today = getTodayStr();
+        const today = getBusinessDayStr();
         // Tâches légères (report des soldes et des opérations) : le premier appareil du jour les fait pour tout le monde
         const light = await db.ref(CFG_PATH + '/maintDone').transaction(cur => cur === today ? undefined : today);
         if (light && light.committed) {
@@ -2599,6 +2684,7 @@ async function runDailyMaintenance() {
                 await backfillClientsOnce();
                 await purgeOldOperations();
                 await purgeOldVoiceNotes();
+                await purgeOldBalances();
             }
         }
     } catch (e) {
@@ -2964,7 +3050,7 @@ function applyHeldLinesAdmin(id, date, start) {
 function openHeldBalanceModal() {
     const id = window.__me;
     if (!id || id === 'admin' || state.currentRole !== id) return;
-    const date = state.selectedDate || getTodayStr();
+    const date = state.selectedDate || getBusinessDayStr();
     document.getElementById('input-held-balance-amount').value = getHeldBalance(id, date);
     document.getElementById('held-balance-hint').textContent = `Solde de départ fixé par l'Admin : ${fmtMoneyTND(getStartBalance(id, date))}`;
     toggleHeldBalanceModal(true);
@@ -2977,7 +3063,7 @@ function handleSaveHeldBalance(e) {
     e.preventDefault();
     const id = window.__me;
     if (!id || id === 'admin') return;
-    const date = state.selectedDate || getTodayStr();
+    const date = state.selectedDate || getBusinessDayStr();
     if (isPastDate(date)) { alert("Impossible : on ne modifie pas le solde possédé d'une journée passée."); return; }
     const amount = parseFloat(document.getElementById('input-held-balance-amount').value);
     if (isNaN(amount)) { alert("Montant invalide."); return; }
@@ -2991,7 +3077,7 @@ function handleSaveHeldBalance(e) {
 function resetHeldBalance() {
     const id = window.__me;
     if (!id || id === 'admin') return;
-    const date = state.selectedDate || getTodayStr();
+    const date = state.selectedDate || getBusinessDayStr();
     if (isPastDate(date)) { alert("Impossible pour une journée passée."); return; }
     if (state.livreurs[id].heldBalances) delete state.livreurs[id].heldBalances[date];
     dbRemove(CFG_PATH + '/livreurs/' + id + '/heldBalances/' + date);
@@ -3003,7 +3089,7 @@ function resetHeldBalance() {
 // ==================== CARRY OVER ====================
 async function carryOverStartBalances() {
     try {
-        const today = getTodayStr();
+        const today = getBusinessDayStr();
         // 1) Lectures minuscules : si tous les soldes du jour existent déjà, on s'arrête (aucun téléchargement inutile)
         const tiny = await Promise.all([db.ref(CFG_PATH + '/adminStartBalances/' + today).once('value')]
             .concat(LIVREUR_IDS.map(id => db.ref(CFG_PATH + '/livreurs/' + id + '/startBalances/' + today).once('value'))));
@@ -3028,12 +3114,12 @@ async function carryOverStartBalances() {
             const k = lastKey(livs[id] && livs[id].startBalances);
             if (k && (!prevDate || k > prevDate)) prevDate = k;
         });
-        try {
+                try {
             const dt = new Date(); dt.setHours(12, 0, 0, 0); dt.setDate(dt.getDate() - 1);
             const lastOp = await db.ref(OPS_PATH).orderByChild('date').endAt(toLocalDateStr(dt)).limitToLast(1).once('value');
             lastOp.forEach(ch => {
                 const dd = ch.val() && ch.val().date;
-                if (dd && (!prevDate || dd > prevDate)) prevDate = dd;
+                if (dd && dd < today && (!prevDate || dd > prevDate)) prevDate = dd;
             });
         } catch (e) { console.warn('Dernière opération introuvable :', e); }
         if (!prevDate && needDebt.length === 0) return true;
@@ -3103,7 +3189,7 @@ function debtLabel(v) {
 
 function openDebtModal(livreurId) {
     if (state.currentRole !== 'admin' || !isAdminAuthenticated) return;
-    const date = state.selectedDate || getTodayStr();
+    const date = state.selectedDate || getBusinessDayStr();
     _debtLivreurId = livreurId;
     _debtBuffer = getDebt(livreurId, date);
     document.getElementById('debt-livreur-name').textContent = 'Dette — ' + (state.livreurs[livreurId]?.name || livreurId);
@@ -3132,7 +3218,7 @@ function handleAddDebtAmount() {
     updateDebtPreviewUI();
 }
 function handleDebtUseRealBalance() {
-    const date = state.selectedDate || getTodayStr();
+    const date = state.selectedDate || getBusinessDayStr();
     const real = calculateRealBalance(_debtLivreurId, date);
     if (Math.abs(real) < 0.005) { alert("Le solde réel est 0. Rien à ajouter."); return; }
     const fmt = x => Number(x).toLocaleString('fr-FR');
@@ -3151,7 +3237,7 @@ function handleDebtReset() {
 }
 async function handleConfirmDebt() {
     if (!_debtLivreurId) return;
-    const date = state.selectedDate || getTodayStr();
+    const date = state.selectedDate || getBusinessDayStr();
     const value = Math.round(_debtBuffer * 100) / 100;
     try {
         await db.ref(CFG_PATH + '/livreurs/' + _debtLivreurId + '/debt/' + date).set(value);
@@ -3388,7 +3474,7 @@ async function _vrFinalize(mimeType) {
     try {
         // L'audio va dans « voiceData » ; l'opération ne garde qu'un petit résumé (durée, auteur) : elle reste légère à télécharger
         const u = {};
-        u[VOICE_PATH + '/' + id] = { data: b64, mimeType, duration: dur, at: Date.now(), by, opId, date: (op && op.date) || getTodayStr() };
+        u[VOICE_PATH + '/' + id] = { data: b64, mimeType, duration: dur, at: Date.now(), by, opId, date: (op && op.date) || getBusinessDayStr() };
         u[OPS_PATH + '/' + opId + '/voiceMeta/' + id] = { duration: dur, at: Date.now(), by };
         await db.ref().update(u);
         showToast("🎤 Vocal envoyé", `${dur}s enregistrés.`);
@@ -3582,7 +3668,7 @@ function renderAdminDashboard() {
     const globalTheoTotal = adminStart + globalAddedTheo - globalDeliveriesTheo;
     document.getElementById('admin-total-real-balance').textContent = `${globalRealTotal.toLocaleString('fr-FR')} TND`;
     document.getElementById('admin-total-theo-balance').textContent = `${globalTheoTotal.toLocaleString('fr-FR')} TND`;
-    document.getElementById('admin-global-date-label').textContent = date === getTodayStr() ? "Aujourd'hui" : date;
+    document.getElementById('admin-global-date-label').textContent = date === getBusinessDayStr() ? "Aujourd'hui" : date;
     const dayOps = state.deliveries.filter(d => (d.date || getTodayStr()) === date);
     dayOps.forEach(d => {
         if (d.type === 'SOLDE_RECU') countCash++;
@@ -3820,12 +3906,12 @@ ${_vBtn(d.id)}
 
 // ==================== EXPORT EXCEL ====================
 function openExportExcelModal() {
-    const today = getTodayStr();
-    document.getElementById('export-start-date').value = today;
-    document.getElementById('export-end-date').value = today;
+    loadXLSX().catch(() => {});   // préchargement pendant que la fenêtre s'ouvre
+    const base = state.selectedDate || getBusinessDayStr();
+    document.getElementById('export-start-date').value = base;
+    document.getElementById('export-end-date').value = base;
     document.getElementById('modal-export-excel').classList.remove('hidden');
-}
-function toggleExportExcelModal(show) {
+}function toggleExportExcelModal(show) {
     const m = document.getElementById('modal-export-excel');
     if (show) m.classList.remove('hidden'); else m.classList.add('hidden');
 }
@@ -3835,8 +3921,9 @@ function toggleExportModeUI() {
     if (rangeMode) c.classList.remove('hidden'); else c.classList.add('hidden');
 }
 async function executeExcelExport() {
+    try { await loadXLSX(); } catch (err) { alert("❌ " + err.message); return; }
     const mode = document.querySelector('input[name="export-mode"]:checked').value;
-    let startDate = state.selectedDate || getTodayStr();
+    let startDate = state.selectedDate || getBusinessDayStr();
     let endDate = startDate;
     if (mode === 'range') {
         startDate = document.getElementById('export-start-date').value;
@@ -4063,10 +4150,10 @@ function toggleOpTypeForm() {
         document.getElementById('input-phone').required = true;
     }
 }
-function isPastDate(targetDate) { return targetDate < getTodayStr(); }
+function isPastDate(targetDate) { return targetDate < getBusinessDayStr(); }
 function handleSaveDelivery(e) {
     e.preventDefault();
-    const date = state.selectedDate || getTodayStr();
+    const date = state.selectedDate || getBusinessDayStr();
     const phoneInput = document.getElementById('input-phone').value.trim();
     const cleanedPhone = normalizePhone(phoneInput);
     if (cleanedPhone) {
@@ -4120,7 +4207,7 @@ function handleSaveRemark(e) {
 }
 function handleSaveAddCash(e) {
     e.preventDefault();
-    const date = state.selectedDate || getTodayStr();
+    const date = state.selectedDate || getBusinessDayStr();
     if (isPastDate(date)) { alert("Impossible : date passée."); return; }
     const amount = parseFloat(document.getElementById('input-add-cash-amount').value);
     const clientName = document.getElementById('input-add-cash-name').value.trim();
@@ -4145,7 +4232,7 @@ function handleSaveStartBalance(e) {
     e.preventDefault();
     const livreurId = document.getElementById('start-balance-livreur-id').value;
     const amount = parseFloat(document.getElementById('input-start-balance-amount').value);
-    const date = state.selectedDate || getTodayStr();
+    const date = state.selectedDate || getBusinessDayStr();
     if (isNaN(amount)) { alert("Montant invalide."); return; }
     const adminStart = getAdminStartBalance(date);
     const otherSum = LIVREUR_IDS.filter(id => id !== livreurId).reduce((s, id) => s + getStartBalance(id, date), 0);
@@ -4177,7 +4264,7 @@ function toggleAddModal(show) {
 function openAddCashModal() { document.getElementById('form-add-cash').reset(); document.getElementById('modal-add-cash').classList.remove('hidden'); }
 function toggleAddCashModal(show) { const m = document.getElementById('modal-add-cash'); if (show) m.classList.remove('hidden'); else m.classList.add('hidden'); }
 function openStartBalanceModal(livreurId) {
-    const date = state.selectedDate || getTodayStr();
+    const date = state.selectedDate || getBusinessDayStr();
     const currentStart = getStartBalance(livreurId, date);
     const adminStart = getAdminStartBalance(date);
     const otherSum = ['livreur1', 'livreur2', 'livreur3'].filter(id => id !== livreurId).reduce((s, id) => s + getStartBalance(id, date), 0);
@@ -4190,7 +4277,7 @@ function openStartBalanceModal(livreurId) {
 }
 function toggleStartBalanceModal(show) { const m = document.getElementById('modal-start-balance'); if (show) m.classList.remove('hidden'); else m.classList.add('hidden'); }
 function openAdminStartBalanceModal() {
-    const date = state.selectedDate || getTodayStr();
+    const date = state.selectedDate || getBusinessDayStr();
     document.getElementById('input-admin-start-balance-amount').value = getAdminStartBalance(date);
     toggleAdminStartBalanceModal(true);
 }
@@ -4211,7 +4298,7 @@ function updateTransferPreview() {
     const fromId = document.getElementById('transfer-from-livreur').value;
     const toId = document.getElementById('transfer-to-livreur').value;
     const amount = parseFloat(document.getElementById('transfer-amount').value) || 0;
-    const date = state.selectedDate || getTodayStr();
+    const date = state.selectedDate || getBusinessDayStr();
     const preview = document.getElementById('transfer-preview');
     if (fromId === toId) {
         preview.innerHTML = `<p class="font-bold text-red-700">❌ Source et destination doivent être différents.</p>`;
@@ -4239,7 +4326,7 @@ async function handleTransferBalance(e) {
     const fromId = document.getElementById('transfer-from-livreur').value;
     const toId = document.getElementById('transfer-to-livreur').value;
     const amount = parseFloat(document.getElementById('transfer-amount').value);
-    const date = state.selectedDate || getTodayStr();
+    const date = state.selectedDate || getBusinessDayStr();
 
     if (fromId === toId) { alert("Source et destination doivent être différents."); return; }
     if (!(amount > 0)) { alert("Montant invalide."); return; }
@@ -4288,7 +4375,7 @@ async function handleTransferBalance(e) {
 
 function handleSaveAdminStartBalance(e) {
     e.preventDefault();
-    const date = state.selectedDate || getTodayStr();
+    const date = state.selectedDate || getBusinessDayStr();
     const amount = parseFloat(document.getElementById('input-admin-start-balance-amount').value);
     if (isNaN(amount)) { alert("Montant invalide."); return; }
     const currentLivreursTotal = getTotalLivreursStartBalance(date);
@@ -4354,7 +4441,7 @@ function shiftDate(delta) {
         alert("Accès à l'historique désactivé par l'admin.\nVous ne pouvez consulter que la journée en cours.");
         return;
     }
-    const base = state.selectedDate || getTodayStr();
+    const base = state.selectedDate || getBusinessDayStr();
     const d = new Date(base + 'T12:00:00');
     d.setDate(d.getDate() + delta);
     const picker = document.getElementById('global-date-picker');
@@ -4363,7 +4450,7 @@ function shiftDate(delta) {
 }
 function handleDateChange() {
     if (state.currentRole !== 'admin' && state.couriersCanSeeHistory === false) {
-        const today = getTodayStr();
+        const today = getBusinessDayStr();
         document.getElementById('global-date-picker').value = today;
         state.selectedDate = today;
         state.deliveries = [];
@@ -4371,7 +4458,7 @@ function handleDateChange() {
         renderApp();
         return;
     }
-    state.selectedDate = document.getElementById('global-date-picker').value || getTodayStr();
+    state.selectedDate = document.getElementById('global-date-picker').value || getBusinessDayStr();
     state.deliveries = [];
     if (window.__me) subscribeOps();
     renderApp();
@@ -4381,9 +4468,9 @@ let midnightWatcherStarted = false;
 function startMidnightWatcher() {
     if (midnightWatcherStarted) return;
     midnightWatcherStarted = true;
-    window.__lastToday = getTodayStr();
+    window.__lastToday = getBusinessDayStr();
     const checkDayChange = () => {
-        const t = getTodayStr();
+        const t = getBusinessDayStr();
         if (window.__lastToday && window.__lastToday !== t) {
             const wasViewingToday = state.selectedDate === window.__lastToday;
             window.__lastToday = t;
@@ -4403,8 +4490,8 @@ function startMidnightWatcher() {
     document.addEventListener('visibilitychange', () => { if (!document.hidden) checkDayChange(); });
     window.addEventListener('focus', checkDayChange);
 }
-
 async function startAdminSession() {
+    publishAppVersion();
     window.__me = 'admin';
     isAdminAuthenticated = true;
     unlockUI();
@@ -4418,7 +4505,7 @@ async function startAdminSession() {
 }
 
 async function boot() {
-    document.getElementById('global-date-picker').value = state.selectedDate || getTodayStr();
+    document.getElementById('global-date-picker').value = state.selectedDate || getBusinessDayStr();
     db.ref('.info/connected').on('value', s => setSyncStatus(s.val() ? 'online' : 'offline'));
     const { role: urlRole, token: urlToken } = getRoleFromURL();
     try {
@@ -4481,7 +4568,7 @@ window.addEventListener('DOMContentLoaded', boot);
     try { var saved = localStorage.getItem(KEY); if (LANGS.indexOf(saved) >= 0) lang = saved; } catch (e) {}
 
     var E = [
-        [`Warda v56 - Gestion de Warda`, `Warda v56 - Warda management`, `وردة v56 - إدارة وردة`],
+        [`Warda v57 - Gestion de Warda`, `Warda v57 - Warda management`, `وردة v57 - إدارة وردة`],
         [`Gestion de la Liste Noire (Clients Bloqués)`, `Blacklist Management (Blocked Clients)`, `إدارة القائمة السوداء (العملاء المحظورون)`],
         [`Ajouter / Modifier un Client Bloqué`, `Add / Edit a Blocked Client`, `إضافة / تعديل عميل محظور`],
         [`Téléphone *`, `Phone *`, `الهاتف *`],
