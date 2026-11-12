@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Warda v59.1 - Gestion de Warda</title>
+<title>Warda v59.2 - Gestion de Warda</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
@@ -399,7 +399,7 @@
 </div>
 
 <!-- ÉCRAN DE CHARGEMENT -->
-<button id="update-banner" type="button" onclick="reloadForUpdate()" class="hidden fixed top-4 left-1/2 -translate-x-1/2 z-[70] w-[92%] max-w-md px-4 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm rounded-2xl shadow-2xl border border-emerald-300 text-center transition">
+<button id="update-banner" type="button" onclick="reloadForUpdate()" class="hidden fixed top-20 left-1/2 -translate-x-1/2 z-[70] w-[92%] max-w-md px-4 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm rounded-2xl shadow-2xl border border-emerald-300 text-center transition">
     <i class="fa-solid fa-rotate me-1"></i> Nouvelle version disponible, cliquez ici pour actualiser la page.
 </button>
 
@@ -420,7 +420,7 @@
     <span id="sync-indicator" class="syncing inline-block w-2.5 h-2.5 rounded-full" title="État de la connexion"></span>
 	<span id="admin-presence-dot" role="button" tabindex="0" aria-label="Voir le statut de l'admin" class="presence-dot hidden" data-presence="admin" title="Admin hors ligne"></span>
 				</h1>
-                <p class="text-xs text-slate-400 hidden sm:block">Gestion de Warda - <span class="text-emerald-400 font-bold">v59.1</span></p>
+                <p class="text-xs text-slate-400 hidden sm:block">Gestion de Warda - <span class="text-emerald-400 font-bold">v59.2</span></p>
             </div>
         </div>
         <button id="notif-bell" type="button" onclick="openNotifPanel()" title="Toutes les notifications" class="relative w-11 h-11 bg-slate-800 border border-slate-700 rounded-xl text-slate-200 hover:text-white hover:bg-slate-700 transition order-2 sm:order-3">
@@ -1203,7 +1203,7 @@ const firebaseConfig = {
 };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
-const APP_VERSION = 59.1;      // à augmenter à chaque nouvelle version publiée (sert au bandeau « Nouvelle version »)
+const APP_VERSION = 59.2;      // à augmenter à chaque nouvelle version publiée (sert au bandeau « Nouvelle version »)
 const ROOT = 'cashexpress';
 const OPS_PATH = ROOT + '/ops';
 const CFG_PATH = ROOT + '/config';
@@ -1687,11 +1687,25 @@ function publishAppVersion() {
 function watchAppVersion() {
     if (window.__verWatch) return;
     window.__verWatch = true;
-    db.ref(CFG_PATH + '/appVersion').on('value', snap => {
-        const v = Number(snap.val());
+    const check = (v) => {
         const b = document.getElementById('update-banner');
-        if (b) b.classList.toggle('hidden', !(v > APP_VERSION));
-    }, () => {});
+        if (b) b.classList.toggle('hidden', !(Number(v) > APP_VERSION));
+    };
+    // 1) Listener temps réel (le plus réactif)
+    db.ref(CFG_PATH + '/appVersion').on('value', snap => check(snap.val()), () => {});
+    // 2) Vérification périodique toutes les 30s (filet de sécurité si le WebSocket lâche)
+    setInterval(() => {
+        db.ref(CFG_PATH + '/appVersion').once('value').then(s => check(s.val())).catch(() => {});
+    }, 30000);
+    // 3) Vérification au retour d'onglet (mobile, changement d'appli, sortie de veille)
+    let lastCheck = 0;
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) return;
+        const now = Date.now();
+        if (now - lastCheck < 10000) return;
+        lastCheck = now;
+        db.ref(CFG_PATH + '/appVersion').once('value').then(s => check(s.val())).catch(() => {});
+    });
 }
 function reloadForUpdate() {
     try {
@@ -4569,7 +4583,7 @@ window.addEventListener('DOMContentLoaded', boot);
     try { var saved = localStorage.getItem(KEY); if (LANGS.indexOf(saved) >= 0) lang = saved; } catch (e) {}
 
     var E = [
-        [`Warda v59.1 - Gestion de Warda`, `Warda v59.1 - Warda management`, `وردة v59.1 - إدارة وردة`],
+        [`Warda v59.2 - Gestion de Warda`, `Warda v59.2 - Warda management`, `وردة v59.2 - إدارة وردة`],
 	[`Nouvelle version disponible, cliquez ici pour actualiser la page.`, `New version available, click here to refresh the page.`, `إصدار جديد متوفر، انقر هنا لتحديث الصفحة.`],
         [`Gestion de la Liste Noire (Clients Bloqués)`, `Blacklist Management (Blocked Clients)`, `إدارة القائمة السوداء (العملاء المحظورون)`],
         [`Ajouter / Modifier un Client Bloqué`, `Add / Edit a Blocked Client`, `إضافة / تعديل عميل محظور`],
