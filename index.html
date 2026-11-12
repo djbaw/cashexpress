@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Warda v60.1 - Gestion de Warda</title>
+<title>Warda v60.2 - Gestion de Warda</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
@@ -461,7 +461,7 @@ body.locked #lang-float.admin-only { display: flex; }
     <span id="sync-indicator" class="syncing inline-block w-2.5 h-2.5 rounded-full" title="État de la connexion"></span>
 	<span id="admin-presence-dot" role="button" tabindex="0" aria-label="Voir le statut de l'admin" class="presence-dot hidden" data-presence="admin" title="Admin hors ligne"></span>
 				</h1>
-                <p class="text-xs text-slate-400 hidden sm:block">Gestion de Warda - <span class="text-emerald-400 font-bold">v60.1</span></p>
+                <p class="text-xs text-slate-400 hidden sm:block">Gestion de Warda - <span class="text-emerald-400 font-bold">v60.2</span></p>
             </div>
         </div>
         <button id="notif-bell" type="button" onclick="openNotifPanel()" title="Toutes les notifications" class="relative w-11 h-11 bg-slate-800 border border-slate-700 rounded-xl text-slate-200 hover:text-white hover:bg-slate-700 transition order-2 sm:order-3">
@@ -1290,7 +1290,7 @@ const firebaseConfig = {
 };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
-const APP_VERSION = 60.1;      // à augmenter à chaque nouvelle version publiée (sert au bandeau « Nouvelle version »)
+const APP_VERSION = 60.2;      // à augmenter à chaque nouvelle version publiée (sert au bandeau « Nouvelle version »)
 const ROOT = 'cashexpress';
 const OPS_PATH = ROOT + '/ops';
 const CFG_PATH = ROOT + '/config';
@@ -4346,7 +4346,6 @@ function handleSaveEditOp(e) {
         const bl = patch.phoneClean && (state.blacklist || []).find(b => String(b.phone).replace(/\s+/g, '') === patch.phoneClean);
         if (bl && !confirm(`⚠️ CLIENT BLACKLISTÉ !\n\nNom : ${bl.clientName}\nMotif : ${bl.reason}\n\nEnregistrer quand même ce numéro ?`)) return;
     }
-    patch.timestamp = new Date().getTime();
     patchOp(id, patch);
     toggleEditOpModal(false);
     showToast("Modification enregistrée", `${Object.keys(patch).filter(k => k !== 'timestamp' && k !== 'phoneClean').length} information(s) mise(s) à jour pour ${next.clientName}.`);
@@ -4867,7 +4866,7 @@ window.addEventListener('DOMContentLoaded', boot);
     try { var saved = localStorage.getItem(KEY); if (LANGS.indexOf(saved) >= 0) lang = saved; } catch (e) {}
 
     var E = [
-        [`Warda v60.1 - Gestion de Warda`, `Warda v60.1 - Warda management`, `وردة v60.1 - إدارة وردة`],
+        [`Warda v60.2 - Gestion de Warda`, `Warda v60.2 - Warda management`, `وردة v60.2 - إدارة وردة`],
 [`Options`, `Options`, `خيارات`],
 [`Langue`, `Language`, `اللغة`],
 [`Plus d'options`, `More options`, `المزيد من الخيارات`],
