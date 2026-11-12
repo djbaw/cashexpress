@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Warda v55 - Gestion de Warda</title>
+<title>Warda v56 - Gestion de Warda</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -108,6 +108,18 @@
     animation: presence-pulse 2s infinite;
 }
 .presence-dot.offline { background: #ef4444; }
+.presence-dot {
+    position: relative;
+    cursor: pointer;
+}
+.presence-dot::after {
+    content: '';
+    position: absolute;
+    top: -10px;
+    left: -10px;
+    right: -10px;
+    bottom: -10px;
+}
 @keyframes presence-pulse {
     0%, 100% { box-shadow: 0 0 0 0 rgba(16,185,129,.6); }
     50%      { box-shadow: 0 0 0 4px rgba(16,185,129,0); }
@@ -395,7 +407,7 @@
     <span id="sync-indicator" class="syncing inline-block w-2.5 h-2.5 rounded-full" title="État de la connexion"></span>
     <span id="admin-presence-dot" class="presence-dot hidden" data-presence="admin" title="Admin hors ligne"></span>
 </h1>
-                <p class="text-xs text-slate-400 hidden sm:block">Gestion de Warda - <span class="text-emerald-400 font-bold">v55</span></p>
+                <p class="text-xs text-slate-400 hidden sm:block">Gestion de Warda - <span class="text-emerald-400 font-bold">v56</span></p>
             </div>
         </div>
         <button id="notif-bell" type="button" onclick="openNotifPanel()" title="Toutes les notifications" class="relative w-11 h-11 bg-slate-800 border border-slate-700 rounded-xl text-slate-200 hover:text-white hover:bg-slate-700 transition order-2 sm:order-3">
@@ -1480,7 +1492,10 @@ const getTimeStr = (timestamp) => {
     const d = timestamp ? new Date(timestamp) : new Date();
     return d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
 };
-
+const getDateStr = (timestamp) => {
+    const d = timestamp ? new Date(timestamp) : new Date();
+    return d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+};
 // ==================== ÉTAT ====================
 const LIVREUR_IDS = ['livreur1', 'livreur2', 'livreur3'];
 const DEFAULT_NAMES = { livreur1: 'Sami (Livreur 1)', livreur2: 'Karim (Livreur 2)', livreur3: 'Youssef (Livreur 3)' };
@@ -2480,6 +2495,7 @@ function initPresence() {
         state.presence = snap.val() || {};
         updatePresenceDots();
     });
+setupPresenceClickHandler();
 }
 function updatePresenceDots() {
     const isLivreurMode = !!window.__me && window.__me !== 'admin';
@@ -2493,20 +2509,48 @@ function updatePresenceDots() {
     const adminDot = document.getElementById('admin-presence-dot');
     if (adminDot) adminDot.classList.toggle('hidden', !isLivreurMode);
 
-    // Points de présence (cartes admin + dot admin dans le header)
+        // Points de présence (cartes admin + dot admin dans le header)
     document.querySelectorAll('[data-presence]').forEach(el => {
         const id = el.getAttribute('data-presence');
         const p = state.presence[id];
         const online = p && p.online === true;
         el.classList.remove('online', 'offline');
         el.classList.add(online ? 'online' : 'offline');
-        if (id === 'admin') {
-            el.title = online ? 'Admin en ligne' : 'Admin hors ligne';
-        } else {
-            el.title = online ? 'En ligne' : 'Hors ligne';
-        }
+
+        // 🕒 Date + heure exactes de la (dé)connexion, sans minuterie
+        const lastSeen = p && Number(p.lastSeen) ? Number(p.lastSeen) : 0;
+        const timeStr = lastSeen ? getTimeStr(lastSeen) : '';
+        const dateStr = lastSeen ? getDateStr(lastSeen) : '';
+
+                el.title = online
+            ? (timeStr ? `Connecté le ${dateStr} à ${timeStr}` : 'En ligne')
+            : (timeStr ? `Déconnecté le ${dateStr} à ${timeStr}` : 'Hors ligne');
     });
 }
+
+// 👇 NOUVELLE FONCTION : clic sur le point (utile sur mobile)
+let _presenceClickSetup = false;
+function setupPresenceClickHandler() {
+    if (_presenceClickSetup) return;
+    _presenceClickSetup = true;
+    document.addEventListener('click', (e) => {
+        const dot = e.target.closest('[data-presence]');
+        if (!dot) return;
+        const id = dot.getAttribute('data-presence');
+        const p = state.presence[id];
+        if (!p || !Number(p.lastSeen)) return;
+        const online = p.online === true;
+        const lastSeen = Number(p.lastSeen);
+        const dateStr = getDateStr(lastSeen);
+        const timeStr = getTimeStr(lastSeen);
+        const name = id === 'admin' ? 'Admin' : (state.livreurs[id]?.name || id);
+        const msg = online
+            ? `Connecté le ${dateStr} à ${timeStr}`
+            : `Déconnecté le ${dateStr} à ${timeStr}`;
+        showToast(name, msg, true);   // true = silencieux (pas de bip)
+    });
+}
+
 window.initPresence = initPresence;
 window.updatePresenceDots = updatePresenceDots;
 async function runDailyMaintenance() {
@@ -2534,8 +2578,8 @@ async function runDailyMaintenance() {
 }
 
 // ==================== TOAST ====================
-function showToast(title, message) {
-    playNotificationSound(getNotifSoundType(title));
+function showToast(title, message, silent = false) {
+    if (!silent) playNotificationSound(getNotifSoundType(title));
     const toast = document.getElementById('notification-toast');    document.getElementById('toast-title').textContent = title;
     document.getElementById('toast-body').textContent = message;
     clearTimeout(window._toastTimer);
@@ -4408,7 +4452,7 @@ window.addEventListener('DOMContentLoaded', boot);
     try { var saved = localStorage.getItem(KEY); if (LANGS.indexOf(saved) >= 0) lang = saved; } catch (e) {}
 
     var E = [
-        [`Warda v55 - Gestion de Warda`, `Warda v55 - Warda management`, `وردة v55 - إدارة وردة`],
+        [`Warda v56 - Gestion de Warda`, `Warda v56 - Warda management`, `وردة v56 - إدارة وردة`],
         [`Gestion de la Liste Noire (Clients Bloqués)`, `Blacklist Management (Blocked Clients)`, `إدارة القائمة السوداء (العملاء المحظورون)`],
         [`Ajouter / Modifier un Client Bloqué`, `Add / Edit a Blocked Client`, `إضافة / تعديل عميل محظور`],
         [`Téléphone *`, `Phone *`, `الهاتف *`],
@@ -4794,6 +4838,10 @@ window.addEventListener('DOMContentLoaded', boot);
 	[`Max 999 TND · Laissez vide pour la valeur par défaut.`, `Max 999 TND · Leave empty for default value.`, `الحد الأقصى 999 TND · اترك الحقل فارغاً للقيمة الافتراضية.`],
 	[`Frais`, `Fees`, `رسوم`],
 	[`Alimentation`, `Top-up`, `تغذية`],
+	[`En ligne`, `Online`, `متصل`],
+	[`Hors ligne`, `Offline`, `غير متصل`],
+	[`Admin en ligne`, `Admin online`, `المسؤول متصل`],
+	[`Admin hors ligne`, `Admin offline`, `المسؤول غير متصل`],
     ];
 
     var P = [
@@ -4870,6 +4918,8 @@ window.addEventListener('DOMContentLoaded', boot);
 	[`Admin doit : {1}`, `Admin owes: {1}`, `المسؤول مدين: {1}`],
 	[`Dette — {1}`, `Debt — {1}`, `الدين — {1}`],
 	[`Nouvelle dette : {1} — {2}`, `New debt: {1} — {2}`, `الدين الجديد: {1} — {2}`],
+	[`Connecté le {1} à {2}`, `Connected on {1} at {2}`, `متصل في {1} الساعة {2}`],
+	[`Déconnecté le {1} à {2}`, `Disconnected on {1} at {2}`, `غير متصل منذ {1} الساعة {2}`],
  ];
 
     [
