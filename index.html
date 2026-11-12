@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Warda v60.0 - Gestion de Warda</title>
+<title>Warda v60.1 - Gestion de Warda</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
@@ -427,7 +427,7 @@
     <span id="sync-indicator" class="syncing inline-block w-2.5 h-2.5 rounded-full" title="État de la connexion"></span>
 	<span id="admin-presence-dot" role="button" tabindex="0" aria-label="Voir le statut de l'admin" class="presence-dot hidden" data-presence="admin" title="Admin hors ligne"></span>
 				</h1>
-                <p class="text-xs text-slate-400 hidden sm:block">Gestion de Warda - <span class="text-emerald-400 font-bold">v60.0</span></p>
+                <p class="text-xs text-slate-400 hidden sm:block">Gestion de Warda - <span class="text-emerald-400 font-bold">v60.1</span></p>
             </div>
         </div>
         <button id="notif-bell" type="button" onclick="openNotifPanel()" title="Toutes les notifications" class="relative w-11 h-11 bg-slate-800 border border-slate-700 rounded-xl text-slate-200 hover:text-white hover:bg-slate-700 transition order-2 sm:order-3">
@@ -440,6 +440,9 @@
 </button>
 <button id="livreur-more-btn" type="button" onclick="toggleLivreurMoreMenu()" title="Plus d'options" class="hidden w-11 h-11 bg-slate-800 border border-slate-700 rounded-xl text-slate-200 hover:text-white hover:bg-slate-700 transition order-2 sm:order-3">
     <i class="fa-solid fa-ellipsis"></i>
+</button>
+<button id="sticky-toggle-btn" type="button" onclick="toggleStickyHeader()" title="Barre mobile (cliquer pour fixer)" aria-label="Barre mobile — cliquer pour fixer" class="hidden w-11 h-11 bg-slate-800 border border-slate-700 rounded-xl text-slate-200 hover:text-white hover:bg-slate-700 transition order-2 sm:order-3">
+    <i class="fa-solid fa-thumbtack text-slate-400"></i>
 </button>
 <div id="zoom-controls" class="flex items-center gap-1 bg-slate-800 p-1 rounded-xl border border-slate-700 order-2 sm:order-3" title="Taille du texte">        
             <button type="button" onclick="changeUiZoom(-0.1)" class="w-9 h-9 text-sm font-bold text-slate-200 hover:text-white hover:bg-slate-700 rounded-lg">A−</button>
@@ -489,24 +492,22 @@
 
 <!-- MAIN -->
 <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 space-y-6">
-    <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-col sm:flex-row justify-between items-center gap-4">
-        <div class="flex items-center space-x-2 w-full sm:w-auto flex-wrap">
+        <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-wrap items-center gap-2">
     <i class="fa-solid fa-calendar-days text-brand-600 text-lg hidden sm:block"></i>
-    <span class="text-xs sm:text-sm font-bold text-slate-700 shrink-0">Journée :</span>
+    <span class="text-xs sm:text-sm font-bold text-slate-700 shrink-0 hidden sm:inline">Journée :</span>
     <button type="button" onclick="shiftDate(-1)" id="date-prev-btn" title="Jour précédent" aria-label="Jour précédent" class="date-nav-arrow w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-700 rounded-xl transition shrink-0">
         <i class="fa-solid fa-chevron-left text-[10px] sm:text-xs"></i>
     </button>
-    <input type="date" id="global-date-picker" onchange="handleDateChange()" class="flex-1 sm:flex-initial min-w-0 px-2 sm:px-3 py-1.5 border border-slate-300 rounded-xl text-sm font-semibold text-slate-800 focus:ring-2 focus:ring-brand-500 focus:outline-none">
+    <input type="date" id="global-date-picker" onchange="handleDateChange()" class="min-w-0 px-2 sm:px-3 py-1.5 border border-slate-300 rounded-xl text-sm font-semibold text-slate-800 focus:ring-2 focus:ring-brand-500 focus:outline-none">
     <button type="button" onclick="shiftDate(1)" id="date-next-btn" title="Jour suivant" aria-label="Jour suivant" class="date-nav-arrow w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-700 rounded-xl transition shrink-0">
         <i class="fa-solid fa-chevron-right text-[10px] sm:text-xs"></i>
     </button>
-    <span id="history-locked-badge" class="hidden text-[10px] font-bold text-red-700 bg-red-50 px-2 py-0.5 rounded border border-red-200 whitespace-nowrap">🔒 Aujourd'hui uniquement</span>
-</div>
-        <div class="relative w-full sm:w-72">
-            <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-slate-400 text-xs"></i>
-            <input type="text" id="global-search-input" oninput="renderApp()" placeholder="Rechercher nom, tél, adresse..." class="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-xl text-xs font-medium focus:ring-2 focus:ring-brand-500 focus:outline-none">
-        </div>
+    <span id="history-locked-badge" class="hidden text-red-600 bg-red-50 px-2 py-1.5 rounded-lg border border-red-200 shrink-0" title="Aujourd'hui uniquement" aria-label="Aujourd'hui uniquement"><i class="fa-solid fa-lock text-[11px]"></i></span>
+    <div class="relative shrink-0">
+        <input type="text" id="global-search-input" oninput="renderApp()" onfocus="expandSearch(this)" onblur="collapseSearch(this)" placeholder="Rechercher nom, tél, adresse..." class="w-10 pl-9 pr-3 py-1.5 border border-slate-300 rounded-xl text-xs font-medium focus:ring-2 focus:ring-brand-500 focus:outline-none transition-all duration-200">
+        <i class="fa-solid fa-magnifying-glass absolute left-3 top-2 text-slate-400 text-xs pointer-events-none"></i>
     </div>
+</div>
 
     <!-- ADMIN VIEW -->
     <div id="view-admin" class="space-y-6">
@@ -1255,7 +1256,7 @@ const firebaseConfig = {
 };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
-const APP_VERSION = 60.0;      // à augmenter à chaque nouvelle version publiée (sert au bandeau « Nouvelle version »)
+const APP_VERSION = 60.1;      // à augmenter à chaque nouvelle version publiée (sert au bandeau « Nouvelle version »)
 const ROOT = 'cashexpress';
 const OPS_PATH = ROOT + '/ops';
 const CFG_PATH = ROOT + '/config';
@@ -1866,8 +1867,12 @@ function mergeLivreur(id, v) {
 }
 function addCfgListener(path, handler) {
     const ref = db.ref(path);
-    ref.on('value', handler, onListenerError);
-    cfgListeners.push({ ref, handler });
+    const wrapped = (snap) => {
+        if (window.__presenceTouch) window.__presenceTouch();
+        handler(snap);
+    };
+    ref.on('value', wrapped, onListenerError);
+    cfgListeners.push({ ref, handler: wrapped });
 }
 function attachConfigListeners(isAdmin, myId) {
     detachConfigListeners();
@@ -1911,7 +1916,8 @@ function subscribeOps() {
     opsFirstLoad = true;
     const date = state.selectedDate;
     opsRef = db.ref(OPS_PATH).orderByChild('date').equalTo(date);
-    opsHandler = (snap) => {
+        opsHandler = (snap) => {
+        if (window.__presenceTouch) window.__presenceTouch();
         const arr = [];
         snap.forEach(ch => {
             const v = ch.val();
@@ -1973,7 +1979,8 @@ function startNotifs() {
     seenNotifs = loadSeenNotifs();
     renderNotifs();
     notifRef = db.ref(NOTIF_PATH + '/' + window.__me);
-    notifHandler = (snap) => {
+        notifHandler = (snap) => {
+        if (window.__presenceTouch) window.__presenceTouch();
         const v = snap.val() || {};
         const arr = Object.keys(v)
             .filter(k => VALID_ID.test(k) && v[k] && typeof v[k] === 'object')
@@ -2666,21 +2673,50 @@ function initPresence() {
     if (!window.__me || window.__presenceInit) return;
     window.__presenceInit = true;
     const myRef = db.ref(PRESENCE_PATH + '/' + window.__me);
+
+    const setOnline = () => {
+        myRef.set({ online: true, lastSeen: Date.now() }).catch(() => {});
+    };
+
     // .info/connected se déclenche à chaque reconnexion
     db.ref('.info/connected').on('value', snap => {
         if (snap.val() !== true) return;
-        // Armer le marqueur "offline" au cas où on se déconnecte brutalement
-        myRef.onDisconnect().set({ online: false, lastSeen: Date.now() }).then(() => {
-            // On se déclare en ligne
-            myRef.set({ online: true, lastSeen: Date.now() }).catch(() => {});
-        }).catch(e => console.warn('Presence onDisconnect:', e));
+        myRef.onDisconnect().set({ online: false, lastSeen: Date.now() })
+            .then(setOnline)
+            .catch(e => console.warn('Presence onDisconnect:', e));
     });
-    // Écoute de tous les utilisateurs
+
+    // 🎯 Touch intelligent : n'écrit QUE si on est actuellement marqué "offline".
+    //    - Si online: true → aucune écriture (sauf refresh lastSeen toutes les 5 min)
+    //    - Si online: false → écrit tout de suite (fix du bug de blocage)
+    //    Appelé depuis : clic/focus/clavier/visibilité + réception de toute donnée Firebase.
+    let lastTouch = 0;
+    window.__presenceTouch = () => {
+        const now = Date.now();
+        const meState = state.presence[window.__me];
+        const isOnline = meState && meState.online === true;
+        const interval = isOnline ? 300000 : 5000; // 5min si online, 5s si offline
+        if (now - lastTouch < interval) return;
+        lastTouch = now;
+        setOnline();
+    };
+
+    if (window.__presenceCleanup) window.__presenceCleanup();
+    const handlers = [
+        ['visibilitychange', document, () => { if (document.visibilityState === 'visible') window.__presenceTouch(); }],
+        ['focus',            window,   window.__presenceTouch],
+        ['click',            document, window.__presenceTouch],
+        ['touchstart',       document, window.__presenceTouch],
+        ['keydown',          document, window.__presenceTouch],
+    ];
+    handlers.forEach(([evt, el, fn]) => el.addEventListener(evt, fn, { passive: true }));
+    window.__presenceCleanup = () => handlers.forEach(([evt, el, fn]) => el.removeEventListener(evt, fn));
+
     db.ref(PRESENCE_PATH).on('value', snap => {
         state.presence = snap.val() || {};
         updatePresenceDots();
     });
-setupPresenceClickHandler();
+    setupPresenceClickHandler();
 }
 function updatePresenceDots() {
     const isLivreurMode = !!window.__me && window.__me !== 'admin';
@@ -2898,6 +2934,7 @@ function switchRole(roleId, isURLCheck = false) {
         const isLivreurSession = window.__me !== 'admin';
     document.getElementById('fullscreen-toggle-btn')?.classList.toggle('hidden', roleId === 'admin');
     document.getElementById('livreur-more-btn')?.classList.toggle('hidden', !isLivreurSession);
+    document.getElementById('sticky-toggle-btn')?.classList.toggle('hidden', !isLivreurSession);
     document.getElementById('zoom-controls')?.classList.toggle('hidden', isLivreurSession);
     document.getElementById('lang-switch')?.classList.toggle('hidden', isLivreurSession);
     document.getElementById('admin-pin-settings-btn')?.classList.toggle('hidden', isLivreurSession);
@@ -4590,6 +4627,16 @@ function executeDeleteDelivery() {
     }
     toggleConfirmDeleteModal(false);
 }
+function expandSearch(el) {
+    el.classList.remove('w-10');
+    el.classList.add('w-44', 'sm:w-64');
+}
+function collapseSearch(el) {
+    if (!el.value.trim()) {
+        el.classList.remove('w-44', 'sm:w-64');
+        el.classList.add('w-10');
+    }
+}
 function shiftDate(delta) {
     if (state.currentRole !== 'admin' && state.couriersCanSeeHistory === false) {
         alert("Accès à l'historique désactivé par l'admin.\nVous ne pouvez consulter que la journée en cours.");
@@ -4644,12 +4691,66 @@ function startMidnightWatcher() {
     document.addEventListener('visibilitychange', () => { if (!document.hidden) checkDayChange(); });
     window.addEventListener('focus', checkDayChange);
 }
+function getStickyPreference() {
+    try {
+        const key = 'cashexpress_sticky_pref_' + (window.__me || 'none');
+        return localStorage.getItem(key) === 'sticky' ? 'sticky' : 'free';
+    } catch (e) { return 'free'; }
+}
+function setStickyPreference(pref) {
+    try {
+        const key = 'cashexpress_sticky_pref_' + (window.__me || 'none');
+        localStorage.setItem(key, pref);
+    } catch (e) {}
+}
+function updateStickyToggleBtn() {
+    const btn = document.getElementById('sticky-toggle-btn');
+    if (!btn) return;
+    const pref = getStickyPreference();
+    const icon = btn.querySelector('i');
+    if (pref === 'sticky') {
+        btn.title = 'Barre fixe (cliquer pour libérer)';
+        btn.setAttribute('aria-label', 'Barre fixe — cliquer pour libérer');
+        if (icon) icon.className = 'fa-solid fa-thumbtack text-emerald-400';
+    } else {
+        btn.title = 'Barre mobile (cliquer pour fixer)';
+        btn.setAttribute('aria-label', 'Barre mobile — cliquer pour fixer');
+        if (icon) icon.className = 'fa-solid fa-thumbtack text-slate-400';
+    }
+}
 function updateHeaderStickyState() {
     const header = document.querySelector('header');
     if (!header) return;
     const isAdminSession = window.__me === 'admin';
-    header.classList.toggle('sm:sticky', isAdminSession);
-    header.classList.toggle('sm:top-0', isAdminSession);
+
+    // Reset toutes les classes liées au sticky
+    header.classList.remove('sm:sticky', 'sm:top-0', 'sticky', 'top-0');
+
+    if (isAdminSession) {
+        // Admin : comportement historique inchangé (sticky sur sm+ uniquement)
+        header.classList.add('sm:sticky', 'sm:top-0');
+    } else {
+        // Livreur : selon la préférence utilisateur
+        if (getStickyPreference() === 'sticky') {
+            // Sticky partout (portrait + paysage)
+            header.classList.add('sticky', 'top-0');
+        }
+        // Sinon : pas de sticky, la barre défile normalement
+    }
+    updateStickyToggleBtn();
+}
+function toggleStickyHeader() {
+    const current = getStickyPreference();
+    const next = current === 'sticky' ? 'free' : 'sticky';
+    setStickyPreference(next);
+    updateHeaderStickyState();
+    showToast(
+        next === 'sticky' ? 'Barre fixe' : 'Barre mobile',
+        next === 'sticky'
+            ? 'La barre reste visible en haut lors du défilement.'
+            : 'La barre disparaît lors du défilement vers le bas.',
+        true
+    );
 }
 async function startAdminSession() {
     publishAppVersion();
@@ -4730,10 +4831,18 @@ window.addEventListener('DOMContentLoaded', boot);
     try { var saved = localStorage.getItem(KEY); if (LANGS.indexOf(saved) >= 0) lang = saved; } catch (e) {}
 
     var E = [
-        [`Warda v60.0 - Gestion de Warda`, `Warda v60.0 - Warda management`, `وردة v60.0 - إدارة وردة`],
+        [`Warda v60.1 - Gestion de Warda`, `Warda v60.1 - Warda management`, `وردة v60.1 - إدارة وردة`],
 [`Options`, `Options`, `خيارات`],
 [`Langue`, `Language`, `اللغة`],
-[`Plus d'options`, `More options`, `المزيد من الخيارات`],	
+[`Plus d'options`, `More options`, `المزيد من الخيارات`],
+[`Barre fixe`, `Fixed bar`, `شريط ثابت`],
+[`Barre mobile`, `Scrollable bar`, `شريط متحرك`],
+[`Barre fixe (cliquer pour libérer)`, `Fixed bar (click to release)`, `شريط ثابت (انقر للتحرير)`],
+[`Barre mobile (cliquer pour fixer)`, `Scrollable bar (click to pin)`, `شريط متحرك (انقر للتثبيت)`],
+[`Barre fixe — cliquer pour libérer`, `Fixed bar — click to release`, `شريط ثابت — انقر للتحرير`],
+[`Barre mobile — cliquer pour fixer`, `Scrollable bar — click to pin`, `شريط متحرك — انقر للتثبيت`],
+[`La barre reste visible en haut lors du défilement.`, `The bar stays visible at the top while scrolling.`, `يبقى الشريط مرئياً في الأعلى أثناء التمرير.`],
+[`La barre disparaît lors du défilement vers le bas.`, `The bar disappears when scrolling down.`, `يختفي الشريط عند التمرير للأسفل.`],	
 [`Nouvelle version disponible, cliquez ici pour actualiser la page.`, `New version available, click here to refresh the page.`, `إصدار جديد متوفر، انقر هنا لتحديث الصفحة.`],
 	[`Passer en plein écran`, `Enter fullscreen`, `التبديل إلى وضع ملء الشاشة`],
         [`Quitter le plein écran`, `Exit fullscreen`, `الخروج من وضع ملء الشاشة`],
@@ -5102,6 +5211,7 @@ window.addEventListener('DOMContentLoaded', boot);
 	[`🔁 Transfert de solde (entrée)`, `🔁 Balance transfer (in)`, `🔁 تحويل رصيد (دخول)`],
 	[`Historique livreur : ON`, `Courier history: ON`, `سجل الموزّع: مفعّل`],
 	[`Historique livreur : OFF`, `Courier history: OFF`, `سجل الموزّع: معطّل`],
+	[`Aujourd'hui uniquement`, `Today only`, `اليوم فقط`],
 	[`🔒 Aujourd'hui uniquement`, `🔒 Today only`, `🔒 اليوم فقط`],
 	[`🎧 Vocal écouté`, `🎧 Voice message heard`, `🎧 تم الاستماع إلى الرسالة الصوتية`],
 	[`Gestion de la dette`, `Debt management`, `إدارة الدين`],
