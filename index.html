@@ -108,6 +108,15 @@
     animation: presence-pulse 2s infinite;
 }
 .presence-dot.offline { background: #ef4444; }
+	.presence-dot:active {
+    transform: scale(0.85);
+    transition: transform .1s;
+}
+.presence-dot:focus-visible {
+    outline: 2px solid #3b82f6;
+    outline-offset: 3px;
+    border-radius: 50%;
+}
 .presence-dot {
     position: relative;
     cursor: pointer;
@@ -405,8 +414,8 @@
                 <h1 class="font-bold text-lg leading-tight tracking-tight flex items-center gap-2">
     Warda
     <span id="sync-indicator" class="syncing inline-block w-2.5 h-2.5 rounded-full" title="État de la connexion"></span>
-    <span id="admin-presence-dot" class="presence-dot hidden" data-presence="admin" title="Admin hors ligne"></span>
-</h1>
+	<span id="admin-presence-dot" role="button" tabindex="0" aria-label="Voir le statut de l'admin" class="presence-dot hidden" data-presence="admin" title="Admin hors ligne"></span>
+				</h1>
                 <p class="text-xs text-slate-400 hidden sm:block">Gestion de Warda - <span class="text-emerald-400 font-bold">v56</span></p>
             </div>
         </div>
@@ -2533,21 +2542,41 @@ let _presenceClickSetup = false;
 function setupPresenceClickHandler() {
     if (_presenceClickSetup) return;
     _presenceClickSetup = true;
-    document.addEventListener('click', (e) => {
-        const dot = e.target.closest('[data-presence]');
+
+    const openPresenceInfo = (target) => {
+        const dot = target && target.closest ? target.closest('[data-presence]') : null;
         if (!dot) return;
         const id = dot.getAttribute('data-presence');
         const p = state.presence[id];
-        if (!p || !Number(p.lastSeen)) return;
-        const online = p.online === true;
-        const lastSeen = Number(p.lastSeen);
-        const dateStr = getDateStr(lastSeen);
-        const timeStr = getTimeStr(lastSeen);
         const name = id === 'admin' ? 'Admin' : (state.livreurs[id]?.name || id);
-        const msg = online
-            ? `Connecté le ${dateStr} à ${timeStr}`
-            : `Déconnecté le ${dateStr} à ${timeStr}`;
-        showToast(name, msg, true);   // true = silencieux (pas de bip)
+
+        // 🟢 Cas 1 : données présentes
+        if (p && Number(p.lastSeen)) {
+            const online = p.online === true;
+            const lastSeen = Number(p.lastSeen);
+            const dateStr = getDateStr(lastSeen);
+            const timeStr = getTimeStr(lastSeen);
+            const msg = online
+                ? `Connecté le ${dateStr} à ${timeStr}`
+                : `Déconnecté le ${dateStr} à ${timeStr}`;
+            showToast(name, msg, true);
+            return;
+        }
+
+        // 🟠 Cas 2 : pas encore de donnée (admin jamais vu depuis longtemps)
+        showToast(name, 'Aucune information de connexion disponible', true);
+    };
+
+    // 🖱️ Clic / tap
+    document.addEventListener('click', (e) => openPresenceInfo(e.target));
+
+    // ⌨️ Clavier : Entrée / Espace quand le point a le focus
+    document.addEventListener('keydown', (e) => {
+        if (e.key !== 'Enter' && e.key !== ' ') return;
+        const focused = document.activeElement;
+        if (!focused || !focused.matches('[data-presence]')) return;
+        e.preventDefault();
+        openPresenceInfo(focused);
     });
 }
 
