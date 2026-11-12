@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Warda v60.2 - Gestion de Warda</title>
+<title>Warda v60.3 - Gestion de Warda</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
@@ -461,7 +461,7 @@ body.locked #lang-float.admin-only { display: flex; }
     <span id="sync-indicator" class="syncing inline-block w-2.5 h-2.5 rounded-full" title="État de la connexion"></span>
 	<span id="admin-presence-dot" role="button" tabindex="0" aria-label="Voir le statut de l'admin" class="presence-dot hidden" data-presence="admin" title="Admin hors ligne"></span>
 				</h1>
-                <p class="text-xs text-slate-400 hidden sm:block">Gestion de Warda - <span class="text-emerald-400 font-bold">v60.2</span></p>
+                <p class="text-xs text-slate-400 hidden sm:block">Gestion de Warda - <span class="text-emerald-400 font-bold">v60.3</span></p>
             </div>
         </div>
         <button id="notif-bell" type="button" onclick="openNotifPanel()" title="Toutes les notifications" class="relative w-11 h-11 bg-slate-800 border border-slate-700 rounded-xl text-slate-200 hover:text-white hover:bg-slate-700 transition order-2 sm:order-3">
@@ -1302,7 +1302,7 @@ const firebaseConfig = {
 };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
-const APP_VERSION = 60.2;      // à augmenter à chaque nouvelle version publiée (sert au bandeau « Nouvelle version »)
+const APP_VERSION = 60.3;      // à augmenter à chaque nouvelle version publiée (sert au bandeau « Nouvelle version »)
 const ROOT = 'cashexpress';
 const OPS_PATH = ROOT + '/ops';
 const CFG_PATH = ROOT + '/config';
@@ -1458,6 +1458,7 @@ function getNotifSoundType(title) {
     const t = String(title || '');
     // ===== SONORITÉS SYMBOLIQUES IDENTIFIÉES =====
     if (/🎧|Vocal écouté/i.test(t)) return 'voice_read';
+    if (/🔢|Tri (mis à jour|réinitialisé)/i.test(t)) return 'success';
     if (/✅|Validation|Validé|Validée|🟢 Confirmation|Alimentation validée|Livraison validée/i.test(t)) return 'validate';
     if (/🔄|Remise en cours|Remettre en cours|Remis en cours/i.test(t)) return 'reset';
     if (/🔴 Annulation|Annulé|Annulée|Opération retirée|Ligne supprimée|Blacklisté|Révoqué/i.test(t)) return 'cancel';
@@ -1757,26 +1758,24 @@ function writeOp(op) {
         phoneClean: normalizePhone(op.phone),
         lastBy: window.__me, lastAt: Date.now()
     }));
-    delete o.id;
-    notifyOp(null, op);
+        delete o.id;
     upsertClient(op);
-    return dbSet(OPS_PATH + '/' + op.id, o);
+    return dbSet(OPS_PATH + '/' + op.id, o).then(() => notifyOp(null, op));
 }
 function patchOp(id, patch) {
     const _before = state.deliveries.find(d => d.id === id);
+    let _after = null;
     if (_before) {
-        const _after = Object.assign({}, _before, patch);
-        notifyOp(_before, _after);
+        _after = Object.assign({}, _before, patch);
         if (['clientName', 'phone', 'phone2', 'address', 'location', 'remarkAdmin'].some(k => k in patch)) upsertClient(_after);
     }
-    return dbUpdate(OPS_PATH + '/' + id, Object.assign({}, patch, { lastBy: window.__me, lastAt: Date.now() }));
+    return dbUpdate(OPS_PATH + '/' + id, Object.assign({}, patch, { lastBy: window.__me, lastAt: Date.now() }))
+        .then(() => { if (_before && _after) notifyOp(_before, _after); });
 }
 function deleteOp(id) {
     const _before = state.deliveries.find(d => d.id === id);
-    if (_before) notifyOp(_before, null);
-    return dbRemove(OPS_PATH + '/' + id);
+    return dbRemove(OPS_PATH + '/' + id).then(() => { if (_before) notifyOp(_before, null); });
 }
-
 function normalizeOp(d, id) {
     const isStr = v => (typeof v === 'string' && v.length === 10) ? v : getTodayStr();
     const phone = String(d.phone || '');
@@ -3236,7 +3235,8 @@ function revokeAndRegenerateLink(livreurId) {
     if (!confirm(`Révoquer le lien de ${livreurName} ?\n\nSon ancien lien sera IMMÉDIATEMENT bloqué.`)) return;
     const newToken = generateRandomToken(livreurId);
     state.livreurs[livreurId].token = newToken;
-    dbUpdate(CFG_PATH + '/livreurs/' + livreurId, { token: newToken, pinHash: null });
+    db.ref(CFG_PATH + '/livreurs/' + livreurId + '/token').set(newToken);
+db.ref(CFG_PATH + '/livreurs/' + livreurId + '/pinHash').remove();
     openDirectLinksModal();
     showToast("🔴 Lien Révoqué !", `L'ancien lien de ${livreurName} a été désactivé. Nouveau lien généré. Son code PIN est remis à 1212.`);
 }
@@ -3534,20 +3534,55 @@ function handleSortClick(opId) {
     const op = state.deliveries.find(d => d.id === opId);
     if (!op || op.status !== 'pending') return;
     const idx = sortSelection.indexOf(opId);
-    if (idx === -1) sortSelection.push(opId);
+    const isAdding = idx === -1;
+    if (isAdding) sortSelection.push(opId);
     else sortSelection.splice(idx, 1);
     const date = state.selectedDate;
     state.customSort[date] = [...sortSelection];
     db.ref(CFG_PATH + '/customSort/' + date).set(sortSelection).catch(handleWriteError);
+    notifySortChange(op, isAdding);
     renderApp();
+}
+
+function notifySortChange(op, isAdding) {
+    if (!window.__me || !op || notifMode === 'local') return;
+    const client = op.clientName || 'client';
+    const pos = sortSelection.indexOf(op.id);
+    if (window.__me === 'admin') {
+        if (!op.livreurId) return;
+        const text = isAdding
+            ? `Admin a mis "${client}" en priorité n°${pos + 1} dans votre tri.`
+            : `Admin a retiré "${client}" de la priorité de tri.`;
+        sendNotification(op.livreurId, '🔢 Tri mis à jour', text);
+    } else {
+        const name = state.livreurs[window.__me]?.name || window.__me;
+        const text = isAdding
+            ? `${name} a mis "${client}" en priorité n°${pos + 1}.`
+            : `${name} a retiré "${client}" de la priorité de tri.`;
+        sendNotification('admin', '🔢 Tri mis à jour', text);
+    }
 }
 
 function resetSort() {
     if (!confirm("Réinitialiser le tri personnalisé ?")) return;
-    sortSelection = [];
     const date = state.selectedDate;
+    const affected = new Set();
+    (state.customSort[date] || []).forEach(id => {
+        const op = state.deliveries.find(d => d.id === id);
+        if (op && op.status === 'pending' && op.livreurId) affected.add(op.livreurId);
+    });
+    sortSelection = [];
     delete state.customSort[date];
     db.ref(CFG_PATH + '/customSort/' + date).remove().catch(handleWriteError);
+    if (window.__me && notifMode !== 'local') {
+        if (window.__me === 'admin') {
+            affected.forEach(lid => sendNotification(lid, '🔢 Tri réinitialisé',
+                `Admin a réinitialisé le tri personnalisé. Vos opérations reprennent l'ordre par défaut.`));
+        } else {
+            const name = state.livreurs[window.__me]?.name || window.__me;
+            sendNotification('admin', '🔢 Tri réinitialisé', `${name} a réinitialisé le tri personnalisé.`);
+        }
+    }
     renderApp();
 }
 
@@ -4006,11 +4041,13 @@ function renderAdminDashboard() {
     document.getElementById('admin-total-real-balance').textContent = `${globalRealTotal.toLocaleString('fr-FR')} TND`;
     document.getElementById('admin-total-theo-balance').textContent = `${globalTheoTotal.toLocaleString('fr-FR')} TND`;
     document.getElementById('admin-global-date-label').textContent = date === getBusinessDayStr() ? "Aujourd'hui" : date;
-    const dayOps = state.deliveries.filter(d => (d.date || getTodayStr()) === date);
+           const dayOps = state.deliveries.filter(d => (d.date || getTodayStr()) === date);
     dayOps.forEach(d => {
-        if (d.type === 'SOLDE_RECU') countCash++;
         if (d.status === 'pending') countPending++;
-        else if (d.status === 'delivered') countDelivered++;
+        else if (d.status === 'delivered') {
+            if (d.type === 'LIVRAISON') countDelivered++;
+            else countCash++;
+        }
         else if (d.status === 'cancelled') countCancelled++;
     });
     document.getElementById('admin-count-pending').textContent = countPending;
@@ -4165,10 +4202,12 @@ function renderLivreurDashboard(livreurId) {
     const search = (document.getElementById('global-search-input').value || '').toLowerCase().trim();
     const filter = document.getElementById('livreur-filter-status') ? document.getElementById('livreur-filter-status').value : 'all';
     let myDeliveries = state.deliveries.filter(d => (d.date || getTodayStr()) === date && d.livreurId === livreurId);
-    myDeliveries.forEach(d => {
-        if (d.type === 'SOLDE_RECU') countCash++;
+            myDeliveries.forEach(d => {
         if (d.status === 'pending') countPending++;
-        else if (d.status === 'delivered') countDelivered++;
+        else if (d.status === 'delivered') {
+            if (d.type === 'LIVRAISON') countDelivered++;
+            else countCash++;
+        }
         else if (d.status === 'cancelled') countCancelled++;
     });
     document.getElementById('livreur-count-pending').textContent = countPending;
@@ -4570,7 +4609,7 @@ function handleSaveAddCash(e) {
     const address = document.getElementById('input-add-cash-address') ? document.getElementById('input-add-cash-address').value.trim() : '';
     const location = document.getElementById('input-add-cash-location').value.trim();
     const remarkLivreur = document.getElementById('input-add-cash-remark').value.trim();
-    const livreurId = state.currentRole === 'admin' ? 'livreur1' : state.currentRole;
+const livreurId = state.currentRole === 'admin' ? document.getElementById('input-add-cash-livreur').value : state.currentRole;
     if (!(amount > 0)) { alert("Montant invalide."); return; }
     const now = new Date();
     writeOp({
@@ -4996,7 +5035,7 @@ window.addEventListener('DOMContentLoaded', boot);
     try { var saved = localStorage.getItem(KEY); if (LANGS.indexOf(saved) >= 0) lang = saved; } catch (e) {}
 
     var E = [
-        [`Warda v60.2 - Gestion de Warda`, `Warda v60.2 - Warda management`, `وردة v60.2 - إدارة وردة`],
+        [`Warda v60.3 - Gestion de Warda`, `Warda v60.3 - Warda management`, `وردة v60.3 - إدارة وردة`],
 [`Options`, `Options`, `خيارات`],
 [`Langue`, `Language`, `اللغة`],
 [`Plus d'options`, `More options`, `المزيد من الخيارات`],
@@ -5405,6 +5444,8 @@ window.addEventListener('DOMContentLoaded', boot);
 [`Tri personnalisé`, `Custom sort`, `ترتيب مخصص`],
 [`Réinitialiser le tri`, `Reset sort`, `إعادة تعيين الترتيب`],
 [`Réinitialiser le tri personnalisé ?`, `Reset custom sort?`, `إعادة تعيين الترتيب المخصص؟`],
+[`🔢 Tri mis à jour`, `🔢 Sort updated`, `🔢 تم تحديث الترتيب`],
+[`🔢 Tri réinitialisé`, `🔢 Sort reset`, `🔢 تم إعادة تعيين الترتيب`],
     ];
 
     var P = [
@@ -5482,9 +5523,18 @@ window.addEventListener('DOMContentLoaded', boot);
 	[`Dette — {1}`, `Debt — {1}`, `الدين — {1}`],
 	[`Nouvelle dette : {1} — {2}`, `New debt: {1} — {2}`, `الدين الجديد: {1} — {2}`],
 	[`Connecté le {1} à {2}`, `Connected on {1} at {2}`, `متصل في {1} الساعة {2}`],
-	[`Déconnecté le {1} à {2}`, `Disconnected on {1} at {2}`, `غير متصل منذ {1} الساعة {2}`],
+		[`Déconnecté le {1} à {2}`, `Disconnected on {1} at {2}`, `غير متصل منذ {1} الساعة {2}`],
+	// ==== TRI PERSONNALISÉ (notifications) ====
+	// ⚠️ L'ordre est important : du plus spécifique au plus générique.
+	// Le premier pattern "dans votre tri" doit être avant le pattern générique
+	// car sans lui, il capturerait "{pos} dans votre tri" comme numéro de priorité.
+	[`Admin a mis "{1}" en priorité n°{2} dans votre tri.`, `Admin set "{1}" as priority #{2} in your sort.`, `قام المسؤول بتعيين "{1}" كأولوية رقم {2} في ترتيبك.`],
+	[`{1} a mis "{2}" en priorité n°{3}.`, `{1} set "{2}" as priority #{3}.`, `قام {1} بتعيين "{2}" كأولوية رقم {3}.`],
+	[`Admin a retiré "{1}" de la priorité de tri.`, `Admin removed "{1}" from sort priority.`, `قام المسؤول بإزالة "{1}" من أولوية الترتيب.`],
+	[`{1} a retiré "{2}" de la priorité de tri.`, `{1} removed "{2}" from sort priority.`, `قام {1} بإزالة "{2}" من أولوية الترتيب.`],
+	[`Admin a réinitialisé le tri personnalisé. Vos opérations reprennent l'ordre par défaut.`, `Admin reset the custom sort. Your operations return to the default order.`, `أعاد المسؤول تعيين الترتيب المخصص. تعود عملياتك إلى الترتيب الافتراضي.`],
+	[`{1} a réinitialisé le tri personnalisé.`, `{1} reset the custom sort.`, `قام {1} بإعادة تعيين الترتيب المخصص.`],
  ];
-
     [
         { fr: 'alimentation', art: "l'", en: 'top-up', add: 'تغذية', def: 'التغذية الخاصة بـ' },
         { fr: 'livraison', art: 'la ', en: 'delivery', add: 'توصيل', def: 'التوصيل الخاص بـ' }
