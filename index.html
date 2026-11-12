@@ -447,7 +447,7 @@
             <button type="button" onclick="changeUiZoom(0.1)" class="w-9 h-9 text-base font-bold text-slate-200 hover:text-white hover:bg-slate-700 rounded-lg">A+</button>
         </div>
         <div id="lang-switch" class="flex items-center gap-1 bg-slate-800 p-1 rounded-xl border border-slate-700 order-2 sm:order-3" role="group" aria-label="Langue / Language / اللغة"><button type="button" class="lang-btn" data-lang="fr" onclick="setLang('fr')">FR</button><button type="button" class="lang-btn" data-lang="en" onclick="setLang('en')">EN</button><button type="button" class="lang-btn" data-lang="ar" onclick="setLang('ar')">ع</button></div>
-        <div class="flex items-center space-x-1 sm:space-x-2 bg-slate-800 p-1.5 rounded-xl border border-slate-700 order-3 sm:order-2 max-w-full overflow-x-auto">
+                <div id="role-selector" class="flex items-center space-x-1 sm:space-x-2 bg-slate-800 p-1.5 rounded-xl border border-slate-700 order-3 sm:order-2 max-w-full overflow-x-auto">
             <span class="text-xs text-slate-400 font-medium px-2 hidden md:inline">Mode Vue :</span>
             <div class="flex items-center space-x-1">
                 <button onclick="switchRole('admin')" id="role-btn-admin" class="role-btn px-3 py-1.5 text-xs font-semibold rounded-lg transition-all duration-200 flex items-center space-x-1.5 bg-brand-600 text-white shadow-sm">
@@ -1228,11 +1228,15 @@
                     <button type="button" class="lang-btn flex-1" data-lang="ar" onclick="setLang('ar')">ع</button>
                 </div>
             </div>
+            <div class="flex items-center justify-center gap-2 py-3 px-4 bg-slate-50 border border-slate-200 rounded-xl">
+                <i class="fa-solid fa-motorcycle text-emerald-600"></i>
+                <span class="font-bold text-slate-800" id="livreur-more-name">Livreur</span>
+            </div>
             <div class="pt-3 border-t border-slate-100">
                 <button type="button" onclick="closeLivreurMoreAndOpenPin()" class="w-full py-2.5 bg-amber-50 hover:bg-amber-100 text-amber-800 font-bold text-sm rounded-xl border border-amber-200 transition flex items-center justify-center gap-2">
                     <i class="fa-solid fa-key"></i> Modifier mon code PIN
                 </button>
-            </div>
+            </div>            
             <button type="button" onclick="toggleLivreurMoreMenu()" class="w-full py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-800 font-semibold text-sm rounded-xl transition">Fermer</button>
         </div>
     </div>
@@ -2859,6 +2863,10 @@ function openAdminLogin() {
 function toggleLivreurMoreMenu() {
     const modal = document.getElementById('modal-livreur-more');
     if (!modal) return;
+    if (modal.classList.contains('hidden') && window.__me && window.__me !== 'admin') {
+        const nameEl = document.getElementById('livreur-more-name');
+        if (nameEl) nameEl.textContent = state.livreurs[window.__me]?.name || window.__me;
+    }
     modal.classList.toggle('hidden');
 }
 function closeLivreurMoreAndOpenPin() {
@@ -2887,12 +2895,13 @@ function switchRole(roleId, isURLCheck = false) {
     // 🆕 Optimisation du header en mode livreur :
     //   - Boutons visibles : cloche 🔔, plein écran ⛶, menu ⋯
     //   - Zoom + langue + PIN déplacés dans le modal "⋯"
-    const isLivreurSession = window.__me !== 'admin';
+        const isLivreurSession = window.__me !== 'admin';
     document.getElementById('fullscreen-toggle-btn')?.classList.toggle('hidden', roleId === 'admin');
     document.getElementById('livreur-more-btn')?.classList.toggle('hidden', !isLivreurSession);
     document.getElementById('zoom-controls')?.classList.toggle('hidden', isLivreurSession);
     document.getElementById('lang-switch')?.classList.toggle('hidden', isLivreurSession);
     document.getElementById('admin-pin-settings-btn')?.classList.toggle('hidden', isLivreurSession);
+    document.getElementById('role-selector')?.classList.toggle('hidden', isLivreurSession);
     renderApp();
 }
 function toggleAdminAuthModal(show) {
