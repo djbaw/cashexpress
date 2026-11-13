@@ -720,7 +720,7 @@ body.locked #lang-float.admin-only { display: flex; }
                             <th class="p-3.5 text-center w-10">#</th>
                             <th class="p-3.5">Type & Client / Remettant</th>
                             <th class="p-3.5">Adresse / Localisation</th>
-                            <th class="p-3.5">Montant</th>
+                            <th class="p-3.5 text-right">Montant</th>
                             <th class="p-3.5">Livreur Assigné</th>
                             <th class="p-3.5">Horodatage</th>
                             <th class="p-3.5">Statut & Remarques</th>
@@ -4268,8 +4268,8 @@ ${typeIcon}
                     </div>
                 </div>
             </td>
-            <td class="p-3.5 font-black ${isCash ? 'text-purple-700' : 'text-slate-900'} text-base">
-                ${canEditAmount ? `<span class="text-slate-900">${isCash ? '+' : ''}${Number(d.amount).toLocaleString('fr-FR')}</span><button type="button" onclick="promptEditAmount('${d.id}')" title="Modifier le montant" class="ms-1 px-0.5 py-0 bg-brand-50 hover:bg-brand-100 text-brand-700 rounded border border-brand-200 leading-none"><i class="fa-solid fa-pen text-[9px]"></i></button>` : `<span>${isCash ? '+' : ''}${Number(d.amount).toLocaleString('fr-FR')}</span>`}  
+            <td class="p-3.5 text-right font-black ${isCash ? 'text-purple-700' : 'text-slate-900'} text-base">
+				${canEditAmount ? `<span class="text-slate-900">${isCash ? '+' : ''}${Number(d.amount).toLocaleString('fr-FR')}</span><button type="button" onclick="promptEditAmount('${d.id}')" title="Modifier le montant" class="ms-1 px-0.5 py-0 bg-brand-50 hover:bg-brand-100 text-brand-700 rounded border border-brand-200 leading-none"><i class="fa-solid fa-pen text-[9px]"></i></button>` : `<span>${isCash ? '+' : ''}${Number(d.amount).toLocaleString('fr-FR')}</span>`}  
             </td>
             <td class="p-3.5 font-medium text-slate-700">
                 <div class="flex items-center space-x-1.5">
