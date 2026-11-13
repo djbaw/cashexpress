@@ -200,11 +200,15 @@ body.locked #lang-float.admin-only { display: flex; }
         body.dark-mode #menu-theme-light { opacity: 0.5; }
                 body:not(.dark-mode) #menu-theme-dark { opacity: 0.5; }
 
-                /* Sélecteur de rôle : ADMIN uniquement sur très grand écran (≥ 1280px) */
+                        /* Sélecteur de rôle : ADMIN uniquement sur très grand écran (≥ 1280px) */
         #role-selector { display: none; }
         @media (min-width: 1280px) {
             body.admin-mode #role-selector { display: flex; }
         }
+
+        /* 🔑 PIN header : masqué pour les livreurs (quel que soit l'écran).
+           Visible uniquement quand window.__me === 'admin' (body.admin-mode). */
+        body:not(.admin-mode) #admin-pin-settings-btn { display: none !important; }
     </style>
 </head>
 <body class="locked h-full font-sans text-slate-800 flex flex-col bg-slate-100">
@@ -499,7 +503,7 @@ body.locked #lang-float.admin-only { display: flex; }
     <span id="sync-indicator" class="syncing inline-block w-2.5 h-2.5 rounded-full" title="État de la connexion"></span>
     <span id="admin-presence-dot" role="button" tabindex="0" aria-label="Voir le statut de l'admin" class="presence-dot hidden" data-presence="admin" title="Admin hors ligne"></span>
                 </h1>
-                <p class="text-xs text-slate-400 hidden sm:block">Gestion de Warda - <span class="text-emerald-400 font-bold">v61.2</span></p>
+                <p class="text-xs text-slate-400 hidden sm:block">Gestion de Warda - <span class="text-emerald-400 font-bold">v62.0</span></p>
             </div>
         </div>
                 <div class="flex items-center gap-1.5 sm:gap-2">
@@ -3192,8 +3196,6 @@ function getRoleFromURL() {
 }
 function lockRoleSelector(lockedRole) {
     document.querySelectorAll('.role-btn').forEach(btn => btn.classList.add('hidden'));
-    const pinBtn = document.getElementById('admin-pin-settings-btn');
-    if (pinBtn) pinBtn.classList.remove('hidden');
     const activeBtn = document.getElementById(`role-btn-${lockedRole}`);
     if (activeBtn) { activeBtn.classList.remove('hidden'); activeBtn.classList.add('bg-brand-600', 'text-white'); }
 }
