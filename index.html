@@ -4529,9 +4529,9 @@ function renderAdminTable() {
                         else { statusBadge = `<span class="px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-200">🟡 En cours</span>`; rowBgClass = 'border-b border-slate-100'; }
         }
                 const _blacklisted = isOpBlacklisted(d);
-        // Note : le fond rouge a été retiré — la ligne garde la couleur de son statut.
-        // Le cadre rouge est appliqué via la classe 'blacklisted-row' (CSS).
-        tr.className = `${rowBgClass} ${isStrikethrough ? 'strikethrough-text text-slate-400' : ''} ${(_blacklisted && d.status !== 'cancelled') ? 'blacklisted-row' : ''} transition duration-150`;
+        // Cadre rouge : uniquement si l'opération est encore EN COURS (pending).
+        // Une fois validée (delivered), seul le badge + motif restent.
+        tr.className = `${rowBgClass} ${isStrikethrough ? 'strikethrough-text text-slate-400' : ''} ${(_blacklisted && d.status === 'pending') ? 'blacklisted-row' : ''} transition duration-150`;
         const mapsUrl = d.location && d.location.startsWith('http') ? d.location : `https://maps.google.com/?q=${encodeURIComponent(d.location || '')}`;
         const canEditAmount = d.status === 'pending';
         let timeHTML = `<span class="px-2 py-1 bg-slate-100 border border-slate-200 text-slate-700 rounded-md text-xs font-bold" title="Heure d'insertion"><i class="fa-solid fa-plus text-brand-600 text-[10px] me-1"></i>${cTime}</span>`;
@@ -4690,9 +4690,9 @@ function renderLivreurDashboard(livreurId) {
         }
                 const typeBadge = isCash ? '<span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-purple-100 text-purple-900 border border-purple-200">➕ ALIM</span>' : '<span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-blue-100 text-blue-900 border border-blue-200">📦 LIVR</span>';
         const _blacklisted = isOpBlacklisted(d);
-        // Note : le fond rouge a été retiré — la carte garde la couleur de son statut.
-        // Le cadre rouge est appliqué via la classe 'blacklisted-card' (CSS).
-        card.className = `p-3 rounded-xl border-2 ${borderClass} shadow-sm transition space-y-2 text-xs${(_blacklisted && d.status !== 'cancelled') ? ' blacklisted-card' : ''}`;
+        // Cadre rouge : uniquement si l'opération est encore EN COURS (pending).
+        // Une fois validée (delivered), seul le badge + motif restent.
+        card.className = `p-3 rounded-xl border-2 ${borderClass} shadow-sm transition space-y-2 text-xs${(_blacklisted && d.status === 'pending') ? ' blacklisted-card' : ''}`;
         card.innerHTML = `
             <div class="flex items-center justify-between gap-2 border-b border-slate-200/60 pb-1.5">
                 <div class="flex items-center space-x-1.5 flex-wrap gap-y-1">
