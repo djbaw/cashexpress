@@ -506,47 +506,47 @@ body.locked #lang-float.admin-only { display: flex; }
                 <p class="text-xs text-slate-400 hidden sm:block">Gestion de Warda - <span class="text-emerald-400 font-bold">v62.0</span></p>
             </div>
         </div>
-                <div class="flex items-center gap-1.5 sm:gap-2">
-            <!-- 🔔 Cloche : TOUJOURS EN PREMIER -->
+           <div id="header-actions" class="flex items-center gap-1.5 sm:gap-2">
+            <!-- 🔔 Cloche : TOUJOURS EN PREMIER (jamais masquée) -->
             <button id="notif-bell" type="button" onclick="openNotifPanel()" title="Toutes les notifications" class="relative w-11 h-11 bg-slate-800 border border-slate-700 rounded-xl text-slate-200 hover:text-white hover:bg-slate-700 transition">
                 <i class="fa-solid fa-bell"></i>
                 <span id="notif-badge" class="hidden absolute -top-1.5 -right-1.5 min-w-[1.15rem] h-[1.15rem] px-1 rounded-full bg-red-600 text-white text-[10px] font-bold items-center justify-center">0</span>
             </button>
             <!-- 🎭 Sélecteur de rôle : ADMIN uniquement, desktop uniquement -->
                         <div id="role-selector" class="items-center gap-1 bg-slate-800 p-1 rounded-xl border border-slate-700">
-                <button onclick="switchRole('admin')" id="role-btn-admin" class="role-btn px-2.5 py-1.5 text-xs font-semibold rounded-lg transition bg-brand-600 text-white shadow-sm whitespace-nowrap">Admin</button>
+                <button onclick="switchRole('admin')" id="role-btn-admin" class="role-btn px-2.5 py-1.5 text-xs font-semibold rounded-lg transition bg-brand-600 text-white shadow-sm flex items-center gap-1 whitespace-nowrap"><i class="fa-solid fa-user-shield text-xs shrink-0"></i><span>Admin</span></button>
                 <button onclick="switchRole('livreur1')" id="role-btn-livreur1" class="role-btn px-2.5 py-1.5 text-xs font-medium text-slate-300 hover:text-white rounded-lg transition flex items-center gap-1 max-w-[140px]"><i class="fa-solid fa-motorcycle text-xs shrink-0"></i><span class="livreur-name-1 truncate">Livreur 1</span></button>
                 <button onclick="switchRole('livreur2')" id="role-btn-livreur2" class="role-btn px-2.5 py-1.5 text-xs font-medium text-slate-300 hover:text-white rounded-lg transition flex items-center gap-1 max-w-[140px]"><i class="fa-solid fa-motorcycle text-xs shrink-0"></i><span class="livreur-name-2 truncate">Livreur 2</span></button>
                 <button onclick="switchRole('livreur3')" id="role-btn-livreur3" class="role-btn px-2.5 py-1.5 text-xs font-medium text-slate-300 hover:text-white rounded-lg transition flex items-center gap-1 max-w-[140px]"><i class="fa-solid fa-motorcycle text-xs shrink-0"></i><span class="livreur-name-3 truncate">Livreur 3</span></button>
             </div>
             <!-- Boutons rapides — visibles uniquement sur desktop (≥ lg) -->
-                        <button id="fullscreen-toggle-btn" type="button" onclick="toggleFullscreen()" title="Passer en plein écran" class="hidden sm:flex items-center justify-center w-11 h-11 bg-slate-800 border border-slate-700 rounded-xl text-slate-200 hover:text-white hover:bg-slate-700 transition">
+                                    <button id="fullscreen-toggle-btn" data-action="fullscreen" type="button" onclick="toggleFullscreen()" title="Passer en plein écran" class="hidden flex items-center justify-center w-11 h-11 bg-slate-800 border border-slate-700 rounded-xl text-slate-200 hover:text-white hover:bg-slate-700 transition">
                 <i class="fa-solid fa-expand"></i>
             </button>
-                        <button id="sticky-toggle-btn" type="button" onclick="toggleStickyHeader()" title="Barre mobile (cliquer pour fixer)" aria-label="Barre mobile — cliquer pour fixer" class="hidden sm:flex items-center justify-center w-11 h-11 bg-slate-800 border border-slate-700 rounded-xl text-slate-200 hover:text-white hover:bg-slate-700 transition">
+                                    <button id="sticky-toggle-btn" data-action="sticky" type="button" onclick="toggleStickyHeader()" title="Barre mobile (cliquer pour fixer)" aria-label="Barre mobile — cliquer pour fixer" class="hidden flex items-center justify-center w-11 h-11 bg-slate-800 border border-slate-700 rounded-xl text-slate-200 hover:text-white hover:bg-slate-700 transition">
                 <i class="fa-solid fa-thumbtack text-slate-400"></i>
             </button>
-            <div id="zoom-controls" class="hidden lg:flex items-center gap-1 bg-slate-800 p-1 rounded-xl border border-slate-700" title="Taille du texte">
+            <div id="zoom-controls" data-action="zoom" class="hidden flex items-center gap-1 bg-slate-800 p-1 rounded-xl border border-slate-700" title="Taille du texte">            
                 <button type="button" onclick="changeUiZoom(-0.1)" class="w-9 h-9 text-sm font-bold text-slate-200 hover:text-white hover:bg-slate-700 rounded-lg">A−</button>
                 <button type="button" onclick="resetUiZoom()" id="ui-zoom-label" class="ui-zoom-label min-w-[3rem] h-9 text-xs font-semibold text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg">100%</button>
                 <button type="button" onclick="changeUiZoom(0.1)" class="w-9 h-9 text-base font-bold text-slate-200 hover:text-white hover:bg-slate-700 rounded-lg">A+</button>
             </div>
-            <div id="lang-switch" class="hidden lg:flex items-center gap-1 bg-slate-800 p-1 rounded-xl border border-slate-700" role="group" aria-label="Langue / Language / اللغة">
+                        <div id="lang-switch" data-action="lang" class="hidden flex items-center gap-1 bg-slate-800 p-1 rounded-xl border border-slate-700" role="group" aria-label="Langue / Language / اللغة">
                 <button type="button" class="lang-btn" data-lang="fr" onclick="setLang('fr')">FR</button>
                 <button type="button" class="lang-btn" data-lang="en" onclick="setLang('en')">EN</button>
                 <button type="button" class="lang-btn" data-lang="ar" onclick="setLang('ar')">ع</button>
             </div>
-                       <button id="theme-toggle-btn" type="button" onclick="toggleTheme()" title="Changer de thème" aria-label="Changer de thème" class="hidden md:flex items-center justify-center w-11 h-11 bg-slate-800 border border-slate-700 rounded-xl text-slate-200 hover:text-white hover:bg-slate-700 transition">
+                                   <button id="theme-toggle-btn" data-action="theme" type="button" onclick="toggleTheme()" title="Changer de thème" aria-label="Changer de thème" class="hidden flex items-center justify-center w-11 h-11 bg-slate-800 border border-slate-700 rounded-xl text-slate-200 hover:text-white hover:bg-slate-700 transition">
                 <i class="fa-solid fa-moon"></i>
             </button>
-            <button id="admin-pin-settings-btn" onclick="openChangeAdminPinModal()" title="Changer le code PIN" class="hidden lg:flex items-center justify-center w-11 h-11 bg-slate-800 border border-slate-700 rounded-xl text-amber-300 hover:text-amber-200 hover:bg-slate-700 transition">
+                        <button id="admin-pin-settings-btn" data-action="pin" onclick="openChangeAdminPinModal()" title="Changer le code PIN" class="hidden flex items-center justify-center w-11 h-11 bg-slate-800 border border-slate-700 rounded-xl text-amber-300 hover:text-amber-200 hover:bg-slate-700 transition">
                 <i class="fa-solid fa-key"></i>
             </button>
                         <button id="admin-logout-btn" type="button" onclick="askLogout()" title="Se déconnecter" class="hidden md:flex items-center justify-center w-11 h-11 bg-slate-800 border border-slate-700 rounded-xl text-red-400 hover:text-red-300 hover:bg-slate-700 transition">
                 <i class="fa-solid fa-right-from-bracket"></i>
             </button>
-                        <!-- Menu ⋯ : visible tant qu'il reste des options cachées (jusqu'à xl) -->
-            <button id="livreur-more-btn" type="button" onclick="toggleLivreurMoreMenu()" title="Plus d'options" class="xl:hidden flex items-center justify-center w-11 h-11 bg-slate-800 border border-slate-700 rounded-xl text-slate-200 hover:text-white hover:bg-slate-700 transition">
+                                                <!-- Menu ⋯ : toujours présent (visibilité contrôlée par JS) -->
+            <button id="header-more-btn" type="button" onclick="toggleLivreurMoreMenu()" title="Plus d'options" class="hidden flex items-center justify-center w-11 h-11 bg-slate-800 border border-slate-700 rounded-xl text-slate-200 hover:text-white hover:bg-slate-700 transition">
                 <i class="fa-solid fa-ellipsis"></i>
             </button>
         </div>
@@ -1364,29 +1364,31 @@ body.locked #lang-float.admin-only { display: flex; }
             <h3 class="font-bold text-lg"><i class="fa-solid fa-sliders me-2 text-emerald-400"></i><span>Options</span></h3>
             <button onclick="toggleLivreurMoreMenu()" class="text-white/80 hover:text-white transition"><i class="fa-solid fa-xmark text-xl"></i></button>
         </div>
-        <div class="p-5 space-y-4 overflow-y-auto">
-                        <div class="flex items-center justify-center gap-2 py-2.5 px-4 bg-slate-50 border border-slate-200 rounded-xl">
+                <div class="p-5 space-y-4 overflow-y-auto">
+            <div class="flex items-center justify-center gap-2 py-2.5 px-4 bg-slate-50 border border-slate-200 rounded-xl">
                 <i id="menu-user-icon" class="fa-solid fa-user-shield text-emerald-600"></i>
                 <span class="font-bold text-slate-800" id="livreur-more-name">Utilisateur</span>
             </div>
 
-            <!-- Mode Vue : ADMIN uniquement -->
+            <!-- Mode Vue : ADMIN uniquement (visible < 1280px) -->
             <div id="menu-role-selector" class="hidden xl:hidden">
                 <label class="block text-xs font-bold text-slate-700 uppercase mb-2 flex items-center gap-2"><i class="fa-solid fa-user-shield text-slate-500"></i> Mode Vue</label>
                 <div class="grid grid-cols-2 gap-1">
-                    <button type="button" onclick="switchRoleFromMenu('admin')" id="menu-role-admin" class="py-2 px-2 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg border border-slate-300 transition truncate">Admin</button>
+                    <button type="button" onclick="switchRoleFromMenu('admin')" id="menu-role-admin" class="py-2 px-2 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg border border-slate-300 transition flex items-center justify-center gap-1"><i class="fa-solid fa-user-shield text-[11px] shrink-0"></i><span class="truncate">Admin</span></button>
                     <button type="button" onclick="switchRoleFromMenu('livreur1')" id="menu-role-livreur1" class="py-2 px-2 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg border border-slate-300 transition truncate"><span class="livreur-name-1">Livreur 1</span></button>
                     <button type="button" onclick="switchRoleFromMenu('livreur2')" id="menu-role-livreur2" class="py-2 px-2 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg border border-slate-300 transition truncate"><span class="livreur-name-2">Livreur 2</span></button>
                     <button type="button" onclick="switchRoleFromMenu('livreur3')" id="menu-role-livreur3" class="py-2 px-2 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg border border-slate-300 transition truncate"><span class="livreur-name-3">Livreur 3</span></button>
                 </div>
             </div>
-                        <!-- 1. Plein écran (caché dans menu dès ≥ sm) -->
-            <button type="button" onclick="toggleFullscreen()" class="sm:hidden w-full py-3 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-sm rounded-xl border border-slate-300 transition flex items-center justify-between px-4">
+
+            <!-- ⛶ Plein écran (visible seulement si débordé) -->
+            <button type="button" data-action="fullscreen" onclick="toggleFullscreen()" class="hidden w-full py-3 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-sm rounded-xl border border-slate-300 transition flex items-center justify-between px-4">
                 <span class="flex items-center gap-2"><i class="fa-solid fa-expand text-slate-600"></i> Plein écran</span>
                 <i class="fa-solid fa-chevron-right text-slate-400 text-xs"></i>
             </button>
-            <!-- 2. Épinglage (caché dans menu dès ≥ sm) -->
-            <div class="sm:hidden">
+
+            <!-- 📌 Épinglage -->
+            <div data-action="sticky" class="hidden">
                 <label class="block text-xs font-bold text-slate-700 uppercase mb-2 flex items-center gap-2"><i class="fa-solid fa-thumbtack text-slate-500"></i> Épinglage (barre fixe)</label>
                 <div class="grid grid-cols-2 gap-2">
                     <button type="button" onclick="setStickyFromMenu('free')" id="menu-sticky-free" class="py-2.5 text-sm font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl border border-slate-300 transition flex items-center justify-center gap-1.5">
@@ -1397,8 +1399,9 @@ body.locked #lang-float.admin-only { display: flex; }
                     </button>
                 </div>
             </div>
-            <!-- 3. Taille du texte (caché dans menu dès ≥ lg) -->
-            <div class="lg:hidden">
+
+            <!-- 📝 Taille du texte -->
+            <div data-action="zoom" class="hidden">
                 <label class="block text-xs font-bold text-slate-700 uppercase mb-2 flex items-center gap-2"><i class="fa-solid fa-text-height text-slate-500"></i> Taille du texte</label>
                 <div class="flex items-center justify-center gap-2 bg-slate-100 p-1.5 rounded-xl">
                     <button type="button" onclick="changeUiZoom(-0.1)" class="flex-1 py-2 text-sm font-bold text-slate-700 hover:bg-white hover:shadow-sm rounded-lg transition">A−</button>
@@ -1407,8 +1410,8 @@ body.locked #lang-float.admin-only { display: flex; }
                 </div>
             </div>
 
-                        <!-- 4. Langue (caché dans menu dès ≥ lg) -->
-            <div class="lg:hidden">
+            <!-- 🌐 Langue -->
+            <div data-action="lang" class="hidden">
                 <label class="block text-xs font-bold text-slate-700 uppercase mb-2 flex items-center gap-2"><i class="fa-solid fa-globe text-slate-500"></i> Langue</label>
                 <div class="flex items-center gap-1 bg-slate-900 p-1 rounded-xl" role="group" aria-label="Langue / Language / اللغة">
                     <button type="button" class="lang-btn flex-1" data-lang="fr" onclick="setLang('fr')">FR</button>
@@ -1417,8 +1420,8 @@ body.locked #lang-float.admin-only { display: flex; }
                 </div>
             </div>
 
-                        <!-- 5. Thème (caché dans menu dès ≥ md) -->
-            <div class="md:hidden">
+            <!-- 🌙 Thème -->
+            <div data-action="theme" class="hidden">
                 <label class="block text-xs font-bold text-slate-700 uppercase mb-2 flex items-center gap-2"><i class="fa-solid fa-moon text-slate-500"></i> Thème</label>
                 <div class="grid grid-cols-2 gap-2">
                     <button type="button" onclick="setTheme('light')" id="menu-theme-light" class="py-2.5 text-sm font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl border border-slate-300 transition flex items-center justify-center gap-1.5">
@@ -1430,19 +1433,17 @@ body.locked #lang-float.admin-only { display: flex; }
                 </div>
             </div>
 
-                       <div class="pt-3 border-t border-slate-100 space-y-2">
-                <!-- 6. Modifier mon code PIN (caché dans menu dès ≥ lg) -->
-                <button type="button" onclick="closeLivreurMoreAndOpenPin()" class="lg:hidden w-full py-3 bg-amber-50 hover:bg-amber-100 text-amber-800 font-bold text-sm rounded-xl border border-amber-200 transition flex items-center justify-between px-4">
-                    <span class="flex items-center gap-2"><i class="fa-solid fa-key"></i> Modifier mon code PIN</span>
-                    <i class="fa-solid fa-chevron-right text-amber-600 text-xs"></i>
-                </button>
+            <!-- 🔑 Modifier mon code PIN -->
+            <button type="button" data-action="pin" onclick="closeLivreurMoreAndOpenPin()" class="hidden w-full py-3 bg-amber-50 hover:bg-amber-100 text-amber-800 font-bold text-sm rounded-xl border border-amber-200 transition flex items-center justify-between px-4">
+                <span class="flex items-center gap-2"><i class="fa-solid fa-key"></i> Modifier mon code PIN</span>
+                <i class="fa-solid fa-chevron-right text-amber-600 text-xs"></i>
+            </button>
 
-                <!-- 7. Se déconnecter (caché dans menu dès ≥ md) -->
-                <button type="button" onclick="closeLivreurMoreAndLogout()" class="md:hidden w-full py-3 bg-red-50 hover:bg-red-100 text-red-800 font-bold text-sm rounded-xl border border-red-200 transition flex items-center justify-between px-4">
-                    <span class="flex items-center gap-2"><i class="fa-solid fa-right-from-bracket"></i> Se déconnecter</span>
-                    <i class="fa-solid fa-chevron-right text-red-600 text-xs"></i>
-                </button>
-            </div>
+            <!-- 🚪 Se déconnecter -->
+            <button type="button" data-action="logout" onclick="closeLivreurMoreAndLogout()" class="hidden w-full py-3 bg-red-50 hover:bg-red-100 text-red-800 font-bold text-sm rounded-xl border border-red-200 transition flex items-center justify-between px-4">
+                <span class="flex items-center gap-2"><i class="fa-solid fa-right-from-bracket"></i> Se déconnecter</span>
+                <i class="fa-solid fa-chevron-right text-red-600 text-xs"></i>
+            </button>
 
             <button type="button" onclick="toggleLivreurMoreMenu()" class="w-full py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-800 font-semibold text-sm rounded-xl transition">Fermer</button>
         </div>
@@ -3274,8 +3275,9 @@ function switchRole(roleId, isURLCheck = false) {
         document.getElementById('view-admin').classList.add('hidden');
         document.getElementById('view-livreur').classList.remove('hidden');
     }
-    // Header unifié Admin + Livreur — rien à cacher ici
+        // Header unifié Admin + Livreur — recalcul du débordement dynamique
     renderApp();
+    layoutHeaderActions();
 }
 function toggleAdminAuthModal(show) {
     const modal = document.getElementById('modal-admin-auth');
@@ -5344,6 +5346,110 @@ function toggleStickyHeader() {
         true
     );
 }
+
+/* ==================== LAYOUT DYNAMIQUE DE LA BARRE D'ACTIONS ====================
+   Logique : tant qu'un bouton a de la place dans la barre, il y reste (icône).
+   Quand il n'y a plus de place, il passe dans le menu "⋯" (avec son titre).
+   La cloche est toujours visible (1ère position, jamais masquée).
+   La priorité de maintien dans la barre suit l'ordre de la liste `items`. */
+function layoutHeaderActions() {
+    const bar = document.getElementById('header-actions');
+    const bell = document.getElementById('notif-bell');
+    const more = document.getElementById('header-more-btn');
+    const roleSelector = document.getElementById('role-selector');
+    if (!bar || !bell || !more) return;
+
+    const items = [
+        document.getElementById('fullscreen-toggle-btn'),
+        document.getElementById('sticky-toggle-btn'),
+        document.getElementById('zoom-controls'),
+        document.getElementById('lang-switch'),
+        document.getElementById('theme-toggle-btn'),
+        document.getElementById('admin-pin-settings-btn'),
+        document.getElementById('admin-logout-btn'),
+    ].filter(Boolean);
+
+    // 1) Afficher TOUT pour mesurer la largeur réelle
+    items.forEach(el => el.classList.remove('hidden'));
+    more.classList.remove('hidden');
+
+    // 2) Mesurer l'espace disponible DEPUIS LE PARENT (et non depuis bar)
+    const parent = bar.parentElement;
+    if (!parent) return;
+    const parentStyle = getComputedStyle(parent);
+    const parentContentW = parent.clientWidth
+        - (parseFloat(parentStyle.paddingLeft)  || 0)
+        - (parseFloat(parentStyle.paddingRight) || 0);
+
+    const logoSection = parent.querySelector(':scope > .flex.items-center.space-x-3');
+    const logoW = logoSection ? logoSection.getBoundingClientRect().width : 0;
+    const headerGap = parseFloat(parentStyle.gap) || 8;
+
+    // Espace max que peut occuper #header-actions sans passer à la ligne
+    const available = parentContentW - logoW - headerGap;
+
+    // 3) Calculer ce qui est déjà "réservé" dans la barre
+    const bellW   = bell.getBoundingClientRect().width;
+    const moreW   = more.getBoundingClientRect().width || 44;
+    const actionGap = parseFloat(getComputedStyle(bar).gap) || 6;
+
+    let reserved = bellW + actionGap + moreW + actionGap; // cloche + gaps + "⋯"
+    if (roleSelector && roleSelector.offsetParent !== null) {
+        reserved += roleSelector.getBoundingClientRect().width + actionGap;
+    }
+
+    let remaining = available - reserved;
+
+    // 4) Attribuer chaque item : barre ou menu (ordre = priorité)
+    const inBar = [];
+    const inMenu = [];
+    for (const el of items) {
+        if (el.offsetParent === null) { inMenu.push(el); continue; }
+        const w = el.getBoundingClientRect().width;
+        if (w > 0 && (w + actionGap) <= remaining) {
+            inBar.push(el);
+            remaining -= (w + actionGap);
+        } else {
+            inMenu.push(el);
+        }
+    }
+
+    // 5) Appliquer la visibilité dans la barre
+    items.forEach(el => {
+        if (inMenu.includes(el)) el.classList.add('hidden');
+    });
+
+    // 6) Afficher/masquer le bouton "⋯"
+    const adminNeedsRoleMenu = window.__me === 'admin' && roleSelector && roleSelector.offsetParent === null;
+    const showMore = inMenu.length > 0 || adminNeedsRoleMenu;
+    if (showMore) more.classList.remove('hidden');
+    else          more.classList.add('hidden');
+
+    // 7) Synchroniser la visibilité des items dans le menu "⋯"
+    const menuActions = new Set(inMenu.map(el => el.dataset.action).filter(Boolean));
+    document.querySelectorAll('#modal-livreur-more [data-action]').forEach(menuEl => {
+        if (menuActions.has(menuEl.dataset.action)) menuEl.classList.remove('hidden');
+        else                                        menuEl.classList.add('hidden');
+    });
+}
+// Recalculer au redimensionnement / rotation / chargement des polices
+(function setupHeaderLayoutHooks() {
+    let _t;
+    const debounced = () => { clearTimeout(_t); _t = setTimeout(layoutHeaderActions, 100); };
+    window.addEventListener('resize', debounced);
+    window.addEventListener('orientationchange', () => setTimeout(layoutHeaderActions, 200));
+
+    // Recalcul initial : DOMContentLoaded + window.load + fonts.ready + safety timeout
+    const run = () => layoutHeaderActions();
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run);
+    else run();
+    window.addEventListener('load', run);
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(run);
+    setTimeout(run, 500); // filet de sécurité si Tailwind CDN applique le CSS en retard
+
+    // Bonus : Recalcul aussi si le viewport change via zoom navigateur / changement d'app
+    if (window.visualViewport) window.visualViewport.addEventListener('resize', debounced);
+})();
 async function startAdminSession() {
     publishAppVersion();
     window.__me = 'admin';
