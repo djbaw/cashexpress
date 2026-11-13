@@ -494,9 +494,9 @@ body.locked #lang-float.admin-only { display: flex; }
 
 <!-- HEADER -->
 <header class="bg-slate-900 text-white shadow-md z-30">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 min-h-16 py-2 flex flex-wrap items-center justify-between gap-2">
-        <div class="flex items-center space-x-3">
-            <div class="bg-rose-400 p-2 rounded-lg text-white font-bold"><i class="fa-solid me-1 fa-spa text-xl"></i></div>
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 min-h-16 py-2 flex flex-nowrap items-center justify-between gap-2 overflow-hidden">
+        <div class="flex items-center space-x-3 shrink-0">
+	<div class="bg-rose-400 p-2 rounded-lg text-white font-bold"><i class="fa-solid me-1 fa-spa text-xl"></i></div>
             <div>
                 <h1 class="font-bold text-lg leading-tight tracking-tight flex items-center gap-2">
     Warda
@@ -506,8 +506,8 @@ body.locked #lang-float.admin-only { display: flex; }
                 <p class="text-xs text-slate-400 hidden sm:block">Gestion de Warda - <span class="text-emerald-400 font-bold">v62.0</span></p>
             </div>
         </div>
-           <div id="header-actions" class="flex items-center gap-1.5 sm:gap-2">
-            <!-- 🔔 Cloche : TOUJOURS EN PREMIER (jamais masquée) -->
+        <div id="header-actions" class="flex items-center gap-1.5 sm:gap-2 shrink-0">
+			<!-- 🔔 Cloche : TOUJOURS EN PREMIER (jamais masquée) -->
             <button id="notif-bell" type="button" onclick="openNotifPanel()" title="Toutes les notifications" class="relative w-11 h-11 bg-slate-800 border border-slate-700 rounded-xl text-slate-200 hover:text-white hover:bg-slate-700 transition">
                 <i class="fa-solid fa-bell"></i>
                 <span id="notif-badge" class="hidden absolute -top-1.5 -right-1.5 min-w-[1.15rem] h-[1.15rem] px-1 rounded-full bg-red-600 text-white text-[10px] font-bold items-center justify-center">0</span>
@@ -5432,11 +5432,14 @@ function layoutHeaderActions() {
         else                                        menuEl.classList.add('hidden');
     });
 }
-// Recalculer au redimensionnement / rotation / chargement des polices
+// Recalculer à chaque frame pendant le redimensionnement (aucun délai → pas de flash)
 (function setupHeaderLayoutHooks() {
-    let _t;
-    const debounced = () => { clearTimeout(_t); _t = setTimeout(layoutHeaderActions, 100); };
-    window.addEventListener('resize', debounced);
+    let _raf = 0;
+    const schedule = () => {
+        cancelAnimationFrame(_raf);
+        _raf = requestAnimationFrame(layoutHeaderActions);
+    };
+    window.addEventListener('resize', schedule);
     window.addEventListener('orientationchange', () => setTimeout(layoutHeaderActions, 200));
 
     // Recalcul initial : DOMContentLoaded + window.load + fonts.ready + safety timeout
@@ -5448,9 +5451,9 @@ function layoutHeaderActions() {
     setTimeout(run, 500); // filet de sécurité si Tailwind CDN applique le CSS en retard
 
     // Bonus : Recalcul aussi si le viewport change via zoom navigateur / changement d'app
-    if (window.visualViewport) window.visualViewport.addEventListener('resize', debounced);
+    if (window.visualViewport) window.visualViewport.addEventListener('resize', schedule);
 })();
-async function startAdminSession() {
+	async function startAdminSession() {
     publishAppVersion();
     window.__me = 'admin';
     isAdminAuthenticated = true;
