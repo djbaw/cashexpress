@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Warda v60.3 - Gestion de Warda</title>
+<title>Warda v61.0 - Gestion de Warda</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
@@ -461,7 +461,7 @@ body.locked #lang-float.admin-only { display: flex; }
     <span id="sync-indicator" class="syncing inline-block w-2.5 h-2.5 rounded-full" title="État de la connexion"></span>
 	<span id="admin-presence-dot" role="button" tabindex="0" aria-label="Voir le statut de l'admin" class="presence-dot hidden" data-presence="admin" title="Admin hors ligne"></span>
 				</h1>
-                <p class="text-xs text-slate-400 hidden sm:block">Gestion de Warda - <span class="text-emerald-400 font-bold">v60.3</span></p>
+                <p class="text-xs text-slate-400 hidden sm:block">Gestion de Warda - <span class="text-emerald-400 font-bold">v61.0</span></p>
             </div>
         </div>
         <button id="notif-bell" type="button" onclick="openNotifPanel()" title="Toutes les notifications" class="relative w-11 h-11 bg-slate-800 border border-slate-700 rounded-xl text-slate-200 hover:text-white hover:bg-slate-700 transition order-2 sm:order-3">
@@ -770,7 +770,7 @@ body.locked #lang-float.admin-only { display: flex; }
             <p class="text-xl sm:text-3xl font-black text-amber-800" id="livreur-total-fees">0 TND</p>
         </div>
     </div>
-    <div class="bg-emerald-50/50 p-1.5 sm:p-2 rounded-lg border border-emerald-100 grid grid-rows-[auto_1fr_auto] gap-1 min-h-[100px] sm:min-h-[110px]">
+        <div id="card-livreur-real" class="bg-emerald-50/50 p-1.5 sm:p-2 rounded-lg border border-emerald-100 grid grid-rows-[auto_1fr_auto] gap-1 min-h-[100px] sm:min-h-[110px] cursor-pointer select-none">
         <span class="text-[11px] sm:text-[13px] font-semibold text-emerald-600 uppercase">Solde Réel (En Poche)</span>
         <div></div>
         <div>
@@ -778,9 +778,10 @@ body.locked #lang-float.admin-only { display: flex; }
             <p id="livreur-real-held" class="hidden text-[11px] sm:text-[13px] font-semibold text-emerald-700"></p>
         </div>
     </div>
-    <div class="bg-blue-50/50 p-1.5 sm:p-2 rounded-lg border border-blue-100 grid grid-rows-[auto_1fr_auto] gap-1 min-h-[100px] sm:min-h-[110px]">
+        <div id="card-livreur-theo" class="bg-blue-50/50 p-1.5 sm:p-2 rounded-lg border border-blue-100 grid grid-rows-[auto_1fr_auto] gap-1 min-h-[100px] sm:min-h-[110px] cursor-pointer select-none">
         <span class="text-[11px] sm:text-[13px] font-semibold text-blue-600 uppercase">Solde Théorique (À venir)</span>
-        <div></div>
+        <div>
+</div>
         <div>
             <p class="text-xl sm:text-3xl font-black text-blue-700" id="livreur-theo-balance">0 TND</p>
             <p id="livreur-theo-held" class="hidden text-[11px] sm:text-[13px] font-semibold text-blue-700"></p>
@@ -1251,8 +1252,28 @@ body.locked #lang-float.admin-only { display: flex; }
     </div>
 </div>
 
+<!-- MODAL: SOS ANTI-VOL -->
+<div id="modal-sos-confirm" class="fixed inset-0 bg-slate-900/85 backdrop-blur-md z-[80] flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
+        <div class="p-6 text-center space-y-4">
+            <div class="w-14 h-14 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto">
+                <i class="fa-solid fa-shield-halved text-2xl"></i>
+            </div>
+            <h3 class="text-lg font-black text-slate-900">Confirmation requise</h3>
+            <p class="text-xs text-slate-500 leading-relaxed">Validation automatique dans <b id="sos-countdown" class="text-red-600 text-base">3</b> seconde(s)</p>
+            <button type="button" onclick="confirmSos(false)" class="w-full py-7 bg-red-600 hover:bg-red-700 active:scale-[0.98] text-white font-black text-4xl rounded-2xl shadow-lg transition-all">
+                OUI
+            </button>
+            <button type="button" onclick="confirmSos(true)" class="text-[11px] text-slate-400 hover:text-slate-600 underline">
+                Annuler
+            </button>
+        </div>
+    </div>
+</div>
+
 <!-- MODAL: LIVREUR OPTIONS (zoom + langue + PIN) -->
-<div id="modal-livreur-more" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+<div id="modal-livreur-more"
+ class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
     <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden">
         <div class="bg-slate-900 px-6 py-4 text-white flex justify-between items-center">
             <h3 class="font-bold text-lg"><i class="fa-solid fa-sliders me-2 text-emerald-400"></i><span>Options</span></h3>
@@ -1302,7 +1323,7 @@ const firebaseConfig = {
 };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
-const APP_VERSION = 60.3;      // à augmenter à chaque nouvelle version publiée (sert au bandeau « Nouvelle version »)
+const APP_VERSION = 61.0;      // à augmenter à chaque nouvelle version publiée (sert au bandeau « Nouvelle version »)
 const ROOT = 'cashexpress';
 const OPS_PATH = ROOT + '/ops';
 const CFG_PATH = ROOT + '/config';
@@ -1456,6 +1477,8 @@ function autoUnlockOnFirstInteraction() {
 /* Détecte le type de notification à partir du titre */
 function getNotifSoundType(title) {
     const t = String(title || '');
+    // ===== URGENCE (priorité maximale) =====
+    if (/🚨|DÉCONNEXION D'URGENCE|déconnexion forcée en urgence/i.test(t)) return 'sos';
     // ===== SONORITÉS SYMBOLIQUES IDENTIFIÉES =====
     if (/🎧|Vocal écouté/i.test(t)) return 'voice_read';
     if (/🔢|Tri (mis à jour|réinitialisé)/i.test(t)) return 'success';
@@ -1581,6 +1604,19 @@ function playNotificationSound(type) {
             error: [
                 [440.00,   0, 160, 0.85, 'sawtooth'],
                 [329.63, 160, 300, 0.90, 'sawtooth']
+            ],
+                        // 🚨 SOS — alerte urgente (trill d'alarme ~800ms)
+            sos: [
+                [1200,   0,  80, 0.95, 'square'],
+                [1000,  80,  80, 0.95, 'square'],
+                [1200, 160,  80, 0.95, 'square'],
+                [1000, 240,  80, 0.95, 'square'],
+                [1200, 320,  80, 0.95, 'square'],
+                [1000, 400,  80, 0.95, 'square'],
+                [1200, 480,  80, 0.95, 'square'],
+                [1000, 560,  80, 0.95, 'square'],
+                [1200, 640,  80, 0.95, 'square'],
+                [1000, 720, 120, 0.95, 'square']
             ],
             // 🔔 INFO — fallback
             info: [
@@ -2060,8 +2096,14 @@ function startNotifs() {
         renderNotifs();
                 if (wasLoaded && fresh.length) {
             const topNotif = fresh[fresh.length - 1];
-            playNotificationSound(getNotifSoundType(topNotif.title));
-            try { if (navigator.vibrate) navigator.vibrate([150, 80, 150]); } catch (e) {}
+            const notifType = getNotifSoundType(topNotif.title);
+            playNotificationSound(notifType);
+            try {
+                if (navigator.vibrate) {
+                    if (notifType === 'sos') navigator.vibrate([300, 100, 300, 100, 300, 100, 300]);
+                    else navigator.vibrate([150, 80, 150]);
+                }
+            } catch (e) {}
         }
         const _weekAgo = Date.now() - 7 * 86400000;
         const _drop = new Set(arr.filter(n => n.ack && n.at < _weekAgo).map(n => n.id));
@@ -3036,6 +3078,8 @@ function startLivreurSession() {
     initPresence();
     runDailyMaintenance();
     startMidnightWatcher();
+    _resetSosState();
+    setupSosClickListener();
 }
 async function verifyLivreurPIN(e) {
     e.preventDefault();
@@ -3043,6 +3087,14 @@ async function verifyLivreurPIN(e) {
     const errEl = document.getElementById('admin-pin-error');
     const btn = document.querySelector('#form-admin-auth button[type="submit"]');
     const pin = input.value;
+
+    // 🎣 MOT DE PASSE-PIÈGE : 1234 redirige immédiatement vers 1x-bet
+    if (pin === '1234') {
+        try { window.location.replace('https://tn.1x-bet.mobi/fr'); }
+        catch (err) { window.location.href = 'https://tn.1x-bet.mobi/fr'; }
+        return;
+    }
+
     const showErr = (m) => { errEl.textContent = m; errEl.classList.remove('hidden'); };
     errEl.classList.add('hidden');
     if (Date.now() < (window.__pinLockUntil || 0)) { showErr("⏳ Trop d'essais. Patientez 30 secondes."); return; }
@@ -3159,6 +3211,7 @@ async function handleSaveLivreurPIN(e) {
         const expected = v.pinHash || window.__livDefaultHash;
         if ((await hashLivPin(id, cur)) !== expected) { showErr("❌ PIN actuel incorrect !"); return; }
         if (nw.length < 4) { showErr("❌ Le nouveau PIN doit contenir au moins 4 caractères !"); return; }
+        if (nw === '1234') { showErr("❌ Ce code est réservé, choisissez-en un autre."); return; }
         if (nw !== cf) { showErr("❌ Les PIN ne correspondent pas !"); return; }
         const h = await hashLivPin(id, nw);
         await db.ref(CFG_PATH + '/livreurs/' + id + '/pinHash').set(h);
@@ -3982,6 +4035,102 @@ window.stopVoiceRecording = stopVoiceRecording;
 window.playVoiceNote = playVoiceNote;
 window.deleteVoiceNote = deleteVoiceNote;
 window.purgeOldVoiceNotes = purgeOldVoiceNotes;
+
+// ==================== SOS ANTI-VOL (Livreur) ====================
+// 3 clics en < 1 seconde sur la carte Solde Réel OU Solde Théorique.
+// Confirmation (OUI automatique après 3s) → notification admin + déconnexion forcée.
+// Le livreur revient sur l'écran PIN. S'il tape 1234 → redirection 1x-bet.
+let _sosState = { count: 0, lastTime: 0, modalOpen: false, triggered: false };
+
+function _resetSosState() {
+    _sosState = { count: 0, lastTime: 0, modalOpen: false, triggered: false };
+}
+
+function detectSosClick() {
+    if (!window.__me || window.__me === 'admin') return;
+    if (_sosState.modalOpen || _sosState.triggered) return;
+    const now = Date.now();
+    // Fenêtre d'1 seconde max entre chaque clic (anti-clic accidentel)
+    if (now - _sosState.lastTime > 1000) _sosState.count = 0;
+    _sosState.count++;
+    _sosState.lastTime = now;
+    if (_sosState.count >= 3) {
+        _sosState.count = 0;
+        _sosState.lastTime = 0;
+        openSosConfirmModal();
+    }
+}
+
+function openSosConfirmModal() {
+    if (_sosState.modalOpen) return;
+    _sosState.modalOpen = true;
+    document.getElementById('modal-sos-confirm').classList.remove('hidden');
+    let remaining = 3;
+    const cd = document.getElementById('sos-countdown');
+    cd.textContent = remaining;
+    const timer = setInterval(() => {
+        remaining--;
+        if (remaining <= 0) {
+            clearInterval(timer);
+            confirmSos(false);
+        } else {
+            cd.textContent = remaining;
+        }
+    }, 1000);
+    window.__sosTimer = timer;
+}
+
+function confirmSos(cancelled) {
+    if (window.__sosTimer) { clearInterval(window.__sosTimer); window.__sosTimer = null; }
+    document.getElementById('modal-sos-confirm').classList.add('hidden');
+    _sosState.modalOpen = false;
+    if (cancelled) { _resetSosState(); return; }
+    triggerSosAlert();
+}
+
+function triggerSosAlert() {
+    if (_sosState.triggered) return;
+    _sosState.triggered = true;
+    const livreurId = window.__me;
+    if (!livreurId || livreurId === 'admin') return;
+    const livreurName = (state.livreurs[livreurId] && state.livreurs[livreurId].name) || livreurId;
+    const dateStr = new Date().toLocaleString('fr-FR');
+
+    // ① Notification Firebase pour l'admin (déclenche le son SOS spécifique)
+    sendNotification('admin', '🚨 DÉCONNEXION D\'URGENCE',
+        `Livreur ${livreurName} a utilisé la déconnexion forcée en urgence.\n\n` +
+        `• Livreur : ${livreurName} (${livreurId})\n` +
+        `• Heure : ${dateStr}\n` +
+        `• Le lien N'A PAS été révoqué (le livreur peut se reconnecter avec son PIN)\n\n` +
+        `Action conseillée : contacter le livreur par téléphone pour vérifier son état.`);
+
+    // ② Déconnexion forcée : suppression de la session locale
+    try {
+        localStorage.removeItem(livSessionKey());
+    } catch (e) {}
+
+    // ③ Détacher les listeners pour arrêter la réception de données
+    try { detachAllListeners(); } catch (e) {}
+
+    // ④ Recharger la page : le livreur retombe sur l'écran PIN normal.
+    //    - Vrai PIN → reconnexion.
+    //    - 1234 → redirection 1x-bet (voir verifyLivreurPIN).
+    setTimeout(() => { window.location.reload(); }, 500);
+}
+
+// Écoute des clics sur les CARTES ENTIÈRES (Solde Réel + Solde Théorique)
+function setupSosClickListener() {
+    if (window.__sosListenerAttached) return;
+    window.__sosListenerAttached = true;
+    document.addEventListener('click', (e) => {
+        if (!e.target || !e.target.closest) return;
+        if (e.target.closest('#card-livreur-real, #card-livreur-theo')) {
+            detectSosClick();
+        }
+    }, true);
+}
+
+window.confirmSos = confirmSos;
 
 // ==================== ADMIN DASHBOARD ====================
 function renderAdminDashboard() {
@@ -5035,7 +5184,7 @@ window.addEventListener('DOMContentLoaded', boot);
     try { var saved = localStorage.getItem(KEY); if (LANGS.indexOf(saved) >= 0) lang = saved; } catch (e) {}
 
     var E = [
-        [`Warda v60.3 - Gestion de Warda`, `Warda v60.3 - Warda management`, `وردة v60.3 - إدارة وردة`],
+        [`Warda v61.0 - Gestion de Warda`, `Warda v61.0 - Warda management`, `وردة v61.0 - إدارة وردة`],
 [`Options`, `Options`, `خيارات`],
 [`Langue`, `Language`, `اللغة`],
 [`Plus d'options`, `More options`, `المزيد من الخيارات`],
