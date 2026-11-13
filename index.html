@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Warda v62.0 - Gestion de Warda</title>
+<title>Warda v62.1 - Gestion de Warda</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
@@ -503,7 +503,7 @@ body.locked #lang-float.admin-only { display: flex; }
     <span id="sync-indicator" class="syncing inline-block w-2.5 h-2.5 rounded-full" title="État de la connexion"></span>
     <span id="admin-presence-dot" role="button" tabindex="0" aria-label="Voir le statut de l'admin" class="presence-dot hidden" data-presence="admin" title="Admin hors ligne"></span>
                 </h1>
-                <p class="text-xs text-slate-400 hidden sm:block">Gestion de Warda - <span class="text-emerald-400 font-bold">v62.0</span></p>
+                <p class="text-xs text-slate-400 hidden sm:block">Gestion de Warda - <span class="text-emerald-400 font-bold">v62.1</span></p>
             </div>
         </div>
         <div id="header-actions" class="flex items-center gap-1.5 sm:gap-2 shrink-0">
@@ -542,7 +542,7 @@ body.locked #lang-float.admin-only { display: flex; }
                         <button id="admin-pin-settings-btn" data-action="pin" onclick="openChangeAdminPinModal()" title="Changer le code PIN" class="hidden flex items-center justify-center w-11 h-11 bg-slate-800 border border-slate-700 rounded-xl text-amber-300 hover:text-amber-200 hover:bg-slate-700 transition">
                 <i class="fa-solid fa-key"></i>
             </button>
-                        <button id="admin-logout-btn" type="button" onclick="askLogout()" title="Se déconnecter" class="hidden md:flex items-center justify-center w-11 h-11 bg-slate-800 border border-slate-700 rounded-xl text-red-400 hover:text-red-300 hover:bg-slate-700 transition">
+                        <button id="admin-logout-btn" data-action="logout" type="button" onclick="askLogout()" title="Se déconnecter" class="hidden flex items-center justify-center w-11 h-11 bg-slate-800 border border-slate-700 rounded-xl text-red-400 hover:text-red-300 hover:bg-slate-700 transition">
                 <i class="fa-solid fa-right-from-bracket"></i>
             </button>
                                                 <!-- Menu ⋯ : toujours présent (visibilité contrôlée par JS) -->
@@ -1371,7 +1371,7 @@ body.locked #lang-float.admin-only { display: flex; }
             </div>
 
             <!-- Mode Vue : ADMIN uniquement (visible < 1280px) -->
-            <div id="menu-role-selector" class="hidden xl:hidden">
+                        <div id="menu-role-selector" class="hidden xl:hidden border border-slate-300 rounded-xl p-3 bg-white">
                 <label class="block text-xs font-bold text-slate-700 uppercase mb-2 flex items-center gap-2"><i class="fa-solid fa-user-shield text-slate-500"></i> Mode Vue</label>
                 <div class="grid grid-cols-2 gap-1">
                     <button type="button" onclick="switchRoleFromMenu('admin')" id="menu-role-admin" class="py-2 px-2 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg border border-slate-300 transition flex items-center justify-center gap-1"><i class="fa-solid fa-user-shield text-[11px] shrink-0"></i><span class="truncate">Admin</span></button>
@@ -1388,7 +1388,7 @@ body.locked #lang-float.admin-only { display: flex; }
             </button>
 
             <!-- 📌 Épinglage -->
-            <div data-action="sticky" class="hidden">
+                        <div data-action="sticky" class="hidden border border-slate-300 rounded-xl p-3 bg-white">
                 <label class="block text-xs font-bold text-slate-700 uppercase mb-2 flex items-center gap-2"><i class="fa-solid fa-thumbtack text-slate-500"></i> Épinglage (barre fixe)</label>
                 <div class="grid grid-cols-2 gap-2">
                     <button type="button" onclick="setStickyFromMenu('free')" id="menu-sticky-free" class="py-2.5 text-sm font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl border border-slate-300 transition flex items-center justify-center gap-1.5">
@@ -1401,7 +1401,7 @@ body.locked #lang-float.admin-only { display: flex; }
             </div>
 
             <!-- 📝 Taille du texte -->
-            <div data-action="zoom" class="hidden">
+                        <div data-action="zoom" class="hidden border border-slate-300 rounded-xl p-3 bg-white">
                 <label class="block text-xs font-bold text-slate-700 uppercase mb-2 flex items-center gap-2"><i class="fa-solid fa-text-height text-slate-500"></i> Taille du texte</label>
                 <div class="flex items-center justify-center gap-2 bg-slate-100 p-1.5 rounded-xl">
                     <button type="button" onclick="changeUiZoom(-0.1)" class="flex-1 py-2 text-sm font-bold text-slate-700 hover:bg-white hover:shadow-sm rounded-lg transition">A−</button>
@@ -1411,7 +1411,7 @@ body.locked #lang-float.admin-only { display: flex; }
             </div>
 
             <!-- 🌐 Langue -->
-            <div data-action="lang" class="hidden">
+                        <div data-action="lang" class="hidden border border-slate-300 rounded-xl p-3 bg-white">
                 <label class="block text-xs font-bold text-slate-700 uppercase mb-2 flex items-center gap-2"><i class="fa-solid fa-globe text-slate-500"></i> Langue</label>
                 <div class="flex items-center gap-1 bg-slate-900 p-1 rounded-xl" role="group" aria-label="Langue / Language / اللغة">
                     <button type="button" class="lang-btn flex-1" data-lang="fr" onclick="setLang('fr')">FR</button>
@@ -1421,7 +1421,7 @@ body.locked #lang-float.admin-only { display: flex; }
             </div>
 
             <!-- 🌙 Thème -->
-            <div data-action="theme" class="hidden">
+                        <div data-action="theme" class="hidden border border-slate-300 rounded-xl p-3 bg-white">
                 <label class="block text-xs font-bold text-slate-700 uppercase mb-2 flex items-center gap-2"><i class="fa-solid fa-moon text-slate-500"></i> Thème</label>
                 <div class="grid grid-cols-2 gap-2">
                     <button type="button" onclick="setTheme('light')" id="menu-theme-light" class="py-2.5 text-sm font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl border border-slate-300 transition flex items-center justify-center gap-1.5">
@@ -1463,7 +1463,7 @@ const firebaseConfig = {
 };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
-const APP_VERSION = 62.0;      // à augmenter à chaque nouvelle version publiée (sert au bandeau « Nouvelle version »)
+const APP_VERSION = 62.1;      // à augmenter à chaque nouvelle version publiée (sert au bandeau « Nouvelle version »)
 const ROOT = 'cashexpress';
 const OPS_PATH = ROOT + '/ops';
 const CFG_PATH = ROOT + '/config';
@@ -5369,67 +5369,73 @@ function layoutHeaderActions() {
         document.getElementById('admin-logout-btn'),
     ].filter(Boolean);
 
-    // 1) Afficher TOUT pour mesurer la largeur réelle
-    items.forEach(el => el.classList.remove('hidden'));
-    more.classList.remove('hidden');
+    // ⚠️ Utilisation de style.display (inline) au lieu de classList('hidden'),
+    //    car .flex gagne sur .hidden dans la cascade Tailwind.
+    //    style.display inline gagne TOUJOURS sur les classes.
 
-    // 2) Mesurer l'espace disponible DEPUIS LE PARENT (et non depuis bar)
+        // 1) Forcer l'affichage pour mesurer : retirer 'hidden' + effacer inline display
+    //    ⚠️ Retirer 'hidden' est indispensable : dans Tailwind, .hidden gagne sur .flex,
+    //    donc sans ce remove, getComputedStyle() renvoie 'none' et les largeurs valent 0.
+    items.forEach(el => { el.classList.remove('hidden'); el.style.display = ''; });
+    more.classList.remove('hidden');
+    more.style.display = '';
+    bell.style.display = '';
+
+    // 2) Items réellement cachés par CSS (ex: PIN en mode livreur via !important)
+    const forcedHidden = items.filter(el => getComputedStyle(el).display === 'none');
+
+    // 3) Mesurer l'espace disponible réel dans le parent
     const parent = bar.parentElement;
     if (!parent) return;
+    const parentRect = parent.getBoundingClientRect();
     const parentStyle = getComputedStyle(parent);
-    const parentContentW = parent.clientWidth
-        - (parseFloat(parentStyle.paddingLeft)  || 0)
-        - (parseFloat(parentStyle.paddingRight) || 0);
+    const rightLimit = parentRect.right - (parseFloat(parentStyle.paddingRight) || 0);
 
-    const logoSection = parent.querySelector(':scope > .flex.items-center.space-x-3');
-    const logoW = logoSection ? logoSection.getBoundingClientRect().width : 0;
-    const headerGap = parseFloat(parentStyle.gap) || 8;
+    const bellRect = bell.getBoundingClientRect();
+    const gap = parseFloat(getComputedStyle(bar).gap) || 6;
 
-    // Espace max que peut occuper #header-actions sans passer à la ligne
-    const available = parentContentW - logoW - headerGap;
+    let remaining = rightLimit - bellRect.right - gap;
 
-    // 3) Calculer ce qui est déjà "réservé" dans la barre
-    const bellW   = bell.getBoundingClientRect().width;
-    const moreW   = more.getBoundingClientRect().width || 44;
-    const actionGap = parseFloat(getComputedStyle(bar).gap) || 6;
-
-    let reserved = bellW + actionGap + moreW + actionGap; // cloche + gaps + "⋯"
-    if (roleSelector && roleSelector.offsetParent !== null) {
-        reserved += roleSelector.getBoundingClientRect().width + actionGap;
+    // Réserver place pour roleSelector s'il est visible (admin ≥1280px)
+    if (roleSelector && getComputedStyle(roleSelector).display !== 'none') {
+        remaining -= (roleSelector.getBoundingClientRect().width + gap);
     }
 
-    let remaining = available - reserved;
+    // Réserver place pour "⋯"
+    const moreW = more.getBoundingClientRect().width || 44;
+    remaining -= (moreW + gap);
 
-    // 4) Attribuer chaque item : barre ou menu (ordre = priorité)
-    const inBar = [];
+    // 4) Répartir les items : barre ou menu (ordre de la liste = priorité)
+    //    Marge de sécurité de 2px pour absorber les arrondis sous-pixel
+    const SAFETY = 2;
     const inMenu = [];
     for (const el of items) {
-        if (el.offsetParent === null) { inMenu.push(el); continue; }
+        if (forcedHidden.includes(el)) {
+            el.style.display = 'none';
+            inMenu.push(el);
+            continue;
+        }
         const w = el.getBoundingClientRect().width;
-        if (w > 0 && (w + actionGap) <= remaining) {
-            inBar.push(el);
-            remaining -= (w + actionGap);
+        if (w + gap <= remaining - SAFETY) {
+            remaining -= (w + gap);
         } else {
+            el.style.display = 'none';   // ← caché pour de vrai (inline gagne)
             inMenu.push(el);
         }
     }
 
-    // 5) Appliquer la visibilité dans la barre
-    items.forEach(el => {
-        if (inMenu.includes(el)) el.classList.add('hidden');
-    });
-
-    // 6) Afficher/masquer le bouton "⋯"
-    const adminNeedsRoleMenu = window.__me === 'admin' && roleSelector && roleSelector.offsetParent === null;
+    // 5) Afficher/masquer le bouton "⋯"
+    const adminNeedsRoleMenu = window.__me === 'admin' && roleSelector &&
+        getComputedStyle(roleSelector).display === 'none';
     const showMore = inMenu.length > 0 || adminNeedsRoleMenu;
-    if (showMore) more.classList.remove('hidden');
-    else          more.classList.add('hidden');
+    more.style.display = showMore ? '' : 'none';
 
-    // 7) Synchroniser la visibilité des items dans le menu "⋯"
+         // 6) Synchroniser la visibilité des items dans le menu "⋯"
     const menuActions = new Set(inMenu.map(el => el.dataset.action).filter(Boolean));
     document.querySelectorAll('#modal-livreur-more [data-action]').forEach(menuEl => {
-        if (menuActions.has(menuEl.dataset.action)) menuEl.classList.remove('hidden');
-        else                                        menuEl.classList.add('hidden');
+        menuEl.classList.remove('hidden');
+        if (menuActions.has(menuEl.dataset.action)) menuEl.style.display = '';
+        else                                        menuEl.style.display = 'none';
     });
 }
 // Recalculer à chaque frame pendant le redimensionnement (aucun délai → pas de flash)
@@ -5532,7 +5538,7 @@ window.addEventListener('DOMContentLoaded', boot);
     try { var saved = localStorage.getItem(KEY); if (LANGS.indexOf(saved) >= 0) lang = saved; } catch (e) {}
 
     var E = [
-        [`Warda v62.0 - Gestion de Warda`, `Warda v62.0 - Warda management`, `وردة v62.0 - إدارة وردة`],
+        [`Warda v62.1 - Gestion de Warda`, `Warda v62.1 - Warda management`, `وردة v62.1 - إدارة وردة`],
 [`Options`, `Options`, `خيارات`],
 [`Langue`, `Language`, `اللغة`],
 [`Plus d'options`, `More options`, `المزيد من الخيارات`],
