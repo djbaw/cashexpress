@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Warda v61.0 - Gestion de Warda</title>
+<title>Warda v61.2 - Gestion de Warda</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
@@ -384,7 +384,7 @@ body.locked #lang-float.admin-only { display: flex; }
         <form id="form-held-balance" onsubmit="handleSaveHeldBalance(event)" class="p-6 space-y-4">
             <p class="text-xs text-slate-600 leading-relaxed">Indiquez le montant que vous avez réellement <strong>avec vous</strong> aujourd'hui. Vos soldes réel et théorique sont alors aussi affichés en fonction de ce montant. Le solde de départ reste fixé par l'Admin.</p>
             <div>
-                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Montant possédé (TND) *</label>
+                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Montant possédé *</label>
                 <input type="number" id="input-held-balance-amount" step="0.01" required placeholder="ex: 3000" class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-amber-500 focus:outline-none text-base font-bold text-slate-800">
                 <p id="held-balance-hint" class="text-xs text-slate-500 mt-2"></p>
             </div>
@@ -409,11 +409,11 @@ body.locked #lang-float.admin-only { display: flex; }
         <div class="p-6 space-y-4">
             <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 text-center">
                 <p class="text-xs font-bold text-slate-500 uppercase tracking-wider" id="debt-livreur-name">Livreur</p>
-                <p class="text-3xl font-black text-slate-900 mt-1" id="debt-current-value">0 TND</p>
+                <p class="text-3xl font-black text-slate-900 mt-1" id="debt-current-value">0</p>
                 <p class="text-xs font-semibold text-slate-500 mt-1" id="debt-current-label">Aucune dette</p>
             </div>
             <div class="space-y-2">
-                <label class="block text-xs font-bold text-slate-700 uppercase">Ajouter un montant (TND)</label>
+                <label class="block text-xs font-bold text-slate-700 uppercase">Ajouter un montant</label>
                 <div class="flex items-center gap-2">
                     <input type="number" id="debt-input-amount" step="0.01" placeholder="ex: 100 ou -50" class="flex-1 px-3.5 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-rose-500 focus:outline-none text-base font-bold text-slate-800">
                     <button type="button" onclick="handleAddDebtAmount()" class="px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-xl shadow-md transition whitespace-nowrap">+ Ajouter</button>
@@ -429,7 +429,7 @@ body.locked #lang-float.admin-only { display: flex; }
                 </button>
             </div>
             <div class="bg-amber-50 p-3 rounded-xl border border-amber-200">
-                <p class="text-xs font-bold text-amber-900" id="debt-preview">Nouvelle dette : 0 TND</p>
+                <p class="text-xs font-bold text-amber-900" id="debt-preview">Nouvelle dette : 0</p>
             </div>
             <div class="pt-3 flex justify-end space-x-3 border-t border-slate-100">
                 <button type="button" onclick="closeDebtModal()" class="px-4 py-2.5 text-slate-600 hover:bg-slate-100 font-semibold text-sm rounded-xl transition">Annuler</button>
@@ -461,7 +461,7 @@ body.locked #lang-float.admin-only { display: flex; }
     <span id="sync-indicator" class="syncing inline-block w-2.5 h-2.5 rounded-full" title="État de la connexion"></span>
 	<span id="admin-presence-dot" role="button" tabindex="0" aria-label="Voir le statut de l'admin" class="presence-dot hidden" data-presence="admin" title="Admin hors ligne"></span>
 				</h1>
-                <p class="text-xs text-slate-400 hidden sm:block">Gestion de Warda - <span class="text-emerald-400 font-bold">v61.0</span></p>
+                <p class="text-xs text-slate-400 hidden sm:block">Gestion de Warda - <span class="text-emerald-400 font-bold">v61.2</span></p>
             </div>
         </div>
         <button id="notif-bell" type="button" onclick="openNotifPanel()" title="Toutes les notifications" class="relative w-11 h-11 bg-slate-800 border border-slate-700 rounded-xl text-slate-200 hover:text-white hover:bg-slate-700 transition order-2 sm:order-3">
@@ -564,20 +564,20 @@ body.locked #lang-float.admin-only { display: flex; }
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div class="bg-slate-800/80 p-4 rounded-xl border border-slate-700/60">
                     <div class="flex justify-between items-center"><span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Départ Admin Global (Hier)</span><i class="fa-solid fa-building-columns text-slate-500 text-xs"></i></div>
-                    <p class="text-2xl font-black text-amber-400 mt-1" id="admin-global-start-balance">0 TND</p>
+                    <p class="text-2xl font-black text-amber-400 mt-1" id="admin-global-start-balance">0</p>
                     <div class="text-[11px] text-slate-400 mt-1 flex justify-between">
-                        <span>Distribué: <strong id="admin-distributed-starts" class="text-slate-200">0 TND</strong></span>
-                        <span>Disponible: <strong id="admin-remaining-starts" class="text-emerald-400">0 TND</strong></span>
+                        <span>Distribué: <strong id="admin-distributed-starts" class="text-slate-200">0</strong></span>
+                        <span>Disponible: <strong id="admin-remaining-starts" class="text-emerald-400">0</strong></span>
                     </div>
                 </div>
                 <div class="bg-slate-800/80 p-4 rounded-xl border border-slate-700/60">
                     <div class="flex justify-between items-center"><span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Solde Total Réel (En Poche)</span><i class="fa-solid fa-wallet text-emerald-500 text-xs"></i></div>
-                    <p class="text-2xl font-black text-emerald-400 mt-1" id="admin-total-real-balance">0 TND</p>
+                    <p class="text-2xl font-black text-emerald-400 mt-1" id="admin-total-real-balance">0</p>
                     <p class="text-[11px] text-slate-400 mt-1">Départ Admin + Alimentations validées - Livraisons effectuées.</p>
                 </div>
                 <div class="bg-slate-800/80 p-4 rounded-xl border border-slate-700/60">
                     <div class="flex justify-between items-center"><span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Solde Total Théorique (À Venir)</span><i class="fa-solid fa-chart-line text-blue-400 text-xs"></i></div>
-                    <p class="text-2xl font-black text-blue-400 mt-1" id="admin-total-theo-balance">0 TND</p>
+                    <p class="text-2xl font-black text-blue-400 mt-1" id="admin-total-theo-balance">0</p>
                     <p class="text-[11px] text-slate-400 mt-1">Solde projeté si toutes les opérations en cours sont validées.</p>
                 </div>
             </div>
@@ -600,12 +600,12 @@ body.locked #lang-float.admin-only { display: flex; }
                     <button onclick="openStartBalanceModal('livreur1')" class="text-xs font-bold text-brand-600 hover:text-brand-800 bg-brand-50 hover:bg-brand-100 px-2.5 py-1 rounded-lg transition"><i class="fa-solid fa-pen text-[10px] mr-1"></i>Départ</button>
                 </div>
                 <div class="grid grid-cols-2 gap-2 my-2 py-2 border-y border-slate-100 text-sm">
-                    <div><p class="text-xs text-slate-400">Solde Théorique</p><p class="font-bold text-slate-700" id="admin-theo-livreur1">0 TND</p><p id="admin-theo-held-livreur1" class="hidden text-[11px] font-semibold text-slate-500"></p></div>
-                    <div><p class="text-xs text-slate-400">Solde Réel</p><p class="font-bold text-slate-700" id="admin-real-livreur1">0 TND</p><p id="admin-real-held-livreur1" class="hidden text-[11px] font-semibold text-slate-500"></p></div>
+                    <div><p class="text-xs text-slate-400">Solde Théorique</p><p class="font-bold text-slate-700" id="admin-theo-livreur1">0</p><p id="admin-theo-held-livreur1" class="hidden text-[11px] font-semibold text-slate-500"></p></div>
+                    <div><p class="text-xs text-slate-400">Solde Réel</p><p class="font-bold text-slate-700" id="admin-real-livreur1">0</p><p id="admin-real-held-livreur1" class="hidden text-[11px] font-semibold text-slate-500"></p></div>
                 </div>
                 <div class="flex justify-between items-center text-xs text-slate-500">
-                    <span>Solde de départ: <strong id="admin-start-livreur1">0 TND</strong> <span id="admin-start-held-livreur1" class="hidden text-[11px] text-slate-500"></span></span>
-<span>Alimentation: <strong id="admin-added-livreur1" class="text-purple-600">+0 TND</strong></span>
+                    <span>Solde de départ: <strong id="admin-start-livreur1">0</strong> <span id="admin-start-held-livreur1" class="hidden text-[11px] text-slate-500"></span></span>
+<span>Alimentation: <strong id="admin-added-livreur1" class="text-purple-600">+0</strong></span>
                 </div>
             </div>
             <div id="admin-card-livreur2" class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-col justify-between relative overflow-hidden">
@@ -624,12 +624,12 @@ body.locked #lang-float.admin-only { display: flex; }
                     <button onclick="openStartBalanceModal('livreur2')" class="text-xs font-bold text-brand-600 hover:text-brand-800 bg-brand-50 hover:bg-brand-100 px-2.5 py-1 rounded-lg transition"><i class="fa-solid fa-pen text-[10px] mr-1"></i>Départ</button>
                 </div>
                 <div class="grid grid-cols-2 gap-2 my-2 py-2 border-y border-slate-100 text-sm">
-                    <div><p class="text-xs text-slate-400">Solde Théorique</p><p class="font-bold text-slate-700" id="admin-theo-livreur2">0 TND</p><p id="admin-theo-held-livreur2" class="hidden text-[11px] font-semibold text-slate-500"></p></div>
-                    <div><p class="text-xs text-slate-400">Solde Réel</p><p class="font-bold text-slate-700" id="admin-real-livreur2">0 TND</p><p id="admin-real-held-livreur2" class="hidden text-[11px] font-semibold text-slate-500"></p></div>
+                    <div><p class="text-xs text-slate-400">Solde Théorique</p><p class="font-bold text-slate-700" id="admin-theo-livreur2">0</p><p id="admin-theo-held-livreur2" class="hidden text-[11px] font-semibold text-slate-500"></p></div>
+                    <div><p class="text-xs text-slate-400">Solde Réel</p><p class="font-bold text-slate-700" id="admin-real-livreur2">0</p><p id="admin-real-held-livreur2" class="hidden text-[11px] font-semibold text-slate-500"></p></div>
                 </div>
                 <div class="flex justify-between items-center text-xs text-slate-500">
-                                        <span>Solde de départ: <strong id="admin-start-livreur2">0 TND</strong> <span id="admin-start-held-livreur2" class="hidden text-[11px] text-slate-500"></span></span>
-                    <span>Alimentation: <strong id="admin-added-livreur2" class="text-purple-600">+0 TND</strong></span>
+                                        <span>Solde de départ: <strong id="admin-start-livreur2">0</strong> <span id="admin-start-held-livreur2" class="hidden text-[11px] text-slate-500"></span></span>
+                    <span>Alimentation: <strong id="admin-added-livreur2" class="text-purple-600">+0</strong></span>
                 </div>
             </div>
             <div id="admin-card-livreur3" class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-col justify-between relative overflow-hidden">
@@ -648,12 +648,12 @@ body.locked #lang-float.admin-only { display: flex; }
                     <button onclick="openStartBalanceModal('livreur3')" class="text-xs font-bold text-brand-600 hover:text-brand-800 bg-brand-50 hover:bg-brand-100 px-2.5 py-1 rounded-lg transition"><i class="fa-solid fa-pen text-[10px] mr-1"></i>Départ</button>
                 </div>
                 <div class="grid grid-cols-2 gap-2 my-2 py-2 border-y border-slate-100 text-sm">
-                    <div><p class="text-xs text-slate-400">Solde Théorique</p><p class="font-bold text-slate-700" id="admin-theo-livreur3">0 TND</p><p id="admin-theo-held-livreur3" class="hidden text-[11px] font-semibold text-slate-500"></p></div>
-                    <div><p class="text-xs text-slate-400">Solde Réel</p><p class="font-bold text-slate-700" id="admin-real-livreur3">0 TND</p><p id="admin-real-held-livreur3" class="hidden text-[11px] font-semibold text-slate-500"></p></div>
+                    <div><p class="text-xs text-slate-400">Solde Théorique</p><p class="font-bold text-slate-700" id="admin-theo-livreur3">0</p><p id="admin-theo-held-livreur3" class="hidden text-[11px] font-semibold text-slate-500"></p></div>
+                    <div><p class="text-xs text-slate-400">Solde Réel</p><p class="font-bold text-slate-700" id="admin-real-livreur3">0</p><p id="admin-real-held-livreur3" class="hidden text-[11px] font-semibold text-slate-500"></p></div>
                 </div>
                 <div class="flex justify-between items-center text-xs text-slate-500">
-                                        <span>Solde de départ: <strong id="admin-start-livreur3">0 TND</strong> <span id="admin-start-held-livreur3" class="hidden text-[11px] text-slate-500"></span></span>
-                    <span>Alimentation: <strong id="admin-added-livreur3" class="text-purple-600">+0 TND</strong></span>
+                                        <span>Solde de départ: <strong id="admin-start-livreur3">0</strong> <span id="admin-start-held-livreur3" class="hidden text-[11px] text-slate-500"></span></span>
+                    <span>Alimentation: <strong id="admin-added-livreur3" class="text-purple-600">+0</strong></span>
                 </div>
             </div>
         </div>
@@ -759,7 +759,7 @@ body.locked #lang-float.admin-only { display: flex; }
             <button id="held-btn" type="button" onclick="openHeldBalanceModal()" class="px-1.5 py-0.5 bg-amber-100 hover:bg-amber-200 text-amber-900 text-[12px] sm:text-[13px] font-bold rounded-md border border-amber-300">✋ Possédé</button>
         </div>
         <div>
-            <p class="text-xl sm:text-2xl font-bold text-slate-700" id="livreur-start-balance">0 TND</p>
+            <p class="text-xl sm:text-2xl font-bold text-slate-700" id="livreur-start-balance">0</p>
             <p id="livreur-start-held" class="hidden text-[11px] sm:text-[13px] font-semibold text-slate-500"></p>
         </div>
     </div>
@@ -767,14 +767,14 @@ body.locked #lang-float.admin-only { display: flex; }
         <span class="text-[11px] sm:text-[13px] font-semibold text-amber-700 uppercase flex items-center gap-1"><i class="fa-solid fa-coins text-[10px] sm:text-[11px]"></i> Frais du jour</span>
         <div></div>
         <div>
-            <p class="text-xl sm:text-3xl font-black text-amber-800" id="livreur-total-fees">0 TND</p>
+            <p class="text-xl sm:text-3xl font-black text-amber-800" id="livreur-total-fees">0</p>
         </div>
     </div>
         <div id="card-livreur-real" class="bg-emerald-50/50 p-1.5 sm:p-2 rounded-lg border border-emerald-100 grid grid-rows-[auto_1fr_auto] gap-1 min-h-[100px] sm:min-h-[110px] cursor-pointer select-none">
         <span class="text-[11px] sm:text-[13px] font-semibold text-emerald-600 uppercase">Solde Réel (En Poche)</span>
         <div></div>
         <div>
-            <p class="text-xl sm:text-3xl font-black text-emerald-700" id="livreur-real-balance">0 TND</p>
+            <p class="text-xl sm:text-3xl font-black text-emerald-700" id="livreur-real-balance">0</p>
             <p id="livreur-real-held" class="hidden text-[11px] sm:text-[13px] font-semibold text-emerald-700"></p>
         </div>
     </div>
@@ -783,7 +783,7 @@ body.locked #lang-float.admin-only { display: flex; }
         <div>
 </div>
         <div>
-            <p class="text-xl sm:text-3xl font-black text-blue-700" id="livreur-theo-balance">0 TND</p>
+            <p class="text-xl sm:text-3xl font-black text-blue-700" id="livreur-theo-balance">0</p>
             <p id="livreur-theo-held" class="hidden text-[11px] sm:text-[13px] font-semibold text-blue-700"></p>
         </div>
     </div>
@@ -832,9 +832,9 @@ body.locked #lang-float.admin-only { display: flex; }
             <input type="hidden" id="validation-delivery-id" value="">
             <p class="text-sm text-slate-700 font-medium" id="validation-prompt-text">Voulez-vous vraiment valider cette opération ?</p>
             <div id="validation-fee-container">
-                <label class="block text-xs font-bold text-slate-700 uppercase mb-1" id="validation-fee-label">Frais de livraison (TND)</label>
+                <label class="block text-xs font-bold text-slate-700 uppercase mb-1" id="validation-fee-label">Frais de livraison</label>
                 <input type="number" id="input-validation-fee" min="0" max="999" step="0.01" inputmode="decimal" placeholder="20" class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none text-base font-bold text-slate-800">
-                <p class="text-[11px] text-slate-500 mt-1">Max 999 TND · Laissez vide pour la valeur par défaut.</p>
+                <p class="text-[11px] text-slate-500 mt-1">Max 999 · Laissez vide pour la valeur par défaut.</p>
             </div>
             <div>
                 <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Remarque (Optionnelle)</label>
@@ -881,7 +881,7 @@ body.locked #lang-float.admin-only { display: flex; }
         <form id="form-admin-start-balance" onsubmit="handleSaveAdminStartBalance(event)" class="p-6 space-y-4">
             <p class="text-xs text-slate-600 leading-relaxed">Fixez le <strong>Solde de Départ Réel d'Hier</strong> global de l'entreprise. Le total des soldes de départ attribués aux livreurs ne pourra pas dépasser ce montant.</p>
             <div>
-                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Montant Solde Départ Global (TND) *</label>
+                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Montant Solde Départ Global *</label>
                 <input type="number" id="input-admin-start-balance-amount" step="0.01" required placeholder="ex: 5000" class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none text-base font-bold text-slate-800">
             </div>
             <div class="pt-3 flex justify-end space-x-3">
@@ -918,7 +918,7 @@ body.locked #lang-float.admin-only { display: flex; }
                 </select>
             </div>
             <div>
-                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Montant à transférer (TND) *</label>
+                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Montant à transférer *</label>
                 <input type="number" id="transfer-amount" step="0.01" min="0.01" required placeholder="ex: 1000" oninput="updateTransferPreview()" class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none text-base font-bold text-slate-800">
             </div>
             <div id="transfer-preview" class="p-3 bg-indigo-50 border border-indigo-200 rounded-xl text-xs text-indigo-900 space-y-1"></div>
@@ -1098,7 +1098,7 @@ body.locked #lang-float.admin-only { display: flex; }
                 <input type="text" id="input-client-name" required placeholder="ex: Mohamed Trabelsi" class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-500 focus:outline-none text-sm">
             </div>
             <div>
-                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">4. Montant (TND) *</label>
+                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">4. Montant *</label>
                 <input type="number" id="input-amount" step="0.01" min="1" required placeholder="ex: 500" class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-500 focus:outline-none text-sm font-bold text-slate-800">
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1199,7 +1199,7 @@ body.locked #lang-float.admin-only { display: flex; }
         <form id="form-add-cash" onsubmit="handleSaveAddCash(event)" class="p-6 space-y-4 overflow-y-auto">
             <p class="text-xs text-purple-700 bg-purple-50 p-2.5 rounded-xl border border-purple-200"><i class="fa-solid fa-circle-info me-1"></i> L'alimentation sera créée en statut <strong>"EN COURS"</strong> comme une livraison.</p>
             <div>
-                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">1. Montant (TND) *</label>
+                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">1. Montant *</label>
                 <input type="number" id="input-add-cash-amount" step="0.01" min="1" required placeholder="ex: 1000" class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:outline-none text-base font-bold text-slate-800">
             </div>
             <div>
@@ -1240,7 +1240,7 @@ body.locked #lang-float.admin-only { display: flex; }
         <form id="form-start-balance" onsubmit="handleSaveStartBalance(event)" class="p-6 space-y-4">
             <input type="hidden" id="start-balance-livreur-id" value="">
             <div>
-                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Solde de Départ Attribué (TND) *</label>
+                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Solde de Départ Attribué *</label>
                 <input type="number" id="input-start-balance-amount" step="0.01" required placeholder="ex: 1500" class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-500 focus:outline-none text-base font-bold text-slate-800">
                 <p class="text-xs text-slate-500 mt-2" id="start-balance-constraint-hint">Le total des soldes de départ des livreurs ne peut pas dépasser le solde de départ global fixé par l'Admin.</p>
             </div>
@@ -1323,7 +1323,7 @@ const firebaseConfig = {
 };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
-const APP_VERSION = 61.0;      // à augmenter à chaque nouvelle version publiée (sert au bandeau « Nouvelle version »)
+const APP_VERSION = 61.2;      // à augmenter à chaque nouvelle version publiée (sert au bandeau « Nouvelle version »)
 const ROOT = 'cashexpress';
 const OPS_PATH = ROOT + '/ops';
 const CFG_PATH = ROOT + '/config';
@@ -2341,14 +2341,14 @@ function opMessages(p, d, who, toAdmin) {
     const art = isCash ? "l'" : 'la ';
     const client = q(d.clientName) || 'client';
     if (!p) {
-        out.push([`🔔 Nouvelle ${label}`, `${who} a ajouté une ${label} pour ${client} — ${d.amount} TND` + (toAdmin ? ` → ${nameOf(d.livreurId)}` : '')]);
+        out.push([`🔔 Nouvelle ${label}`, `${who} a ajouté une ${label} pour ${client} — ${d.amount}` + (toAdmin ? ` → ${nameOf(d.livreurId)}` : '')]);
         return out;
     }
     const remarkFields = ['remarkAdmin', 'remarkLivreur'].filter(f => q(p[f]) !== q(d[f]));
     if (p.status !== d.status) {
         const verb = d.status === 'delivered' ? 'validé' : (d.status === 'cancelled' ? 'annulé' : 'remis en cours');
         const title = d.status === 'delivered' ? '✅ Validation' : (d.status === 'cancelled' ? '🔴 Annulation' : '🔄 Remise en cours');
-        let txt = `${who} a ${verb} ${art}${label} de ${client} (${d.amount} TND)`;
+        let txt = `${who} a ${verb} ${art}${label} de ${client} (${d.amount})`;
         const withText = remarkFields.find(f => q(d[f]));
         if (withText) { txt += ` — remarque : « ${q(d[withText])} »`; remarkFields.length = 0; }
         out.push([title, txt]);
@@ -2379,7 +2379,7 @@ function opMessages(p, d, who, toAdmin) {
             : (!l0 ? `${who} a ajouté une localisation de ${client}` : `${who} a modifié la localisation de ${client}`)]);
     }
     if (Number(p.amount) !== Number(d.amount)) {
-        out.push(['✏️ Montant', `${who} a modifié le montant de ${client} : ${d.amount} TND`]);
+        out.push(['✏️ Montant', `${who} a modifié le montant de ${client} : ${d.amount}`]);
     }
     return out;
 }
@@ -2563,7 +2563,7 @@ function handleExcelImport(e) {
                     clientName: clean(row["Client / Remettant"]) || "Client",
                     phone: clean(row["Téléphone Principal"]), phone2: clean(row["Téléphone Secondaire"]),
                     address: clean(row["Adresse physique"]), location: clean(row["Localisation / GPS"]),
-                    amount: parseFloat(row["Montant (TND)"]) || 0, livreurId, status: statusVal,
+                    amount: parseFloat(row["Montant"]) || 0, livreurId, status: statusVal,
                     remarkAdmin: row["Remarque Admin"] || '', remarkLivreur: row["Remarque / Motif Livreur"] || '',
                     creationTime: row["Heure Insertion"] || getTimeStr(), actionTime: row["Heure Action"] || null,
                     timestamp: Date.now() + idx
@@ -3324,7 +3324,7 @@ function calculateTheoreticalBalance(livreurId, date) {
 }
 
 // ==================== SOLDE POSSÉDÉ ====================
-function fmtMoneyTND(v) { return Number(v).toLocaleString('fr-FR') + ' TND'; }
+function fmtMoneyTND(v) { return Number(v).toLocaleString('fr-FR'); }
 function getHeldBalance(livreurId, date) {
     const l = state.livreurs[livreurId];
     const h = (l && l.heldBalances) ? l.heldBalances[date] : undefined;
@@ -3487,9 +3487,9 @@ function getDebt(livreurId, date) {
 }
 function fmtDebt(v) {
     const n = Number(v) || 0;
-    if (Math.abs(n) < 0.005) return '0 TND';
+        if (Math.abs(n) < 0.005) return '0';
     const sign = n > 0 ? '+' : '';
-    return sign + n.toLocaleString('fr-FR') + ' TND';
+    return sign + n.toLocaleString('fr-FR');
 }
 function debtLabel(v) {
     const n = Number(v) || 0;
@@ -3533,10 +3533,10 @@ function handleDebtUseRealBalance() {
     const real = calculateRealBalance(_debtLivreurId, date);
     if (Math.abs(real) < 0.005) { alert("Le solde réel est 0. Rien à ajouter."); return; }
     const fmt = x => Number(x).toLocaleString('fr-FR');
-    const msg = `Ajouter le solde réel actuel (${fmt(real)} TND) à la dette ?\n\n` +
+    const msg = `Ajouter le solde réel actuel (${fmt(real)}) à la dette ?\n\n` +
         `Solde réel négatif = le livreur a avancé du cash (Admin doit).\n` +
         `Solde réel positif = le livreur a du cash en main (à reverser).\n\n` +
-        `Nouvelle dette : ${fmt(_debtBuffer + real)} TND`;
+        `Nouvelle dette : ${fmt(_debtBuffer + real)}`;
     if (!confirm(msg)) return;
     _debtBuffer = Math.round((_debtBuffer + real) * 100) / 100;
     updateDebtPreviewUI();
@@ -4096,13 +4096,10 @@ function triggerSosAlert() {
     const livreurName = (state.livreurs[livreurId] && state.livreurs[livreurId].name) || livreurId;
     const dateStr = new Date().toLocaleString('fr-FR');
 
-    // ① Notification Firebase pour l'admin (déclenche le son SOS spécifique)
+        // ① Notification Firebase pour l'admin (déclenche le son SOS spécifique)
     sendNotification('admin', '🚨 DÉCONNEXION D\'URGENCE',
-        `Livreur ${livreurName} a utilisé la déconnexion forcée en urgence.\n\n` +
-        `• Livreur : ${livreurName} (${livreurId})\n` +
-        `• Heure : ${dateStr}\n` +
-        `• Le lien N'A PAS été révoqué (le livreur peut se reconnecter avec son PIN)\n\n` +
-        `Action conseillée : contacter le livreur par téléphone pour vérifier son état.`);
+        `Livreur ${livreurName} a utilisé la déconnexion forcée en urgence le ${dateStr}.
+`);
 
     // ② Déconnexion forcée : suppression de la session locale
     try {
@@ -4142,9 +4139,9 @@ function renderAdminDashboard() {
     const adminStart = getAdminStartBalance(date);
     const totalLivreursStart = getTotalLivreursStartBalance(date);
     const remainingStart = adminStart - totalLivreursStart;
-    document.getElementById('admin-global-start-balance').textContent = `${adminStart.toLocaleString('fr-FR')} TND`;
-    document.getElementById('admin-distributed-starts').textContent = `${totalLivreursStart.toLocaleString('fr-FR')} TND`;
-    document.getElementById('admin-remaining-starts').textContent = `${remainingStart.toLocaleString('fr-FR')} TND`;
+    document.getElementById('admin-global-start-balance').textContent = `${adminStart.toLocaleString('fr-FR')}`;
+    document.getElementById('admin-distributed-starts').textContent = `${totalLivreursStart.toLocaleString('fr-FR')}`;
+    document.getElementById('admin-remaining-starts').textContent = `${remainingStart.toLocaleString('fr-FR')}`;
     let globalAddedDelivered = 0, globalAddedTheo = 0, globalDelivered = 0, globalDeliveriesTheo = 0;
     let countPending = 0, countDelivered = 0, countCancelled = 0, countCash = 0;
         ['livreur1', 'livreur2', 'livreur3'].forEach(id => {
@@ -4179,16 +4176,16 @@ function renderAdminDashboard() {
         globalAddedTheo += getAddedCashTheoreticalTotal(id, date);
         globalDelivered += getDeliveredTotal(id, date);
         globalDeliveriesTheo += getAllDeliveriesTotal(id, date);
-        document.getElementById(`admin-theo-${id}`).textContent = `${theo.toLocaleString('fr-FR')} TND`;
-        document.getElementById(`admin-real-${id}`).textContent = `${real.toLocaleString('fr-FR')} TND`;
-        document.getElementById(`admin-start-${id}`).textContent = `${start.toLocaleString('fr-FR')} TND`;
-        document.getElementById(`admin-added-${id}`).textContent = `+${addedDelivered.toLocaleString('fr-FR')} TND`;
+        document.getElementById(`admin-theo-${id}`).textContent = `${theo.toLocaleString('fr-FR')}`;
+        document.getElementById(`admin-real-${id}`).textContent = `${real.toLocaleString('fr-FR')}`;
+        document.getElementById(`admin-start-${id}`).textContent = `${start.toLocaleString('fr-FR')}`;
+        document.getElementById(`admin-added-${id}`).textContent = `+${addedDelivered.toLocaleString('fr-FR')}`;
         applyHeldLinesAdmin(id, date, start);
     });
     const globalRealTotal = adminStart + globalAddedDelivered - globalDelivered;
     const globalTheoTotal = adminStart + globalAddedTheo - globalDeliveriesTheo;
-    document.getElementById('admin-total-real-balance').textContent = `${globalRealTotal.toLocaleString('fr-FR')} TND`;
-    document.getElementById('admin-total-theo-balance').textContent = `${globalTheoTotal.toLocaleString('fr-FR')} TND`;
+    document.getElementById('admin-total-real-balance').textContent = `${globalRealTotal.toLocaleString('fr-FR')}`;
+    document.getElementById('admin-total-theo-balance').textContent = `${globalTheoTotal.toLocaleString('fr-FR')}`;
     document.getElementById('admin-global-date-label').textContent = date === getBusinessDayStr() ? "Aujourd'hui" : date;
            const dayOps = state.deliveries.filter(d => (d.date || getTodayStr()) === date);
     dayOps.forEach(d => {
@@ -4273,8 +4270,7 @@ ${typeIcon}
                 </div>
             </td>
             <td class="p-3.5 font-black ${isCash ? 'text-purple-700' : 'text-slate-900'} text-base">
-                ${canEditAmount ? `<span class="text-slate-900">${isCash ? '+' : ''}${Number(d.amount).toLocaleString('fr-FR')}</span><button type="button" onclick="promptEditAmount('${d.id}')" title="Modifier le montant" class="ms-1 px-0.5 py-0 bg-brand-50 hover:bg-brand-100 text-brand-700 rounded border border-brand-200 leading-none"><i class="fa-solid fa-pen text-[9px]"></i></button>` : `<span>${isCash ? '+' : ''}${Number(d.amount).toLocaleString('fr-FR')}</span>`}
-                <span class="text-xs font-semibold text-slate-500">TND</span>
+                ${canEditAmount ? `<span class="text-slate-900">${isCash ? '+' : ''}${Number(d.amount).toLocaleString('fr-FR')}</span><button type="button" onclick="promptEditAmount('${d.id}')" title="Modifier le montant" class="ms-1 px-0.5 py-0 bg-brand-50 hover:bg-brand-100 text-brand-700 rounded border border-brand-200 leading-none"><i class="fa-solid fa-pen text-[9px]"></i></button>` : `<span>${isCash ? '+' : ''}${Number(d.amount).toLocaleString('fr-FR')}</span>`}  
             </td>
             <td class="p-3.5 font-medium text-slate-700">
                 <div class="flex items-center space-x-1.5">
@@ -4336,16 +4332,16 @@ function renderLivreurDashboard(livreurId) {
     const start = getStartBalance(livreurId, date);
     const theo = calculateTheoreticalBalance(livreurId, date);
     const real = calculateRealBalance(livreurId, date);
-    document.getElementById('livreur-start-balance').textContent = `${start.toLocaleString('fr-FR')} TND`;
-    document.getElementById('livreur-real-balance').textContent = `${real.toLocaleString('fr-FR')} TND`;
-    document.getElementById('livreur-theo-balance').textContent = `${theo.toLocaleString('fr-FR')} TND`;
+    document.getElementById('livreur-start-balance').textContent = `${start.toLocaleString('fr-FR')}`;
+    document.getElementById('livreur-real-balance').textContent = `${real.toLocaleString('fr-FR')}`;
+    document.getElementById('livreur-theo-balance').textContent = `${theo.toLocaleString('fr-FR')}`;
     applyHeldLinesLivreur(livreurId, date, start);
 	    // 🆕 Total des frais de livraison du jour (livreur uniquement)
     const totalFees = state.deliveries
         .filter(d => d.date === date && d.livreurId === livreurId && d.status === 'delivered' && typeof d.deliveryFee === 'number')
         .reduce((s, d) => s + Number(d.deliveryFee), 0);
     const totalFeesEl = document.getElementById('livreur-total-fees');
-    if (totalFeesEl) totalFeesEl.textContent = `${totalFees.toLocaleString('fr-FR')} TND`;
+    if (totalFeesEl) totalFeesEl.textContent = `${totalFees.toLocaleString('fr-FR')}`;
 
     let countPending = 0, countDelivered = 0, countCancelled = 0, countCash = 0;
     const search = (document.getElementById('global-search-input').value || '').toLowerCase().trim();
@@ -4403,9 +4399,9 @@ ${sortModeActive && d.status === 'pending' ? `<button onclick="handleSortClick('
 
                                         ${typeBadge}${statusBadge}
                     <span class="text-[11px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">🕒 ${cTime}${d.actionTime ? ' ➔ ' + d.actionTime : ''}</span>
-                    ${d.status === 'delivered' && typeof d.deliveryFee === 'number' && d.deliveryFee > 0 ? `<span class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200" title="Frais"><i class="fa-solid fa-coins text-[9px]"></i> ${Number(d.deliveryFee).toLocaleString('fr-FR')} TND</span>` : ''}
+                    ${d.status === 'delivered' && typeof d.deliveryFee === 'number' && d.deliveryFee > 0 ? `<span class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200" title="Frais"><i class="fa-solid fa-coins text-[9px]"></i> ${Number(d.deliveryFee).toLocaleString('fr-FR')}</span>` : ''}
                 </div>
-                <div class="text-right shrink-0"><span class="text-lg font-black ${isCash ? 'text-purple-700' : (d.status==='cancelled'?'text-slate-400 strikethrough-text':'text-slate-900')}">${isCash ? '+' : ''}${Number(d.amount).toLocaleString('fr-FR')}</span> <span class="text-[11px] font-bold text-slate-500">TND</span>${(isCash && d.status === 'pending') ? `<button type="button" onclick="promptEditAmount('${d.id}')" title="Modifier le montant de l'alimentation" class="ms-1 px-1.5 py-0.5 bg-purple-100 hover:bg-purple-200 text-purple-800 rounded text-[10px] font-bold border border-purple-200"><i class="fa-solid fa-pen text-[9px]"></i> Modifier</button>` : ''}</div>
+                <div class="text-right shrink-0"><span class="text-lg font-black ${isCash ? 'text-purple-700' : (d.status==='cancelled'?'text-slate-400 strikethrough-text':'text-slate-900')}">${isCash ? '+' : ''}${Number(d.amount).toLocaleString('fr-FR')}</span> ${(isCash && d.status === 'pending') ? `<button type="button" onclick="promptEditAmount('${d.id}')" title="Modifier le montant de l'alimentation" class="ms-1 px-1.5 py-0.5 bg-purple-100 hover:bg-purple-200 text-purple-800 rounded text-[10px] font-bold border border-purple-200"><i class="fa-solid fa-pen text-[9px]"></i> Modifier</button>` : ''}</div>
             </div>
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <div>
@@ -4482,7 +4478,7 @@ async function executeExcelExport() {
         "Téléphone Secondaire": d.phone2 || 'N/A',
         "Adresse physique": d.address || 'N/A',
         "Localisation / GPS": d.location || 'N/A',
-        "Montant (TND)": Number(d.amount),
+        "Montant": Number(d.amount),
         "Livreur Assigné": state.livreurs[d.livreurId]?.name || d.livreurId,
         "Statut": d.status === 'pending' ? "En cours" : (d.status === 'delivered' ? (d.type === 'SOLDE_RECU' ? "Validé" : "Envoyé") : "Annulé"),
         "Heure Insertion": d.creationTime || '',
@@ -4510,7 +4506,7 @@ function openConfirmValidationModal(deliveryId) {
     const isAdmin = state.currentRole === 'admin';
     const isCash = del.type === 'SOLDE_RECU';
     document.getElementById('input-validation-remark').value = isAdmin ? (del.remarkAdmin || '') : (del.remarkLivreur || '');
-    document.getElementById('validation-prompt-text').textContent = `Confirmer la validation de "${del.clientName}" (${del.amount} TND) ?`;
+    document.getElementById('validation-prompt-text').textContent = `Confirmer la validation de "${del.clientName}" (${del.amount}) ?`;
 
     // 🆕 Frais de livraison : champ visible uniquement côté livreur
     const feeContainer = document.getElementById('validation-fee-container');
@@ -4521,7 +4517,7 @@ function openConfirmValidationModal(deliveryId) {
             feeContainer.classList.add('hidden');
         } else {
             feeContainer.classList.remove('hidden');
-            feeLabel.textContent = isCash ? "Frais d'alimentation (TND)" : 'Frais de livraison (TND)';
+            feeLabel.textContent = isCash ? "Frais d'alimentation" : 'Frais de livraison';
             // Pré-remplir : valeur existante (éventuelle re-validation), sinon défaut 20 (LIVR) / 0 (ALIM)
             if (typeof del.deliveryFee === 'number') feeInput.value = del.deliveryFee;
             else feeInput.value = isCash ? 0 : 20;
@@ -4597,12 +4593,12 @@ function promptEditAmount(id) {
     const isAdmin = state.currentRole === 'admin';
     if (!isAdmin && d.type !== 'SOLDE_RECU') return;
     if (d.status !== 'pending') { alert("Le montant ne peut être modifié que si l'opération est EN COURS !"); return; }
-    const v = prompt("Nouveau montant (TND) :", d.amount);
+    const v = prompt("Nouveau montant :", d.amount);
     if (v !== null && !isNaN(v) && parseFloat(v) > 0) {
         const amount = parseFloat(v);
         if (amount === Number(d.amount)) return;
         patchOp(id, { amount });
-        showToast("Montant modifié", `Nouveau montant ${amount} TND.`);
+        showToast("Montant modifié", `Nouveau montant ${amount}.`);
     }
 }
 
@@ -4623,7 +4619,7 @@ function openEditOpModal(id) {
     document.getElementById('edit-phone-label').textContent = isCash ? 'Téléphone Remettant / Contact (Facultatif)' : 'Téléphone Client *';
     document.getElementById('edit-name-label').textContent = isCash ? 'Nom / Origine des fonds *' : 'Nom et Prénom du Client *';
     document.getElementById('edit-phone').required = !isCash;
-    document.getElementById('edit-op-info').textContent = (isCash ? '➕ Alimentation' : '📦 Livraison') + ' — ' + Number(d.amount).toLocaleString('fr-FR') + ' TND (le montant se modifie avec son propre bouton)';
+    document.getElementById('edit-op-info').textContent = (isCash ? '➕ Alimentation' : '📦 Livraison') + ' — ' + Number(d.amount).toLocaleString('fr-FR') + ' (le montant se modifie avec son propre bouton)';
     toggleEditOpModal(true);
 }
 function toggleEditOpModal(show) {
@@ -4722,7 +4718,7 @@ function handleSaveDelivery(e) {
         creationTime: getTimeStr(now.getTime()), actionTime: null, timestamp: now.getTime()
     });
     toggleAddModal(false);
-    showToast("🔔 Nouvelle Opération", `${type === 'SOLDE_RECU' ? 'Alimentation' : 'Livraison'} de ${amount} TND assignée à ${state.livreurs[livreurId]?.name || livreurId}.`);
+    showToast("🔔 Nouvelle Opération", `${type === 'SOLDE_RECU' ? 'Alimentation' : 'Livraison'} de ${amount} assignée à ${state.livreurs[livreurId]?.name || livreurId}.`);
 }
 function openRemarkModal(id) {
     const del = state.deliveries.find(d => d.id === id);
@@ -4769,7 +4765,7 @@ const livreurId = state.currentRole === 'admin' ? document.getElementById('input
         creationTime: getTimeStr(now.getTime()), actionTime: null, timestamp: now.getTime()
     });
     toggleAddCashModal(false);
-    showToast("Alimentation ajoutée", `+${amount} TND en cours de validation.`);
+    showToast("Alimentation ajoutée", `+${amount} en cours de validation.`);
 }
 function handleSaveStartBalance(e) {
     e.preventDefault();
@@ -4779,7 +4775,7 @@ function handleSaveStartBalance(e) {
     if (isNaN(amount)) { alert("Montant invalide."); return; }
     const adminStart = getAdminStartBalance(date);
     const otherSum = LIVREUR_IDS.filter(id => id !== livreurId).reduce((s, id) => s + getStartBalance(id, date), 0);
-    if (amount > 0 && otherSum + amount > adminStart) { alert(`Plafond dépassé ! Max : ${adminStart - otherSum} TND`); return; }
+    if (amount > 0 && otherSum + amount > adminStart) { alert(`Plafond dépassé ! Max : ${adminStart - otherSum}`); return; }
     const oldAmount = getStartBalance(livreurId, date);
     const hasChanged = Math.abs(oldAmount - amount) > 0.005;
     if (!state.livreurs[livreurId].startBalances) state.livreurs[livreurId].startBalances = {};
@@ -4787,10 +4783,10 @@ function handleSaveStartBalance(e) {
     dbSet(CFG_PATH + '/livreurs/' + livreurId + '/startBalances/' + date, amount);
     toggleStartBalanceModal(false);
     renderApp();
-    showToast("Solde Livreur mis à jour", `${amount} TND attribués à ${state.livreurs[livreurId]?.name}.`);
+    showToast("Solde Livreur mis à jour", `${amount} attribués à ${state.livreurs[livreurId]?.name}.`);
     if (hasChanged && notifMode !== 'local') {
         const fmt = v => Number(v).toLocaleString('fr-FR');
-        sendNotification(livreurId, '💰 Solde de départ modifié', `Admin a modifié votre solde de départ : ${fmt(oldAmount)} → ${fmt(amount)} TND (${date})`);
+        sendNotification(livreurId, '💰 Solde de départ modifié', `Admin a modifié votre solde de départ : ${fmt(oldAmount)} → ${fmt(amount)} (${date})`);
     }
 }
 
@@ -4815,7 +4811,7 @@ function openStartBalanceModal(livreurId) {
     document.getElementById('start-balance-livreur-id').value = livreurId;
     document.getElementById('input-start-balance-amount').value = currentStart;
     document.getElementById('modal-start-balance-title').textContent = `Solde Départ - ${state.livreurs[livreurId]?.name}`;
-    document.getElementById('start-balance-constraint-hint').innerHTML = `Solde Départ Admin: <strong>${adminStart} TND</strong><br>Déjà attribué: <strong>${otherSum} TND</strong><br>Maximum: <strong class="text-emerald-600">${maxAllowed} TND</strong>`;
+    document.getElementById('start-balance-constraint-hint').innerHTML = `Solde Départ Admin: <strong>${adminStart}</strong><br>Déjà attribué: <strong>${otherSum}</strong><br>Maximum: <strong class="text-emerald-600">${maxAllowed}</strong>`;
     document.getElementById('modal-start-balance').classList.remove('hidden');
 }
 function toggleStartBalanceModal(show) { const m = document.getElementById('modal-start-balance'); if (show) m.classList.remove('hidden'); else m.classList.add('hidden'); }
@@ -4856,8 +4852,8 @@ function updateTransferPreview() {
     const fmt = v => Number(v).toLocaleString('fr-FR');
     let html = `
         <p class="font-bold mb-1">📊 Aperçu du transfert :</p>
-        <p>🛵 <strong>${fromName}</strong> : ${fmt(fromBal)} → <strong>${fmt(newFrom)} TND</strong> (-${fmt(amount)})</p>
-        <p>🛵 <strong>${toName}</strong> : ${fmt(toBal)} → <strong>${fmt(newTo)} TND</strong> (+${fmt(amount)})</p>
+        <p>🛵 <strong>${fromName}</strong> : ${fmt(fromBal)} → <strong>${fmt(newFrom)}</strong> (-${fmt(amount)})</p>
+        <p>🛵 <strong>${toName}</strong> : ${fmt(toBal)} → <strong>${fmt(newTo)}</strong> (+${fmt(amount)})</p>
     `;
     if (amount > fromBal) {
         html += `<p class="font-bold text-red-700 mt-1">⚠️ Solde insuffisant chez ${fromName} !</p>`;
@@ -4878,7 +4874,7 @@ async function handleTransferBalance(e) {
     const toBal = getStartBalance(toId, date);
 
     if (amount > fromBal) {
-        alert(`Solde insuffisant ! ${state.livreurs[fromId]?.name} n'a que ${fromBal.toLocaleString('fr-FR')} TND.`);
+        alert(`Solde insuffisant ! ${state.livreurs[fromId]?.name} n'a que ${fromBal.toLocaleString('fr-FR')}.`);
         return;
     }
 
@@ -4888,7 +4884,7 @@ async function handleTransferBalance(e) {
     const toName = state.livreurs[toId]?.name || toId;
     const fmt = v => Number(v).toLocaleString('fr-FR');
 
-    const confirmMsg = `Confirmer le transfert ?\n\n🛵 ${fromName} : ${fmt(fromBal)} → ${fmt(newFrom)} TND (-${fmt(amount)})\n🛵 ${toName} : ${fmt(toBal)} → ${fmt(newTo)} TND (+${fmt(amount)})\n\nDate : ${date}`;
+    const confirmMsg = `Confirmer le transfert ?\n\n🛵 ${fromName} : ${fmt(fromBal)} → ${fmt(newFrom)} (-${fmt(amount)})\n🛵 ${toName} : ${fmt(toBal)} → ${fmt(newTo)} (+${fmt(amount)})\n\nDate : ${date}`;
     if (!confirm(confirmMsg)) return;
 
     try {
@@ -4903,13 +4899,13 @@ async function handleTransferBalance(e) {
         state.livreurs[toId].startBalances[date] = newTo;
 
         if (notifMode !== 'local') {
-            sendNotification(fromId, '🔁 Transfert de solde (sortie)', `Admin a transféré ${fmt(amount)} TND de votre solde vers ${toName} : ${fmt(fromBal)} → ${fmt(newFrom)} TND (${date})`);
-            sendNotification(toId, '🔁 Transfert de solde (entrée)', `Admin a transféré ${fmt(amount)} TND de ${fromName} vers votre solde : ${fmt(toBal)} → ${fmt(newTo)} TND (${date})`);
+            sendNotification(fromId, '🔁 Transfert de solde (sortie)', `Admin a transféré ${fmt(amount)} de votre solde vers ${toName} : ${fmt(fromBal)} → ${fmt(newFrom)} (${date})`);
+            sendNotification(toId, '🔁 Transfert de solde (entrée)', `Admin a transféré ${fmt(amount)} de ${fromName} vers votre solde : ${fmt(toBal)} → ${fmt(newTo)} (${date})`);
         }
 
         toggleTransferModal(false);
         renderApp();
-        showToast("🔁 Transfert effectué", `${fmt(amount)} TND transférés de ${fromName} vers ${toName}.`);
+        showToast("🔁 Transfert effectué", `${fmt(amount)} transférés de ${fromName} vers ${toName}.`);
     } catch (err) {
         console.error(err);
         alert("❌ Échec du transfert. Vérifiez la connexion.");
@@ -4922,12 +4918,12 @@ function handleSaveAdminStartBalance(e) {
     const amount = parseFloat(document.getElementById('input-admin-start-balance-amount').value);
     if (isNaN(amount)) { alert("Montant invalide."); return; }
     const currentLivreursTotal = getTotalLivreursStartBalance(date);
-    if (amount >= 0 && amount < currentLivreursTotal) { alert(`Impossible : déjà attribué ${currentLivreursTotal} TND aux livreurs.`); return; }
+    if (amount >= 0 && amount < currentLivreursTotal) { alert(`Impossible : déjà attribué ${currentLivreursTotal} aux livreurs.`); return; }
     state.adminStartBalances[date] = amount;
     dbSet(CFG_PATH + '/adminStartBalances/' + date, amount);
     toggleAdminStartBalanceModal(false);
     renderApp();
-    showToast("Solde Admin Enregistré", `${amount} TND pour le ${date}.`);
+    showToast("Solde Admin Enregistré", `${amount} pour le ${date}.`);
 }
 function openEditLivreurNameModal(id) {
     document.getElementById('edit-livreur-id').value = id;
@@ -4953,7 +4949,7 @@ function openReassignModal(deliveryId) {
     if (del.status === 'delivered') { alert("Réaffectation impossible : déjà validée !"); return; }
     document.getElementById('reassign-delivery-id').value = deliveryId;
     document.getElementById('select-reassign-livreur').value = del.livreurId;
-    document.getElementById('reassign-client-info').textContent = `Réaffectation de "${del.clientName}" (${del.amount} TND) :`;
+    document.getElementById('reassign-client-info').textContent = `Réaffectation de "${del.clientName}" (${del.amount}) :`;
     toggleReassignModal(true);
 }
 function toggleReassignModal(show) { const m = document.getElementById('modal-reassign'); if (show) m.classList.remove('hidden'); else m.classList.add('hidden'); }
@@ -5184,7 +5180,7 @@ window.addEventListener('DOMContentLoaded', boot);
     try { var saved = localStorage.getItem(KEY); if (LANGS.indexOf(saved) >= 0) lang = saved; } catch (e) {}
 
     var E = [
-        [`Warda v61.0 - Gestion de Warda`, `Warda v61.0 - Warda management`, `وردة v61.0 - إدارة وردة`],
+        [`Warda v61.2 - Gestion de Warda`, `Warda v61.2 - Warda management`, `وردة v61.2 - إدارة وردة`],
 [`Options`, `Options`, `خيارات`],
 [`Langue`, `Language`, `اللغة`],
 [`Plus d'options`, `More options`, `المزيد من الخيارات`],
@@ -5265,7 +5261,7 @@ window.addEventListener('DOMContentLoaded', boot);
         [`Indiquez le montant que vous avez réellement`, `Enter the amount you actually have`, `أدخل المبلغ الذي لديك فعلياً`],
         [`avec vous`, `with you`, `معك`],
         [`aujourd'hui. Vos soldes réel et théorique sont alors aussi affichés en fonction de ce montant. Le solde de départ reste fixé par l'Admin.`, `today. Your actual and theoretical balances are then also shown based on this amount. The opening balance remains set by the Admin.`, `اليوم. سيتم أيضاً عرض رصيدك الفعلي والنظري بناءً على هذا المبلغ. يبقى رصيد البداية محدداً من طرف المسؤول.`],
-        [`Montant possédé (TND) *`, `Amount held (TND) *`, `المبلغ بحوزتي (TND) *`],
+        [`Montant possédé *`, `Amount held *`, `المبلغ بحوزتي *`],
         [`Égal au départ`, `Same as opening`, `مساوٍ للبداية`],
         [`Enregistrer`, `Save`, `حفظ`],
         [`Connexion au serveur…`, `Connecting to the server…`, `جارٍ الاتصال بالخادم…`],
@@ -5353,7 +5349,7 @@ window.addEventListener('DOMContentLoaded', boot);
         [`Fixez le`, `Set the`, `حدّد`],
         [`Solde de Départ Réel d'Hier`, `Actual Opening Balance of Yesterday`, `رصيد البداية الفعلي لأمس`],
         [`global de l'entreprise. Le total des soldes de départ attribués aux livreurs ne pourra pas dépasser ce montant.`, `of the company. The total of opening balances assigned to couriers cannot exceed this amount.`, `الإجمالي للمؤسسة. لا يمكن أن يتجاوز مجموع أرصدة البداية الموزّعة على الموزّعين هذا المبلغ.`],
-        [`Montant Solde Départ Global (TND) *`, `Global Opening Balance Amount (TND) *`, `مبلغ رصيد البداية الإجمالي (TND) *`],
+        [`Montant Solde Départ Global *`, `Global Opening Balance Amount *`, `مبلغ رصيد البداية الإجمالي *`],
         [`Enregistrer Solde Admin`, `Save Admin Balance`, `حفظ رصيد المسؤول`],
         [`Extraction du Rapport Excel`, `Excel Report Export`, `تصدير تقرير Excel`],
         [`Choisissez la période d'extraction des opérations :`, `Choose the export period for operations:`, `اختر فترة تصدير العمليات:`],
@@ -5388,7 +5384,7 @@ window.addEventListener('DOMContentLoaded', boot);
         [`Téléphone 2 (Optionnel)`, `Phone 2 (Optional)`, `الهاتف 2 (اختياري)`],
         [`Informations pré-remplies depuis l'historique client !`, `Information pre-filled from client history!`, `معلومات مملوءة مسبقاً من سجل العميل!`],
         [`3. Nom et Prénom du Client / Remettant *`, `3. Client / Sender Full Name *`, `3. الاسم واللقب للعميل / المودِع *`],
-        [`4. Montant (TND) *`, `4. Amount (TND) *`, `4. المبلغ (TND) *`],
+        [`4. Montant *`, `4. Amount *`, `4. المبلغ *`],
         [`5. Adresse physique`, `5. Physical address`, `5. العنوان الفعلي`],
         [`6. Localisation GPS / Maps`, `6. GPS Location / Maps`, `6. الموقع GPS / الخرائط`],
         [`7. Remarque de l'Admin (Facultatif)`, `7. Admin Remark (Optional)`, `7. ملاحظة المسؤول (اختياري)`],
@@ -5405,7 +5401,7 @@ window.addEventListener('DOMContentLoaded', boot);
         [`Nouvelle Alimentation`, `New Top-up`, `تغذية جديدة`],
         [`L'alimentation sera créée en statut`, `The top-up will be created with status`, `سيتم إنشاء التغذية بحالة`],
         [`comme une livraison.`, `like a delivery.`, `مثل التوصيل.`],
-        [`1. Montant (TND) *`, `1. Amount (TND) *`, `1. المبلغ (TND) *`],
+        [`1. Montant *`, `1. Amount *`, `1. المبلغ *`],
         [`2. Nom / Origine des fonds *`, `2. Name / Source of funds *`, `2. الاسم / مصدر الأموال *`],
         [`3. Téléphone Contact (Facultatif)`, `3. Contact Phone (Optional)`, `3. هاتف الاتصال (اختياري)`],
         [`4. Adresse (Facultatif)`, `4. Address (Optional)`, `4. العنوان (اختياري)`],
@@ -5413,7 +5409,7 @@ window.addEventListener('DOMContentLoaded', boot);
         [`6. Remarque / Note`, `6. Remark / Note`, `6. ملاحظة`],
         [`Enregistrer (En cours)`, `Save (Pending)`, `حفظ (قيد التنفيذ)`],
         [`Solde de Départ Livreur (Hier)`, `Courier Opening Balance (Yesterday)`, `رصيد بداية الموزّع (أمس)`],
-        [`Solde de Départ Attribué (TND) *`, `Assigned Opening Balance (TND) *`, `رصيد البداية المخصّص (TND) *`],
+        [`Solde de Départ Attribué *`, `Assigned Opening Balance *`, `رصيد البداية المخصّص *`],
         [`Le total des soldes de départ des livreurs ne peut pas dépasser le solde de départ global fixé par l'Admin.`, `The total of couriers' opening balances cannot exceed the global opening balance set by the Admin.`, `لا يمكن أن يتجاوز مجموع أرصدة بداية الموزّعين رصيد البداية الإجمالي الذي حدّده المسؤول.`],
         [`Solde Départ Admin:`, `Admin Opening Balance:`, `رصيد بداية المسؤول:`],
         [`Déjà attribué:`, `Already assigned:`, `المخصّص مسبقاً:`],
@@ -5474,7 +5470,7 @@ window.addEventListener('DOMContentLoaded', boot);
         [`✅ Validation`, `✅ Validation`, `✅ تأكيد`],
         [`🔄 Remise en cours`, `🔄 Back to pending`, `🔄 إعادة إلى قيد التنفيذ`],
         [`Remise en cours`, `Back to pending`, `إعادة إلى قيد التنفيذ`],
-        [`Nouveau montant (TND) :`, `New amount (TND):`, `المبلغ الجديد (TND):`],
+        [`Nouveau montant :`, `New amount:`, `المبلغ الجديد:`],
         [`Montant modifié`, `Amount updated`, `تم تعديل المبلغ`],
         [`Impossible : date passée.`, `Not possible: past date.`, `غير ممكن: تاريخ سابق.`],
         [`🔔 Nouvelle Opération`, `🔔 New Operation`, `🔔 عملية جديدة`],
@@ -5558,7 +5554,7 @@ window.addEventListener('DOMContentLoaded', boot);
 	[`Transférer un solde entre livreurs`, `Transfer balance between couriers`, `تحويل رصيد بين الموزعين`],
 	[`Livreur source (retrait) *`, `Source courier (withdraw) *`, `الموزع المصدر (سحب) *`],
 	[`Livreur destination (ajout) *`, `Destination courier (add) *`, `الموزع المستقبل (إضافة) *`],
-	[`Montant à transférer (TND) *`, `Amount to transfer (TND) *`, `المبلغ المراد تحويله (TND) *`],
+	[`Montant à transférer *`, `Amount to transfer *`, `المبلغ المراد تحويله *`],
 	[`🔁 Transfert effectué`, `🔁 Transfer completed`, `🔁 تم التحويل`],
 	[`🔁 Transfert de solde (sortie)`, `🔁 Balance transfer (out)`, `🔁 تحويل رصيد (خروج)`],
 	[`🔁 Transfert de solde (entrée)`, `🔁 Balance transfer (in)`, `🔁 تحويل رصيد (دخول)`],
@@ -5572,18 +5568,18 @@ window.addEventListener('DOMContentLoaded', boot);
 	[`Aucune dette`, `No debt`, `لا يوجد دين`],
 	[`Le livreur doit à l'Admin`, `Courier owes Admin`, `الموزّع مدين للمسؤول`],
 	[`L'Admin doit au livreur`, `Admin owes courier`, `المسؤول مدين للموزّع`],
-	[`Ajouter un montant (TND)`, `Add an amount (TND)`, `إضافة مبلغ (TND)`],
+	[`Ajouter un montant`, `Add an amount`, `إضافة مبلغ`],
 	[`Positif = le livreur doit à l'Admin · Négatif = l'Admin doit au livreur.`, `Positive = courier owes Admin · Negative = Admin owes courier.`, `موجب = الموزّع مدين للمسؤول · سالب = المسؤول مدين للموزّع.`],
 	[`+ Ajouter`, `+ Add`, `+ إضافة`],
 	[`Utiliser solde réel`, `Use actual balance`, `استخدام الرصيد الفعلي`],
 	[`Remettre à zéro`, `Reset to zero`, `إعادة إلى الصفر`],
-	[`Nouvelle dette : 0 TND`, `New debt: 0 TND`, `الدين الجديد: 0 TND`],
+	[`Nouvelle dette : 0`, `New debt: 0`, `الدين الجديد: 0`],
 	[`Confirmer`, `Confirm`, `تأكيد`],
 	[`Gérer dette`, `Manage debt`, `إدارة الدين`],
-	[`Frais de livraison (TND)`, `Delivery fee (TND)`, `رسوم التوصيل (TND)`],
-	[`Frais d'alimentation (TND)`, `Top-up fee (TND)`, `رسوم التغذية (TND)`],
+	[`Frais de livraison`, `Delivery fee`, `رسوم التوصيل`],
+	[`Frais d'alimentation`, `Top-up fee`, `رسوم التغذية`],
 	[`Frais du jour`, `Daily fees`, `رسوم اليوم`],
-	[`Max 999 TND · Laissez vide pour la valeur par défaut.`, `Max 999 TND · Leave empty for default value.`, `الحد الأقصى 999 TND · اترك الحقل فارغاً للقيمة الافتراضية.`],
+	[`Max 999 · Laissez vide pour la valeur par défaut.`, `Max 999 · Leave empty for default value.`, `الحد الأقصى 999 · اترك الحقل فارغاً للقيمة الافتراضية.`],
 	[`Frais`, `Fees`, `رسوم`],
 	[`Alimentation`, `Top-up`, `تغذية`],
 	[`En ligne`, `Online`, `متصل`],
@@ -5595,6 +5591,12 @@ window.addEventListener('DOMContentLoaded', boot);
 [`Réinitialiser le tri personnalisé ?`, `Reset custom sort?`, `إعادة تعيين الترتيب المخصص؟`],
 [`🔢 Tri mis à jour`, `🔢 Sort updated`, `🔢 تم تحديث الترتيب`],
 [`🔢 Tri réinitialisé`, `🔢 Sort reset`, `🔢 تم إعادة تعيين الترتيب`],
+[`Confirmation requise`, `Confirmation required`, `تأكيد مطلوب`],
+[`Validation automatique dans`, `Automatic validation in`, `التحقق التلقائي خلال`],
+[`seconde(s)`, `second(s)`, `ثوانٍ`],
+[`OUI`, `YES`, `نعم`],
+[`🚨 DÉCONNEXION D'URGENCE`, `🚨 EMERGENCY LOGOUT`, `🚨 تسجيل خروج طارئ`],
+[`Ce code est réservé, choisissez-en un autre.`, `This code is reserved, choose another one.`, `هذا الرمز محجوز، اختر رمزاً آخر.`],
     ];
 
     var P = [
@@ -5615,20 +5617,20 @@ window.addEventListener('DOMContentLoaded', boot);
         [`Livraison validée pour {1}.`, `Delivery validated for {1}.`, `تم تأكيد التوصيل الخاص بـ {1}.`],
         [`Opération pour {1} annulée.`, `Operation for {1} cancelled.`, `تم إلغاء العملية الخاصة بـ {1}.`],
         [`{1} est à nouveau EN COURS.`, `{1} is PENDING again.`, `{1} عادت إلى قيد التنفيذ.`],
-        [`Nouveau montant {1} TND.`, `New amount {1} TND.`, `المبلغ الجديد {1} TND.`],
+        [`Nouveau montant {1}.`, `New amount {1}.`, `المبلغ الجديد {1}.`],
         [`⚠️ CLIENT BLACKLISTÉ !\n\nNom : {1}\nTéléphone : {2}\nMotif : {3}\n\nForcer l'enregistrement ?`, `⚠️ BLACKLISTED CLIENT!\n\nName: {1}\nPhone: {2}\nReason: {3}\n\nForce the registration?`, `⚠️ عميل في القائمة السوداء!\n\nالاسم: {1}\nالهاتف: {2}\nالسبب: {3}\n\nهل تريد فرض التسجيل؟`],
-        [`Alimentation de {1} TND assignée à {2}.`, `Top-up of {1} TND assigned to {2}.`, `تم تعيين تغذية بقيمة {1} TND إلى {2}.`],
-        [`Livraison de {1} TND assignée à {2}.`, `Delivery of {1} TND assigned to {2}.`, `تم تعيين توصيل بقيمة {1} TND إلى {2}.`],
-        [`+{1} TND en cours de validation.`, `+{1} TND pending validation.`, `+{1} TND قيد التأكيد.`],
-        [`Plafond dépassé ! Max : {1} TND`, `Limit exceeded! Max: {1} TND`, `تم تجاوز السقف! الحد الأقصى: {1} TND`],
-        [`{1} TND attribués à {2}.`, `{1} TND assigned to {2}.`, `تم تخصيص {1} TND لـ {2}.`],
-        [`Impossible : déjà attribué {1} TND aux livreurs.`, `Not possible: {1} TND already assigned to couriers.`, `غير ممكن: تم تخصيص {1} TND للموزّعين مسبقاً.`],
-        [`{1} TND pour le {2}.`, `{1} TND for {2}.`, `{1} TND ليوم {2}.`],
+        [`Alimentation de {1} assignée à {2}.`, `Top-up of {1} assigned to {2}.`, `تم تعيين تغذية بقيمة {1} إلى {2}.`],
+        [`Livraison de {1} assignée à {2}.`, `Delivery of {1} assigned to {2}.`, `تم تعيين توصيل بقيمة {1} إلى {2}.`],
+        [`+{1} en cours de validation.`, `+{1} pending validation.`, `+{1} قيد التأكيد.`],
+        [`Plafond dépassé ! Max : {1}`, `Limit exceeded! Max: {1}`, `تم تجاوز السقف! الحد الأقصى: {1}`],
+        [`{1} attribués à {2}.`, `{1} assigned to {2}.`, `تم تخصيص {1} لـ {2}.`],
+        [`Impossible : déjà attribué {1} aux livreurs.`, `Not possible: {1} already assigned to couriers.`, `غير ممكن: تم تخصيص {1} للموزّعين مسبقاً.`],
+        [`{1} pour le {2}.`, `{1} for {2}.`, `{1} ليوم {2}.`],
         [`Opération réaffectée à {1}.`, `Operation reassigned to {1}.`, `تمت إعادة تعيين العملية إلى {1}.`],
         [`Espace : {1}`, `Space: {1}`, `فضاء: {1}`],
         [`Solde Départ - {1}`, `Opening Balance - {1}`, `رصيد البداية - {1}`],
-        [`Confirmer la validation de "{1}" ({2} TND) ?`, `Confirm the validation of "{1}" ({2} TND)?`, `هل تؤكد المصادقة على "{1}" ({2} TND)؟`],
-        [`Réaffectation de "{1}" ({2} TND) :`, `Reassignment of "{1}" ({2} TND):`, `إعادة تعيين "{1}" ({2} TND):`],
+        [`Confirmer la validation de "{1}" ({2}) ?`, `Confirm the validation of "{1}" ({2})?`, `هل تؤكد المصادقة على "{1}" ({2})؟`],
+        [`Réaffectation de "{1}" ({2}) :`, `Reassignment of "{1}" ({2}):`, `إعادة تعيين "{1}" ({2}):`],
         [`Solde possédé : {1}`, `Balance held: {1}`, `الرصيد بحوزتي: {1}`],
         [`possédé : {1}`, `held: {1}`, `بحوزتي: {1}`],
         [`(possédé : {1})`, `(held: {1})`, `(بحوزتي: {1})`],
@@ -5637,7 +5639,7 @@ window.addEventListener('DOMContentLoaded', boot);
         [`{1} • non validée`, `{1} • not acknowledged`, `{1} • غير مؤكَّدة`],
         [`🔔 {1} nouveautés`, `🔔 {1} updates`, `🔔 {1} مستجدات`],
         [`{1} n'est plus dans votre liste.`, `{1} is no longer in your list.`, `{1} لم تعد في قائمتك.`],
-        [`Admin a modifié votre solde de départ : {1} → {2} TND ({3})`, `Admin changed your opening balance: {1} → {2} TND ({3})`, `قام المسؤول بتعديل رصيد البداية الخاص بك: {1} ← {2} TND ({3})`],
+        [`Admin a modifié votre solde de départ : {1} → {2} ({3})`, `Admin changed your opening balance: {1} → {2} ({3})`, `قام المسؤول بتعديل رصيد البداية الخاص بك: {1} ← {2} ({3})`],
         [`{1} a supprimé la remarque de {2}`, `{1} deleted the remark of {2}`, `قام {1} بحذف الملاحظة الخاصة بـ {2}`],
         [`{1} a laissé une remarque pour {2} ({3})`, `{1} left a remark for {2} ({3})`, `قام {1} بترك ملاحظة لـ {2} ({3})`],
         [`{1} a modifié une remarque pour {2} ({3})`, `{1} edited a remark for {2} ({3})`, `قام {1} بتعديل ملاحظة لـ {2} ({3})`],
@@ -5651,18 +5653,18 @@ window.addEventListener('DOMContentLoaded', boot);
         [`{1} a supprimé la localisation de {2}`, `{1} deleted the location of {2}`, `قام {1} بحذف موقع {2}`],
         [`{1} a ajouté une localisation de {2}`, `{1} added a location for {2}`, `قام {1} بإضافة موقع لـ {2}`],
         [`{1} a modifié la localisation de {2}`, `{1} changed the location of {2}`, `قام {1} بتعديل موقع {2}`],
-        [`{1} a modifié le montant de {2} : {3} TND`, `{1} changed the amount of {2}: {3} TND`, `قام {1} بتعديل مبلغ {2}: {3} TND`],
+        [`{1} a modifié le montant de {2} : {3}`, `{1} changed the amount of {2}: {3}`, `قام {1} بتعديل مبلغ {2}: {3}`],
         [`{1}s enregistrés.`, `{1}s recorded.`, `تم تسجيل {1} ثانية.`],
         [`⚠️ Maximum {1} messages vocaux par opération.\nSupprimez-en un (×) avant d'en ajouter un autre.`, `⚠️ Maximum {1} voice messages per operation.\nDelete one (×) before adding another.`, `⚠️ الحد الأقصى {1} رسالة صوتية لكل عملية.\nاحذف واحدة (×) قبل إضافة أخرى.`],
         [`{1} a envoyé un vocal de {2} pour {3}`, `{1} sent a voice message of {2} for {3}`, `قام {1} بإرسال رسالة صوتية مدتها {2} لـ {3}`],
         [`{1} a supprimé un vocal pour {2}`, `{1} deleted a voice message for {2}`, `قام {1} بحذف رسالة صوتية لـ {2}`],
-	[`Admin a transféré {1} TND de votre solde vers {2} : {3} → {4} TND ({5})`, `Admin transferred {1} TND from your balance to {2}: {3} → {4} TND ({5})`, `قام المسؤول بتحويل {1} TND من رصيدك إلى {2}: {3} ← {4} TND ({5})`],
-	[`Admin a transféré {1} TND de {2} vers votre solde : {3} → {4} TND ({5})`, `Admin transferred {1} TND from {2} to your balance: {3} → {4} TND ({5})`, `قام المسؤول بتحويل {1} TND من {2} إلى رصيدك: {3} ← {4} TND ({5})`],
-	[`{1} TND transférés de {2} vers {3}.`, `{1} TND transferred from {2} to {3}.`, `تم تحويل {1} TND من {2} إلى {3}.`],
+	[`Admin a transféré {1} de votre solde vers {2} : {3} → {4} ({5})`, `Admin transferred {1} from your balance to {2}: {3} → {4} ({5})`, `قام المسؤول بتحويل {1} من رصيدك إلى {2}: {3} ← {4} ({5})`],
+	[`Admin a transféré {1} de {2} vers votre solde : {3} → {4} ({5})`, `Admin transferred {1} from {2} to your balance: {3} → {4} ({5})`, `قام المسؤول بتحويل {1} من {2} إلى رصيدك: {3} ← {4} ({5})`],
+	[`{1} transférés de {2} vers {3}.`, `{1} transferred from {2} to {3}.`, `تم تحويل {1} من {2} إلى {3}.`],
 [`{1} a écouté votre vocal ({2}) pour {3}`, `{1} listened to your voice message ({2}) for {3}`, `قام {1} بالاستماع إلى رسالتك الصوتية ({2}) لـ {3}`],   
 	[`Remettre la dette à zéro ?`, `Reset the debt to zero?`, `هل تريد إعادة الدين إلى الصفر؟`],
 	[`Le solde réel est 0. Rien à ajouter.`, `The actual balance is 0. Nothing to add.`, `الرصيد الفعلي هو 0. لا شيء لإضافته.`],
-	[`Ajouter le solde réel actuel ({1} TND) à la dette ?\n\nSolde réel négatif = le livreur a avancé du cash (Admin doit).\nSolde réel positif = le livreur a du cash en main (à reverser).\n\nNouvelle dette : {2} TND`, `Add the current actual balance ({1} TND) to the debt?\n\nNegative actual balance = courier advanced cash (Admin owes).\nPositive actual balance = courier has cash in hand (to hand over).\n\nNew debt: {2} TND`, `هل تريد إضافة الرصيد الفعلي الحالي ({1} TND) إلى الدين؟\n\nرصيد فعلي سالب = الموزّع دفع نقداً (المسؤول مدين).\nرصيد فعلي موجب = الموزّع لديه نقد بيده (يجب تسليمه).\n\nالدين الجديد: {2} TND`],
+	[`Ajouter le solde réel actuel ({1}) à la dette ?\n\nSolde réel négatif = le livreur a avancé du cash (Admin doit).\nSolde réel positif = le livreur a du cash en main (à reverser).\n\nNouvelle dette : {2}`, `Add the current actual balance ({1}) to the debt?\n\nNegative actual balance = courier advanced cash (Admin owes).\nPositive actual balance = courier has cash in hand (to hand over).\n\nNew debt: {2}`, `هل تريد إضافة الرصيد الفعلي الحالي ({1}) إلى الدين؟\n\nرصيد فعلي سالب = الموزّع دفع نقداً (المسؤول مدين).\nرصيد فعلي موجب = الموزّع لديه نقد بيده (يجب تسليمه).\n\nالدين الجديد: {2}`],
 	[`❌ Échec de l'enregistrement de la dette.`, `❌ Failed to save the debt.`, `❌ فشل حفظ الدين.`],
 	[`Dette enregistrée`, `Debt saved`, `تم حفظ الدين`],
 	[`Admin a mis à jour votre dette : {1} ({2})`, `Admin updated your debt: {1} ({2})`, `قام المسؤول بتحديث دينك: {1} ({2})`],
@@ -5683,21 +5685,22 @@ window.addEventListener('DOMContentLoaded', boot);
 	[`{1} a retiré "{2}" de la priorité de tri.`, `{1} removed "{2}" from sort priority.`, `قام {1} بإزالة "{2}" من أولوية الترتيب.`],
 	[`Admin a réinitialisé le tri personnalisé. Vos opérations reprennent l'ordre par défaut.`, `Admin reset the custom sort. Your operations return to the default order.`, `أعاد المسؤول تعيين الترتيب المخصص. تعود عملياتك إلى الترتيب الافتراضي.`],
 	[`{1} a réinitialisé le tri personnalisé.`, `{1} reset the custom sort.`, `قام {1} بإعادة تعيين الترتيب المخصص.`],
+[`Livreur {1} a utilisé la déconnexion forcée en urgence le {2}.`, `Courier {1} used the emergency forced logout on {2}.`, `استخدم الموزّع {1} تسجيل الخروج القسري في حالة طوارئ في {2}.`],
  ];
     [
         { fr: 'alimentation', art: "l'", en: 'top-up', add: 'تغذية', def: 'التغذية الخاصة بـ' },
         { fr: 'livraison', art: 'la ', en: 'delivery', add: 'توصيل', def: 'التوصيل الخاص بـ' }
     ].forEach(function (k) {
-        P.push([`{1} a ajouté une ${k.fr} pour {2} — {3} TND → {4}`, `{1} added a ${k.en} for {2} — {3} TND → {4}`, `قام {1} بإضافة ${k.add} لـ {2} — {3} TND → {4}`]);
-        P.push([`{1} a ajouté une ${k.fr} pour {2} — {3} TND`, `{1} added a ${k.en} for {2} — {3} TND`, `قام {1} بإضافة ${k.add} لـ {2} — {3} TND`]);
+        P.push([`{1} a ajouté une ${k.fr} pour {2} — {3} → {4}`, `{1} added a ${k.en} for {2} — {3} → {4}`, `قام {1} بإضافة ${k.add} لـ {2} — {3} → {4}`]);
+        P.push([`{1} a ajouté une ${k.fr} pour {2} — {3}`, `{1} added a ${k.en} for {2} — {3}`, `قام {1} بإضافة ${k.add} لـ {2} — {3}`]);
         [
             { fr: 'validé', en: 'validated the', ar: 'بتأكيد', tail: '' },
             { fr: 'annulé', en: 'cancelled the', ar: 'بإلغاء', tail: '' },
             { fr: 'remis en cours', en: 'put the', ar: 'بإعادة', tail: 1 }
         ].forEach(function (v) {
-            var frBase = `{1} a ${v.fr} ${k.art}${k.fr} de {2} ({3} TND)`;
-            var enBase = v.tail ? `{1} put the ${k.en} of {2} ({3} TND) back to pending` : `{1} ${v.en} ${k.en} of {2} ({3} TND)`;
-            var arBase = v.tail ? `قام {1} بإعادة ${k.def} {2} ({3} TND) إلى قيد التنفيذ` : `قام {1} ${v.ar} ${k.def} {2} ({3} TND)`;
+            var frBase = `{1} a ${v.fr} ${k.art}${k.fr} de {2} ({3})`;
+            var enBase = v.tail ? `{1} put the ${k.en} of {2} ({3}) back to pending` : `{1} ${v.en} ${k.en} of {2} ({3})`;
+            var arBase = v.tail ? `قام {1} بإعادة ${k.def} {2} ({3}) إلى قيد التنفيذ` : `قام {1} ${v.ar} ${k.def} {2} ({3})`;
             P.push([frBase + ` — remarque : « {4} »`, enBase + ` — remark: "{4}"`, arBase + ` — ملاحظة: «{4}»`]);
             P.push([frBase, enBase, arBase]);
         });
