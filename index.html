@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Warda v62.1 - Gestion de Warda</title>
+<title>Warda v63.0 - Gestion de Warda</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
@@ -148,11 +148,27 @@ body.locked #lang-float.admin-only { display: flex; }
             border-bottom-left-radius: 14px;
             padding-left: 16px !important;
         }
-        #admin-delivery-list > tr > td:last-child {
+                #admin-delivery-list > tr > td:last-child {
             border-right: 1px solid #e2e8f0;
             border-top-right-radius: 14px;
             border-bottom-right-radius: 14px;
             padding-right: 16px !important;
+        }
+                /* 🚫 Ligne client blacklisté : bordure rouge épaisse sur tous les td */
+        #admin-delivery-list > tr.blacklisted-row > td {
+            border-top: 2px solid #ef4444 !important;
+            border-bottom: 2px solid #ef4444 !important;
+        }
+        #admin-delivery-list > tr.blacklisted-row > td:first-child {
+            border-left: 4px solid #ef4444 !important;
+        }
+        #admin-delivery-list > tr.blacklisted-row > td:last-child {
+            border-right: 2px solid #ef4444 !important;
+        }
+        /* 🚫 Carte client blacklisté (livreur) : bordure + halo rouges, sans toucher au fond */
+        #livreur-delivery-cards > div.blacklisted-card {
+            border-color: #dc2626 !important;
+            box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.22) !important;
         }
         /* Animations appliquées aux cellules (indispensable en border-collapse: separate) */
         #admin-delivery-list > tr.op-exit-down,
@@ -503,7 +519,7 @@ body.locked #lang-float.admin-only { display: flex; }
     <span id="sync-indicator" class="syncing inline-block w-2.5 h-2.5 rounded-full" title="État de la connexion"></span>
     <span id="admin-presence-dot" role="button" tabindex="0" aria-label="Voir le statut de l'admin" class="presence-dot hidden" data-presence="admin" title="Admin hors ligne"></span>
                 </h1>
-                <p class="text-xs text-slate-400 hidden sm:block">Gestion de Warda - <span class="text-emerald-400 font-bold">v62.1</span></p>
+                <p class="text-xs text-slate-400 hidden sm:block">Gestion de Warda - <span class="text-emerald-400 font-bold">v63.0</span></p>
             </div>
         </div>
         <div id="header-actions" class="flex items-center gap-1.5 sm:gap-2 shrink-0">
@@ -1463,7 +1479,7 @@ const firebaseConfig = {
 };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
-const APP_VERSION = 62.1;      // à augmenter à chaque nouvelle version publiée (sert au bandeau « Nouvelle version »)
+const APP_VERSION = 63.0;      // à augmenter à chaque nouvelle version publiée (sert au bandeau « Nouvelle version »)
 const ROOT = 'cashexpress';
 const OPS_PATH = ROOT + '/ops';
 const CFG_PATH = ROOT + '/config';
@@ -2200,10 +2216,16 @@ function attachConfigListeners(isAdmin, myId) {
             }
             renderApp();
         });
-    } else {               
+        } else {               
         addCfgListener(CFG_PATH + '/couriersCanSeeHistory', s => {
             state.couriersCanSeeHistory = s.val() !== false;
             applyCourierHistoryRestriction();
+        });
+        // 🚫 Blacklist accessible aux livreurs (lecture seule) : pour afficher les badges
+        addCfgListener(CFG_PATH + '/blacklist', s => {
+            const v = s.val() || {};
+            state.blacklist = Object.keys(v).filter(k => VALID_ID.test(k)).map(k => Object.assign({ id: k }, v[k]));
+            renderApp();
         });
         addCfgListener(CFG_PATH + '/livreurs/' + myId, s => {
             const v = s.val();
@@ -4006,6 +4028,19 @@ function handlePhoneLookupAndBlacklist(phone) {
     }
     banner.classList.add('hidden');
 }
+function isOpBlacklisted(op) {
+    if (!op || !state.blacklist || !state.blacklist.length) return null;
+    const phones = [
+        normalizePhone(op.phone),
+        normalizePhone(op.phone2)
+    ].filter(Boolean);
+    for (const p of phones) {
+        const found = state.blacklist.find(b => normalizePhone(b.phone) === p);
+        if (found) return found;
+    }
+    return null;
+}
+
 let _histTimer = null;
 function handlePhoneHistoryLookup(phone) {
     clearTimeout(_histTimer);
@@ -4493,7 +4528,10 @@ function renderAdminTable() {
             else if (d.status === 'cancelled') { statusBadge = `<span class="px-2.5 py-1 rounded-full text-xs font-bold bg-red-600 text-white">🔴 Annulé</span>`; rowBgClass = 'bg-red-100/90 text-red-950 border-b border-red-200'; isStrikethrough = true; }
                         else { statusBadge = `<span class="px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-200">🟡 En cours</span>`; rowBgClass = 'border-b border-slate-100'; }
         }
-        tr.className = `${rowBgClass} ${isStrikethrough ? 'strikethrough-text text-slate-400' : ''} transition duration-150`;
+                const _blacklisted = isOpBlacklisted(d);
+        // Note : le fond rouge a été retiré — la ligne garde la couleur de son statut.
+        // Le cadre rouge est appliqué via la classe 'blacklisted-row' (CSS).
+        tr.className = `${rowBgClass} ${isStrikethrough ? 'strikethrough-text text-slate-400' : ''} ${(_blacklisted && d.status !== 'cancelled') ? 'blacklisted-row' : ''} transition duration-150`;
         const mapsUrl = d.location && d.location.startsWith('http') ? d.location : `https://maps.google.com/?q=${encodeURIComponent(d.location || '')}`;
         const canEditAmount = d.status === 'pending';
         let timeHTML = `<span class="px-2 py-1 bg-slate-100 border border-slate-200 text-slate-700 rounded-md text-xs font-bold" title="Heure d'insertion"><i class="fa-solid fa-plus text-brand-600 text-[10px] me-1"></i>${cTime}</span>`;
@@ -4507,8 +4545,9 @@ function renderAdminTable() {
             <td class="p-3.5">
 ${sortModeActive && d.status === 'pending' ? `<button onclick="handleSortClick('${d.id}')" class="inline-flex items-center justify-center w-6 h-6 rounded-full text-[10px] font-black ${sortSelection.includes(d.id) ? 'bg-indigo-600 text-white' : 'bg-white border-2 border-indigo-400 text-indigo-600'} me-1 align-middle">${sortSelection.includes(d.id) ? sortSelection.indexOf(d.id) + 1 : ''}</button>` : ''}
 ${typeIcon}
-                <div class="flex items-center space-x-2 flex-wrap">
+                                <div class="flex items-center space-x-2 flex-wrap">
                     <span class="font-bold text-slate-900">${esc(d.clientName)}</span>
+                    ${_blacklisted && d.status !== 'cancelled' ? `<span class="inline-flex items-center gap-1 px-1.5 py-0.5 bg-red-600 text-white text-[10px] font-black rounded border border-red-700 shadow-sm" title="Motif : ${esc(_blacklisted.reason || 'Non spécifié')}">🚫 BLACKLISTÉ</span>` : ''}
                     ${d.phone ? `<div class="inline-flex items-center space-x-1.5 bg-slate-100/80 px-1.5 py-0.5 rounded">
                         <a href="tel:${esc(d.phone)}" class="text-xs font-semibold text-brand-600 hover:underline flex items-center gap-1"><i class="fa-solid fa-phone text-[10px]"></i> ${esc(d.phone)}</a>
                         <a href="https://wa.me/${esc((d.phone || '').replace(/\s+/g, ''))}" target="_blank" class="px-1.5 py-0.5 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold rounded flex items-center gap-0.5"><i class="fa-brands fa-whatsapp text-[10px]"></i> WA</a>
@@ -4539,9 +4578,10 @@ ${typeIcon}
                 </div>
             </td>
             <td class="p-3.5"><div class="flex items-center space-x-1.5">${timeHTML}</div></td>
-            <td class="p-3.5">
+                        <td class="p-3.5">
                 <div class="space-y-1">
                     ${statusBadge}
+                    ${_blacklisted && d.status !== 'cancelled' ? `<p class="text-[11px] text-red-800 bg-red-100 p-1 rounded border border-red-300 font-bold">🚫 <strong>MOTIF BLOCAGE :</strong> ${esc(_blacklisted.reason || 'Non spécifié')}</p>` : ''}
                     ${d.remarkAdmin ? `<p class="text-[11px] text-brand-700 bg-brand-50 p-1 rounded border border-brand-100">👑 <strong>Admin:</strong> « ${esc(d.remarkAdmin)} »</p>` : ''}
                     ${d.remarkLivreur ? `<p class="text-[11px] text-amber-800 bg-amber-50 p-1 rounded border border-amber-100">🛵 <strong>Livreur:</strong> « ${esc(d.remarkLivreur)} »</p>` : ''}
    ${voiceCount(d) ? `<div class="flex items-center gap-1.5 flex-wrap mt-1">${_vList(d.id, d)}</div>` : ''}                 
@@ -4648,8 +4688,11 @@ function renderLivreurDashboard(livreurId) {
             if (d.status === 'delivered') { borderClass = 'border-emerald-400 bg-emerald-100/90 text-emerald-950'; statusBadge = '<span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-700 text-white">🟢 ENVOYÉ</span>'; }
             else if (d.status === 'cancelled') { borderClass = 'border-red-400 bg-red-100/90 text-red-950'; statusBadge = '<span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-red-600 text-white">🔴 ANNULÉ</span>'; }
         }
-        const typeBadge = isCash ? '<span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-purple-100 text-purple-900 border border-purple-200">➕ ALIM</span>' : '<span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-blue-100 text-blue-900 border border-blue-200">📦 LIVR</span>';
-        card.className = `p-3 rounded-xl border-2 ${borderClass} shadow-sm transition space-y-2 text-xs`;
+                const typeBadge = isCash ? '<span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-purple-100 text-purple-900 border border-purple-200">➕ ALIM</span>' : '<span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-blue-100 text-blue-900 border border-blue-200">📦 LIVR</span>';
+        const _blacklisted = isOpBlacklisted(d);
+        // Note : le fond rouge a été retiré — la carte garde la couleur de son statut.
+        // Le cadre rouge est appliqué via la classe 'blacklisted-card' (CSS).
+        card.className = `p-3 rounded-xl border-2 ${borderClass} shadow-sm transition space-y-2 text-xs${(_blacklisted && d.status !== 'cancelled') ? ' blacklisted-card' : ''}`;
         card.innerHTML = `
             <div class="flex items-center justify-between gap-2 border-b border-slate-200/60 pb-1.5">
                 <div class="flex items-center space-x-1.5 flex-wrap gap-y-1">
@@ -4657,6 +4700,7 @@ ${sortModeActive && d.status === 'pending' ? `<button onclick="handleSortClick('
 <span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-700 text-white">#${cardNumber}</span>
 
                                         ${typeBadge}${statusBadge}
+                    ${_blacklisted && d.status !== 'cancelled' ? `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-black bg-red-600 text-white border border-red-700 shadow-sm" title="Motif : ${esc(_blacklisted.reason || 'Non spécifié')}">🚫 BLACKLISTÉ</span>` : ''}
                     <span class="text-[11px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">🕒 ${cTime}${d.actionTime ? ' ➔ ' + d.actionTime : ''}</span>
                     ${d.status === 'delivered' && typeof d.deliveryFee === 'number' && d.deliveryFee > 0 ? `<span class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200" title="Frais"><i class="fa-solid fa-coins text-[9px]"></i> ${Number(d.deliveryFee).toLocaleString('fr-FR')}</span>` : ''}
                 </div>
@@ -4686,8 +4730,9 @@ ${sortModeActive && d.status === 'pending' ? `<button onclick="handleSortClick('
 ${_vBtn(d.id)}
 </div>
             </div>
-            ${(d.remarkAdmin || d.remarkLivreur || voiceCount(d)) ? `
+            ${(d.remarkAdmin || d.remarkLivreur || voiceCount(d) || (_blacklisted && d.status !== 'cancelled')) ? `
 <div class="text-[11px] pt-1.5 border-t border-slate-200/60 space-y-0.5">
+    ${_blacklisted && d.status !== 'cancelled' ? `<p class="text-red-800 bg-red-100 px-2 py-0.5 rounded font-bold border border-red-300">🚫 <strong>CLIENT BLACKLISTÉ :</strong> ${esc(_blacklisted.reason || 'Non spécifié')}</p>` : ''}
     ${d.remarkAdmin ? `<p class="text-brand-800 bg-brand-50/80 px-2 py-0.5 rounded">👑 <strong>Admin:</strong> ${esc(d.remarkAdmin)}</p>` : ''}
     ${d.remarkLivreur ? `<p class="text-amber-900 bg-amber-50/80 px-2 py-0.5 rounded">🛵 <strong>Remarque:</strong> ${esc(d.remarkLivreur)}</p>` : ''}
     ${voiceCount(d) ? `<div class="flex items-center gap-1.5 flex-wrap pt-1">${_vList(d.id, d)}</div>` : ''}
@@ -5538,7 +5583,7 @@ window.addEventListener('DOMContentLoaded', boot);
     try { var saved = localStorage.getItem(KEY); if (LANGS.indexOf(saved) >= 0) lang = saved; } catch (e) {}
 
     var E = [
-        [`Warda v62.1 - Gestion de Warda`, `Warda v62.1 - Warda management`, `وردة v62.1 - إدارة وردة`],
+        [`Warda v63.0 - Gestion de Warda`, `Warda v63.0 - Warda management`, `وردة v63.0 - إدارة وردة`],
 [`Options`, `Options`, `خيارات`],
 [`Langue`, `Language`, `اللغة`],
 [`Plus d'options`, `More options`, `المزيد من الخيارات`],
