@@ -4293,12 +4293,11 @@ ${typeIcon}
                         <button onclick="openConfirmValidationModal('${d.id}')" class="p-1.5 bg-emerald-600 text-white rounded-lg text-xs font-bold hover:bg-emerald-700 transition"><i class="fa-solid fa-check"></i></button>
                         <button onclick="openCancelModal('${d.id}')" class="p-1.5 bg-red-600 text-white rounded-lg text-xs font-bold hover:bg-red-700 transition"><i class="fa-solid fa-ban"></i></button>
                     ` : `<button onclick="confirmResetToPending('${d.id}')" class="p-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-xs font-bold transition"><i class="fa-solid fa-rotate-left"></i></button>`}
-                                        ${d.status === 'pending' ? `
-                        <button onclick="openRemarkModal('${d.id}')" class="p-1.5 bg-brand-100 text-brand-700 hover:bg-brand-200 rounded-lg text-xs font-bold transition"><i class="fa-solid fa-comment-dots"></i></button>
+                    <button onclick="openRemarkModal('${d.id}')" title="Remarque" class="p-1.5 bg-brand-100 text-brand-700 hover:bg-brand-200 rounded-lg text-xs font-bold transition"><i class="fa-solid fa-comment-dots"></i></button>
+                    ${d.status === 'pending' ? `
                         <button type="button" onclick="openEditOpModal('${d.id}')" title="Modifier" class="p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold transition"><i class="fa-solid fa-pen-to-square"></i></button>
                     ` : `
-                        <button type="button" disabled title="Uniquement pour les opérations en cours" class="p-1.5 bg-slate-50 text-slate-300 rounded-lg text-xs font-bold cursor-not-allowed"><i class="fa-solid fa-comment-dots"></i></button>
-                        <button type="button" disabled title="Uniquement pour les opérations en cours" class="p-1.5 bg-slate-50 text-slate-300 rounded-lg text-xs font-bold cursor-not-allowed"><i class="fa-solid fa-pen-to-square"></i></button>
+                        <button type="button" disabled title="Modification uniquement pour les opérations en cours" class="p-1.5 bg-slate-50 text-slate-300 rounded-lg text-xs font-bold cursor-not-allowed"><i class="fa-solid fa-pen-to-square"></i></button>
                     `}
                     <button onclick="openConfirmDeleteModal('${d.id}')" class="p-1.5 bg-red-100 hover:bg-red-200 text-red-700 rounded-lg text-xs font-bold transition"><i class="fa-solid fa-trash-can"></i></button>
                     ${_vBtn(d.id, 'sm')}
@@ -4418,12 +4417,11 @@ ${sortModeActive && d.status === 'pending' ? `<button onclick="handleSortClick('
                         <button onclick="openConfirmValidationModal('${d.id}')" class="px-3 py-1.5 ${isCash ? 'bg-purple-600 hover:bg-purple-700' : 'bg-emerald-600 hover:bg-emerald-700'} text-white font-bold text-xs rounded-lg shadow-sm transition flex items-center space-x-1"><i class="fa-solid fa-check"></i><span>${isCash ? 'VALIDER' : 'ENVOYER'}</span></button>
                         <button onclick="openCancelModal('${d.id}')" class="px-2 py-1.5 bg-red-100 hover:bg-red-200 text-red-700 font-bold text-xs rounded-lg transition"><i class="fa-solid fa-ban"></i></button>
                     ` : `<button onclick="confirmResetToPending('${d.id}')" class="px-2 py-1 bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs rounded-lg transition"><i class="fa-solid fa-rotate-left"></i></button>`}
-                                        ${d.status === 'pending' ? `
-                        <button onclick="openRemarkModal('${d.id}')" class="px-2 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-lg transition"><i class="fa-solid fa-comment-dots"></i></button>
+                                <button onclick="openRemarkModal('${d.id}')" title="Remarque" class="px-2 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-lg transition"><i class="fa-solid fa-comment-dots"></i></button>
+                    ${d.status === 'pending' ? `
                         <button type="button" onclick="openEditOpModal('${d.id}')" title="Modifier" class="px-2 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-lg transition"><i class="fa-solid fa-pen-to-square"></i> Modifier</button>
                     ` : `
-                        <button type="button" disabled title="Uniquement pour les opérations en cours" class="px-2 py-1.5 bg-slate-50 text-slate-300 font-bold text-xs rounded-lg cursor-not-allowed"><i class="fa-solid fa-comment-dots"></i></button>
-                        <button type="button" disabled title="Uniquement pour les opérations en cours" class="px-2 py-1.5 bg-slate-50 text-slate-300 font-bold text-xs rounded-lg cursor-not-allowed"><i class="fa-solid fa-pen-to-square"></i> Modifier</button>
+                        <button type="button" disabled title="Modification uniquement pour les opérations en cours" class="px-2 py-1.5 bg-slate-50 text-slate-300 font-bold text-xs rounded-lg cursor-not-allowed"><i class="fa-solid fa-pen-to-square"></i> Modifier</button>
                     `}
 ${_vBtn(d.id)}
 </div>
@@ -4723,7 +4721,6 @@ function handleSaveDelivery(e) {
 function openRemarkModal(id) {
     const del = state.deliveries.find(d => d.id === id);
     if (!del) return;
-    if (del.status !== 'pending') { alert("Remarque impossible : cette opération n'est plus EN COURS."); return; }
     document.getElementById('remark-delivery-id').value = id;
     const isAdmin = state.currentRole === 'admin';
     document.getElementById('modal-remark-title').textContent = isAdmin ? "Remarque Admin" : "Remarque Livreur";
@@ -4738,7 +4735,6 @@ function handleSaveRemark(e) {
     const text = document.getElementById('input-delivery-remark').value.trim();
     const del = state.deliveries.find(d => d.id === id);
     if (del) {
-        if (del.status !== 'pending') { toggleRemarkModal(false); alert("Remarque impossible : cette opération n'est plus EN COURS."); return; }
         if (state.currentRole === 'admin') { patchOp(id, { remarkAdmin: text }); showToast("Remarque Admin", "Mise à jour."); }
         else { patchOp(id, { remarkLivreur: text }); showToast("Remarque Livreur", "Enregistrée."); }
     }
