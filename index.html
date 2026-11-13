@@ -4097,9 +4097,8 @@ function triggerSosAlert() {
     const dateStr = new Date().toLocaleString('fr-FR');
 
         // ① Notification Firebase pour l'admin (déclenche le son SOS spécifique)
-    sendNotification('admin', '🚨 DÉCONNEXION D\'URGENCE',
-        `Livreur ${livreurName} a utilisé la déconnexion forcée en urgence le ${dateStr}.
-`);
+     sendNotification('admin', '🚨 DÉCONNEXION D\'URGENCE',
+        `Livreur ${livreurName} a utilisé la déconnexion forcée en urgence le ${dateStr}.`);
 
     // ② Déconnexion forcée : suppression de la session locale
     try {
